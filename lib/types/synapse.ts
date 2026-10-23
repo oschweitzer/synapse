@@ -14,6 +14,120 @@ export type Database = {
   }
   synapse: {
     Tables: {
+      calendar_events: {
+        Row: {
+          all_day: boolean
+          calendar_id: string
+          end_at: string
+          event_id: string
+          html_link: string | null
+          location: string | null
+          start_at: string
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          all_day?: boolean
+          calendar_id: string
+          end_at: string
+          event_id: string
+          html_link?: string | null
+          location?: string | null
+          start_at: string
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          all_day?: boolean
+          calendar_id?: string
+          end_at?: string
+          event_id?: string
+          html_link?: string | null
+          location?: string | null
+          start_at?: string
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      google_accounts: {
+        Row: {
+          connected_at: string
+          google_email: string | null
+          needs_reauth: boolean
+          scopes: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          connected_at?: string
+          google_email?: string | null
+          needs_reauth?: boolean
+          scopes?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          connected_at?: string
+          google_email?: string | null
+          needs_reauth?: boolean
+          scopes?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      google_credentials: {
+        Row: {
+          refresh_token_encrypted: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          refresh_token_encrypted: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          refresh_token_encrypted?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mail_headers: {
+        Row: {
+          is_unread: boolean
+          message_id: string
+          received_at: string
+          sender: string | null
+          snippet: string | null
+          subject: string | null
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          is_unread?: boolean
+          message_id: string
+          received_at: string
+          sender?: string | null
+          snippet?: string | null
+          subject?: string | null
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          is_unread?: boolean
+          message_id?: string
+          received_at?: string
+          sender?: string | null
+          snippet?: string | null
+          subject?: string | null
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       schema_migrations: {
         Row: {
           applied_at: string
@@ -100,7 +214,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      disconnect_google: { Args: never; Returns: undefined }
+      replace_google_cache: {
+        Args: { p_events: Json; p_mails: Json; p_user_id: string }
+        Returns: undefined
+      }
+      save_google_connection: {
+        Args: {
+          p_google_email: string
+          p_refresh_token_encrypted: string
+          p_scopes: string[]
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

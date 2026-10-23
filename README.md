@@ -29,7 +29,9 @@ Scripts : `npm run build`, `npm run lint`, `npm run typecheck`.
 | Variable | Rôle |
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Projet Supabase **partagé avec Cairn** (Settings > API) |
-| `NEXT_PUBLIC_SITE_URL` | URL publique de Synapse (utilisée dès la phase 3, OAuth Google) |
+| `NEXT_PUBLIC_SITE_URL` | URL publique de Synapse (redirection OAuth Google : `<url>/api/google/callback`) |
+| `SYNAPSE_GOOGLE_CLIENT_ID` / `SYNAPSE_GOOGLE_CLIENT_SECRET` | Client OAuth Google de Synapse (voir « Agenda et mails ») |
+| `SYNAPSE_GOOGLE_TOKEN_KEY` | Clé de chiffrement du refresh token Google, 64 caractères hexadécimaux, la même que dans les secrets des Edge Functions |
 | `NEXT_PUBLIC_CAIRN_URL` | URL web de Cairn, liens « Ouvrir dans Cairn » (utilisée dès la phase 2) |
 | `DATABASE_URL` | Local uniquement : connexion Postgres pour les migrations (Supabase > Connect > *Session pooler*) |
 | `SUPABASE_PROJECT_REF` | Local uniquement : id du projet, pour générer les types |
@@ -71,6 +73,37 @@ Les widgets « À faire » et « Courses » lisent directement les tables Cairn 
 - **Coffre** : un contenu chiffré n'est jamais lu, seulement compté (« 3 éléments privés ») ; une note privée ou masquée apparaît sous son nom de code, sans le texte de ses items.
 - **Courses** : la checklist se choisit dans **Réglages** (`/settings`), parmi les checklists non chiffrées. Ses items ne sont pas repris dans « À faire ».
 - Les liens « Ouvrir dans Cairn » utilisent `NEXT_PUBLIC_CAIRN_URL` (sans cette variable, pas de lien).
+
+### Agenda et mails (Google)
+
+Widgets « Agenda » (aujourd’hui, puis les 7 jours suivants) et « Mails » (en-têtes des 20 derniers mails de la boîte de réception, clic → Gmail). Le dashboard lit un cache (`synapse.calendar_events`, `synapse.mail_headers`) rempli toutes les 30 min par l’Edge Function `synapse-google-sync`, déclenchée par `pg_cron`. Chaque passage laisse une ligne dans `synapse.sync_runs`. Lecture seule : `calendar.readonly` + `gmail.readonly`, jamais le corps d’un mail.
+
+Le refresh token est chiffré (AES-GCM) par `/api/google/callback`, puis stocké dans `synapse.google_credentials` (RLS sans politique : illisible côté client). Si Google le refuse, un bandeau « Reconnecter Google » apparaît sur le dashboard.
+
+Mise en place, une seule fois :
+
+1. **Google Cloud** (projet de Cairn) : activer *Google Calendar API* et *Gmail API*. Créer un client OAuth **« Application Web »** propre à Synapse, avec comme URI de redirection `<NEXT_PUBLIC_SITE_URL>/api/google/callback` (et `http://localhost:3000/api/google/callback` en local). Écran de consentement : ajouter les scopes `calendar.readonly` et `gmail.readonly`, puis **publier en Production sans demander la vérification**. En mode Test, les refresh tokens expirent au bout de 7 jours. L’écran de consentement est commun à tout le projet Google Cloud : Cairn passe lui aussi en Production.
+2. **Secrets.** Générer deux valeurs : `openssl rand -hex 32` pour la clé de chiffrement, et une seconde fois pour le secret de pg_cron. Sur Vercel, renseigner `SYNAPSE_GOOGLE_CLIENT_ID`, `SYNAPSE_GOOGLE_CLIENT_SECRET` et `SYNAPSE_GOOGLE_TOKEN_KEY`. Dans le projet Supabase :
+   ```bash
+   supabase secrets set --project-ref <ref> \
+     SYNAPSE_GOOGLE_CLIENT_ID=… SYNAPSE_GOOGLE_CLIENT_SECRET=… \
+     SYNAPSE_GOOGLE_TOKEN_KEY=<même clé que Vercel> SYNAPSE_CRON_SECRET=<secret pg_cron>
+   ```
+   Les noms sont préfixés `SYNAPSE_` parce que le projet, et donc ses secrets, sont partagés avec Cairn (`GOOGLE_TOKEN_KEY`, `GOOGLE_CLIENT_ID_WEB`…).
+3. **Edge Function**, depuis ce repo (ça ne déploie que cette fonction, rien d’autre de Cairn) :
+   ```bash
+   supabase functions deploy synapse-google-sync --project-ref <ref>
+   ```
+   `supabase/config.toml` la déclare sans vérification JWT : pg_cron n’a pas de session, et la fonction vérifie elle-même le secret ou la session.
+4. **Migration** `0002_google.sql` (`npm run db:migrate`) : tables, fonctions, extensions `pg_cron` / `pg_net` et planification toutes les 30 min.
+5. **Vault** (Supabase > SQL Editor). L’URL et le secret appelés par pg_cron y sont lus à chaque passage :
+   ```sql
+   select vault.create_secret('https://<ref>.supabase.co/functions/v1', 'synapse_functions_url');
+   select vault.create_secret('<secret pg_cron>', 'synapse_cron_secret');
+   ```
+6. Dans Synapse, **Réglages > Connecter Google**. Une première synchro part tout de suite ; le bouton « Synchroniser maintenant » en relance une.
+
+Suivre les passages : `select * from synapse.sync_runs order by started_at desc limit 10;` et, côté pg_cron, `select * from cron.job_run_details order by start_time desc limit 10;`. « Déconnecter » efface le jeton et le cache ; l’autorisation se retire aussi chez Google (myaccount.google.com/permissions).
 
 ### Connexion
 

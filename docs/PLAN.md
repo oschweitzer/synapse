@@ -58,6 +58,12 @@ Seule la météo est appelée en direct depuis le serveur Next (avec mise en cac
   (`supabase/functions/_shared/chiffrement.ts`), mais dans une table
   `synapse.google_credentials` distincte : Cairn n'a que le scope
   `calendar.events`, et révoquer l'un ne doit pas couper l'autre.
+- Répartition (phase 3) : l'échange du code se fait dans `/api/google/callback`
+  (Next, secret client côté serveur), qui chiffre le refresh token et l'enregistre
+  via `synapse.save_google_connection()` (SECURITY DEFINER, limitée à
+  `auth.uid()`) : pas de clé `service_role` sur Vercel. L'Edge Function, elle,
+  déchiffre avec la même clé. Secrets préfixés `SYNAPSE_` : ceux des Edge
+  Functions sont partagés avec Cairn.
 - ⚠️ En mode « Test » de l'écran de consentement, les refresh tokens expirent
   après 7 jours. Passer l'application en **Production sans vérification**
   (écran d'avertissement à la connexion, limite de 100 comptes) supprime

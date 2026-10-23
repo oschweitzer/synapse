@@ -1,4 +1,5 @@
-import { cairnNoteUrl, TIME_ZONE, type Todo } from '@/lib/connectors/cairn'
+import { cairnNoteUrl, type Todo } from '@/lib/connectors/cairn'
+import { TIME_ZONE } from '@/lib/time'
 import { CheckItem } from './CheckItem'
 
 const muted = 'text-slate-500 dark:text-slate-400'

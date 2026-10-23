@@ -1,0 +1,9 @@
+# Uniquement pour `supabase functions deploy synapse-google-sync`.
+# Le projet est partagé avec Cairn, dont le repo gère les migrations :
+# ne JAMAIS lancer `supabase db push` depuis Synapse (voir README).
+project_id = "synapse"
+
+# Appelée par pg_cron (sans session) : la fonction vérifie elle-même le secret
+# `x-synapse-cron` ou la session de l'utilisateur.
+[functions.synapse-google-sync]
+verify_jwt = false

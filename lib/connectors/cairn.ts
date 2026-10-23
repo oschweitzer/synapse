@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { endOfToday } from '@/lib/time'
 import type { Tables } from '@/lib/types/cairn'
 import type { Connector } from './types'
 
@@ -9,9 +10,6 @@ import type { Connector } from './types'
  * Coffre de Cairn : un contenu `is_encrypted` n'est jamais lu (seulement compté),
  * une note `is_private` / `hide_content` est désignée par son `code_name`.
  */
-
-/** Fuseau utilisé pour « aujourd'hui » : le serveur (Vercel) tourne en UTC. */
-export const TIME_ZONE = 'Europe/Paris'
 
 /** Nombre maximal d'items affichés dans le widget « À faire ». */
 const TODO_LIMIT = 15
@@ -65,37 +63,6 @@ export function noteLabel(note: Pick<NoteRow, 'title' | 'code_name' | 'is_privat
 
 function isMasked(note: Pick<NoteRow, 'is_private' | 'hide_content'>) {
   return note.is_private || note.hide_content
-}
-
-/** Date locale (y, m, d, h, min, s) de `date` dans `timeZone`. */
-function localParts(date: Date, timeZone: string) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(date)
-  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value)
-  return [get('year'), get('month'), get('day'), get('hour'), get('minute'), get('second')] as const
-}
-
-/** Décalage du fuseau à cet instant, en ms (heure locale lue comme UTC, moins l'instant réel). */
-function offsetAt(date: Date, timeZone: string) {
-  const [y, m, d, h, min, s] = localParts(date, timeZone)
-  return Date.UTC(y, m - 1, d, h, min, s) - Math.floor(date.getTime() / 1000) * 1000
-}
-
-/** Fin de la journée en cours dans `TIME_ZONE` (minuit suivant), changements d'heure compris. */
-export function endOfToday(now = new Date(), timeZone = TIME_ZONE) {
-  const [y, m, d] = localParts(now, timeZone)
-  const midnight = Date.UTC(y, m - 1, d + 1)
-  // Le décalage de minuit peut différer de celui de maintenant un jour de changement d'heure.
-  const guess = midnight - offsetAt(now, timeZone)
-  return new Date(midnight - offsetAt(new Date(guess), timeZone))
 }
 
 async function readShoppingChecklistId() {
