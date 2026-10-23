@@ -158,10 +158,10 @@ Schéma Postgres dédié, ajouté aux « Exposed schemas » de l'API Supabase. R
 **Migrations — point d'attention.** Le projet Supabase a déjà un historique de
 migrations, celui du repo Cairn. Lancer `supabase db push` depuis Synapse
 verrait ces migrations comme « distantes inconnues » et refuserait d'avancer.
-Proposition : les migrations du schéma `synapse` vivent dans
-`synapse/db/migrations/` et sont appliquées par un petit script (`psql` sur
-`DATABASE_URL`, avec sa propre table de suivi `synapse.schema_migrations`). Le
-CLI Supabase reste réservé à Cairn. À valider en phase 1.
+Décision (phase 1) : les migrations du schéma `synapse` vivent dans
+`db/migrations/` et sont appliquées par `scripts/migrate.mjs` (Node + paquet
+`postgres` sur `DATABASE_URL`, sans dépendre de `psql`), avec sa propre table de
+suivi `synapse.schema_migrations`. Le CLI Supabase reste réservé à Cairn.
 
 ## 5. Arborescence cible
 

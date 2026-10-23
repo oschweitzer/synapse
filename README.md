@@ -31,6 +31,24 @@ Scripts : `npm run build`, `npm run lint`, `npm run typecheck`.
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Projet Supabase **partagé avec Cairn** (Settings > API) |
 | `NEXT_PUBLIC_SITE_URL` | URL publique de Synapse (utilisée dès la phase 3, OAuth Google) |
 | `NEXT_PUBLIC_CAIRN_URL` | URL web de Cairn, liens « Ouvrir dans Cairn » (utilisée dès la phase 2) |
+| `DATABASE_URL` | Local uniquement : connexion Postgres pour les migrations (Supabase > Connect > *Session pooler*) |
+| `SUPABASE_PROJECT_REF` | Local uniquement : id du projet, pour générer les types |
+
+### Base de données (schéma `synapse`)
+
+Le projet Supabase est partagé avec Cairn, dont le repo gère l'historique des migrations via le CLI Supabase. **Ne jamais lancer `supabase db push` depuis Synapse.** Synapse a son propre mécanisme, limité au schéma `synapse` :
+
+- les migrations sont dans `db/migrations/NNNN_nom.sql`, appliquées dans l'ordre, chacune dans une transaction ;
+- leur suivi est dans `synapse.schema_migrations` (avec une empreinte : une migration déjà appliquée ne doit plus être modifiée, on en écrit une nouvelle) ;
+- le script refuse toute migration qui touche à `public.*` (tables Cairn).
+
+```bash
+npm run db:status    # migrations appliquées / en attente
+npm run db:migrate   # applique les migrations en attente
+npm run db:types     # régénère lib/types/{synapse,cairn}.ts (après `supabase login`)
+```
+
+Une seule fois, après la première migration : ajouter `synapse` dans Supabase **Settings > API > Exposed schemas** (sinon l'API renvoie « The schema must be one of the following »).
 
 ### Connexion
 
