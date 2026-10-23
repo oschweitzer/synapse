@@ -63,6 +63,15 @@ on conflict (user_id) do update set
   weather_longitude = excluded.weather_longitude;
 ```
 
+### To-do et courses (Cairn)
+
+Les widgets « À faire » et « Courses » lisent directement les tables Cairn (`notes`, `checklist_items`, `reminders`) avec la session : la RLS de Cairn fait le filtrage. Synapse n'y écrit que des données (cocher un item), jamais de schéma.
+
+- **À faire** : items non cochés des checklists non archivées et non supprimées ; ceux dont l'échéance (`due_at`, sinon le premier rappel) tombe aujourd'hui ou est dépassée passent en tête (fuseau `Europe/Paris`). Puis les notes épinglées.
+- **Coffre** : un contenu chiffré n'est jamais lu, seulement compté (« 3 éléments privés ») ; une note privée ou masquée apparaît sous son nom de code, sans le texte de ses items.
+- **Courses** : la checklist se choisit dans **Réglages** (`/settings`), parmi les checklists non chiffrées. Ses items ne sont pas repris dans « À faire ».
+- Les liens « Ouvrir dans Cairn » utilisent `NEXT_PUBLIC_CAIRN_URL` (sans cette variable, pas de lien).
+
 ### Connexion
 
 On se connecte avec le compte Cairn (email/mot de passe ou Google). Dans Supabase, **Authentication > URL Configuration**, ajouter `<NEXT_PUBLIC_SITE_URL>/auth/callback` (et `http://localhost:3000/auth/callback` en local) aux *Redirect URLs*.

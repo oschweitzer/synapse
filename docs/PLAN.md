@@ -86,7 +86,7 @@ Seule la météo est appelée en direct depuis le serveur Next (avec mise en cac
     comme le fait Cairn.
 - Cocher un item depuis Synapse : un `update` de `is_done`, autorisé
   par la même politique RLS. Bouton « Ouvrir dans Cairn » vers
-  `EXPO_PUBLIC_WEB_URL/note/<id>`.
+  `NEXT_PUBLIC_CAIRN_URL/note/<id>`.
 - Synapse n'écrit dans Cairn que des données : cocher un item, ajouter des
   ingrédients aux courses. Il **n'écrit jamais** de migration sur les tables
   Cairn. Si le schéma
@@ -120,7 +120,7 @@ Seule la météo est appelée en direct depuis le serveur Next (avec mise en cac
 
 ### Courses — checklist Cairn
 - La liste de courses **est une checklist Cairn**, choisie une fois dans les
-  réglages de Synapse (`synapse.settings.shopping_note_id`). Pas de table
+  réglages de Synapse (`synapse.settings.cairn_shopping_checklist_id`). Pas de table
   propre : on profite de l'appli Cairn et de son widget Android.
 - Widget « Courses » : items non cochés de cette checklist, triés par
   `position`. On peut cocher depuis Synapse (`update` de `is_done`).
