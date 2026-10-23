@@ -109,13 +109,15 @@ Seule la météo est appelée en direct depuis le serveur Next (avec mise en cac
 - Le compte n'a pas de double authentification : email et mot de passe sont
   stockés en secrets GitHub (`GARMIN_EMAIL`, `GARMIN_PASSWORD`), et le job peut
   se connecter seul.
-- Les jetons de session `garth` (valables environ un an) sont quand même mis en
+- Les jetons de session (DI OAuth de Garmin ; la lib a abandonné `garth` en
+  0.3, qui ne lit plus ses anciens jetons) sont quand même mis en
   cache entre deux exécutions, dans le cache GitHub Actions et chiffrés avec un
   secret : Garmin limite les connexions répétées et bloque temporairement un
   compte qui se reconnecte toutes les 3 h. Le job ne se reconnecte avec le mot
   de passe que si les jetons sont absents ou refusés.
 - Si la double authentification est activée un jour : générer les jetons une
-  fois en local (`garth login`), puis les déposer en secret GitHub. Le job ne
+  fois en local (`Garmin(email, mdp).login("<dossier>")`, code MFA saisi à la
+  main), puis les déposer en secret GitHub. Le job ne
   touche alors plus jamais au mot de passe.
 - ⚠️ Fragile par nature : Garmin change son authentification de temps en
   temps. **Plan B** : synchro automatique Garmin → Strava, puis l'API Strava

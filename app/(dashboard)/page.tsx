@@ -2,7 +2,16 @@ import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { agendaConnector, mailConnector, shoppingConnector, todoConnector, weatherConnector } from '@/lib/connectors'
+import {
+  activitiesConnector,
+  agendaConnector,
+  mailConnector,
+  shoppingConnector,
+  sleepConnector,
+  todoConnector,
+  trendConnector,
+  weatherConnector,
+} from '@/lib/connectors'
 import { WidgetSkeleton } from '@/components/widgets/WidgetShell'
 import { WidgetSlot } from '@/components/widgets/WidgetSlot'
 import { WeatherWidget } from '@/components/widgets/Weather'
@@ -10,6 +19,7 @@ import { TodoWidget } from '@/components/widgets/Todo'
 import { ShoppingWidget } from '@/components/widgets/Shopping'
 import { AgendaWidget } from '@/components/widgets/Agenda'
 import { MailWidget } from '@/components/widgets/Mail'
+import { ActivitiesWidget, SleepWidget, TrendWidget } from '@/components/widgets/Garmin'
 import { GoogleReauthBanner } from '@/components/widgets/GoogleBanner'
 
 export default async function DashboardPage() {
@@ -74,6 +84,30 @@ export default async function DashboardPage() {
             connector={mailConnector}
             userId={data.user.id}
             render={(mail) => <MailWidget mail={mail} />}
+          />
+        </Suspense>
+        <Suspense fallback={<WidgetSkeleton title="Sommeil" />}>
+          <WidgetSlot
+            title="Sommeil"
+            connector={sleepConnector}
+            userId={data.user.id}
+            render={(sleep) => <SleepWidget sleep={sleep} />}
+          />
+        </Suspense>
+        <Suspense fallback={<WidgetSkeleton title="Activités" />}>
+          <WidgetSlot
+            title="Activités"
+            connector={activitiesConnector}
+            userId={data.user.id}
+            render={(activities) => <ActivitiesWidget activities={activities} />}
+          />
+        </Suspense>
+        <Suspense fallback={<WidgetSkeleton title="7 derniers jours" />}>
+          <WidgetSlot
+            title="7 derniers jours"
+            connector={trendConnector}
+            userId={data.user.id}
+            render={(trend) => <TrendWidget trend={trend} />}
           />
         </Suspense>
       </div>

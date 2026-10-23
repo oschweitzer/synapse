@@ -10,3 +10,6 @@ next-env.d.ts
 # IDE et état local du CLI Supabase
 .idea/
 supabase/.temp/
+
+# Job Garmin (Python)
+__pycache__/

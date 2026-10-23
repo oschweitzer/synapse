@@ -50,6 +50,117 @@ export type Database = {
         }
         Relationships: []
       }
+      garmin_activities: {
+        Row: {
+          activity_id: number
+          activity_type: string | null
+          avg_hr: number | null
+          calories: number | null
+          distance_meters: number | null
+          duration_seconds: number | null
+          elevation_gain_meters: number | null
+          max_hr: number | null
+          name: string | null
+          start_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: number
+          activity_type?: string | null
+          avg_hr?: number | null
+          calories?: number | null
+          distance_meters?: number | null
+          duration_seconds?: number | null
+          elevation_gain_meters?: number | null
+          max_hr?: number | null
+          name?: string | null
+          start_at: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: number
+          activity_type?: string | null
+          avg_hr?: number | null
+          calories?: number | null
+          distance_meters?: number | null
+          duration_seconds?: number | null
+          elevation_gain_meters?: number | null
+          max_hr?: number | null
+          name?: string | null
+          start_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      garmin_daily: {
+        Row: {
+          awake_seconds: number | null
+          body_battery_at_wake: number | null
+          body_battery_charged: number | null
+          body_battery_high: number | null
+          body_battery_low: number | null
+          day: string
+          deep_sleep_seconds: number | null
+          light_sleep_seconds: number | null
+          rem_sleep_seconds: number | null
+          resting_hr: number | null
+          sleep_end_at: string | null
+          sleep_score: number | null
+          sleep_seconds: number | null
+          sleep_start_at: string | null
+          steps: number | null
+          steps_goal: number | null
+          updated_at: string
+          user_id: string
+          vo2max: number | null
+        }
+        Insert: {
+          awake_seconds?: number | null
+          body_battery_at_wake?: number | null
+          body_battery_charged?: number | null
+          body_battery_high?: number | null
+          body_battery_low?: number | null
+          day: string
+          deep_sleep_seconds?: number | null
+          light_sleep_seconds?: number | null
+          rem_sleep_seconds?: number | null
+          resting_hr?: number | null
+          sleep_end_at?: string | null
+          sleep_score?: number | null
+          sleep_seconds?: number | null
+          sleep_start_at?: string | null
+          steps?: number | null
+          steps_goal?: number | null
+          updated_at?: string
+          user_id: string
+          vo2max?: number | null
+        }
+        Update: {
+          awake_seconds?: number | null
+          body_battery_at_wake?: number | null
+          body_battery_charged?: number | null
+          body_battery_high?: number | null
+          body_battery_low?: number | null
+          day?: string
+          deep_sleep_seconds?: number | null
+          light_sleep_seconds?: number | null
+          rem_sleep_seconds?: number | null
+          resting_hr?: number | null
+          sleep_end_at?: string | null
+          sleep_score?: number | null
+          sleep_seconds?: number | null
+          sleep_start_at?: string | null
+          steps?: number | null
+          steps_goal?: number | null
+          updated_at?: string
+          user_id?: string
+          vo2max?: number | null
+        }
+        Relationships: []
+      }
       google_accounts: {
         Row: {
           connected_at: string

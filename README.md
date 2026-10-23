@@ -105,6 +105,29 @@ Mise en place, une seule fois :
 
 Suivre les passages : `select * from synapse.sync_runs order by started_at desc limit 10;` et, côté pg_cron, `select * from cron.job_run_details order by start_time desc limit 10;`. « Déconnecter » efface le jeton et le cache ; l’autorisation se retire aussi chez Google (myaccount.google.com/permissions).
 
+### Sport (Garmin)
+
+Widgets « Sommeil » (nuit, phases, Body Battery), « Activités » (les 5 dernières, clic → Garmin Connect) et « 7 derniers jours » (pas, FC au repos). Ils lisent `synapse.garmin_daily` et `synapse.garmin_activities`, remplies toutes les 3 h par le workflow GitHub Actions `garmin-sync` (`jobs/garmin/sync.py`, lib non officielle [`garminconnect`](https://github.com/cyberjunky/python-garminconnect)). Chaque passage relit les 3 derniers jours et laisse une ligne dans `synapse.sync_runs`.
+
+Jetons de session : le job les garde d’un passage à l’autre dans le cache Actions, chiffrés (AES-256, `GARMIN_TOKEN_KEY`). Il ne se reconnecte avec le mot de passe que s’ils sont absents ou refusés, Garmin bloquant un compte qui se reconnecte trop souvent. Le cache est réécrit seulement quand les jetons changent.
+
+Mise en place, une seule fois :
+
+1. **Migration** `0003_garmin.sql` : `npm run db:migrate`.
+2. **Secrets GitHub** (Settings > Secrets and variables > Actions) :
+
+   | Secret | Valeur |
+   |---|---|
+   | `GARMIN_EMAIL` / `GARMIN_PASSWORD` | compte Garmin Connect (sans double authentification) |
+   | `SUPABASE_URL` | `https://<ref>.supabase.co` |
+   | `SUPABASE_SERVICE_ROLE_KEY` | clé `service_role` (Settings > API) ; ne va jamais sur Vercel |
+   | `SYNAPSE_USER_ID` | uuid du compte Cairn/Synapse (Authentication > Users) |
+   | `GARMIN_TOKEN_KEY` | chiffrement des jetons en cache : `openssl rand -hex 32` |
+
+3. **Premier passage** : Actions > *Garmin sync* > *Run workflow*, avec `days` = 30 pour amorcer l’historique.
+
+Si la synchro échoue (`select * from synapse.sync_runs where source = 'garmin' order by started_at desc limit 5;`) : « Garmin limite les connexions » se résout seul au passage suivant ; « Connexion Garmin refusée » demande de vérifier le mot de passe. Changer `GARMIN_TOKEN_KEY` force une reconnexion par mot de passe. Tests du parsing : `cd jobs/garmin && python -m unittest test_sync.py`.
+
 ### Connexion
 
 On se connecte avec le compte Cairn (email/mot de passe ou Google). Dans Supabase, **Authentication > URL Configuration**, ajouter `<NEXT_PUBLIC_SITE_URL>/auth/callback` (et `http://localhost:3000/auth/callback` en local) aux *Redirect URLs*.

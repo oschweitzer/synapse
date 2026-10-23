@@ -1,0 +1,4 @@
+# Lib non officielle : version figée, Garmin change son authentification de temps
+# en temps. Monter de version volontairement, après un essai manuel du workflow.
+garminconnect==0.3.20
+requests>=2.32,<3
