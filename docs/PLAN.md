@@ -1,6 +1,6 @@
 # Plan technique — Synapse
 
-Dashboard perso qui réunit sport (Garmin), agenda, mails, to-do Cairn, courses,
+Dashboard perso qui réunit sport (Garmin), agenda, mails, to-do et courses Cairn,
 recette du jour et météo. Contraintes : **100 % gratuit**, utilisable dans le
 navigateur, puis sur mobile.
 
@@ -64,8 +64,12 @@ Seule la météo est appelée en direct depuis le serveur Next (avec mise en cac
   l'expiration. `gmail.readonly` est un scope *restreint* : la vérification
   coûte cher, d'où ce choix de ne pas la demander.
 - Sync : Edge Function `synapse-google-sync` déclenchée par `pg_cron` toutes
-  les 30 min. Elle stocke les évènements de J-1 à J+7 et les en-têtes des mails
-  non lus ou étiquetés (expéditeur, sujet, extrait). Jamais le corps complet.
+  les 30 min. Elle stocke les évènements de J-1 à J+7 et les en-têtes des
+  **20 derniers mails de la boîte de réception** (expéditeur, sujet, extrait,
+  date, lu/non lu). Jamais le corps complet. Le cache est remplacé à chaque
+  passage : il ne contient jamais plus de 20 lignes. Pas de tri « important ».
+- Clic sur un mail → ouverture dans Gmail
+  (`https://mail.google.com/mail/u/0/#inbox/<id>`).
 
 ### To-do — Cairn
 - Lecture directe des tables `notes`, `checklist_items` et `reminders`, avec la
@@ -80,10 +84,12 @@ Seule la météo est appelée en direct depuis le serveur Next (avec mise en cac
     jamais la clé de récupération.
   - `is_private` / `hide_content` → afficher `code_name` à la place du titre,
     comme le fait Cairn.
-- Cocher un item depuis Synapse (phase 5) : un `update` de `is_done`, autorisé
+- Cocher un item depuis Synapse : un `update` de `is_done`, autorisé
   par la même politique RLS. Bouton « Ouvrir dans Cairn » vers
   `EXPO_PUBLIC_WEB_URL/note/<id>`.
-- Synapse **n'écrit jamais** de migration sur les tables Cairn. Si le schéma
+- Synapse n'écrit dans Cairn que des données : cocher un item, ajouter des
+  ingrédients aux courses. Il **n'écrit jamais** de migration sur les tables
+  Cairn. Si le schéma
   Cairn bouge, les types sont regénérés côté Synapse
   (`supabase gen types typescript`).
 
@@ -94,9 +100,17 @@ Seule la météo est appelée en direct depuis le serveur Next (avec mise en cac
   GitHub Actions (cron toutes les 3 h). Elle récupère activités, sommeil, Body
   Battery, pas, FC au repos et VO2max, puis fait un upsert dans
   `synapse.garmin_*` avec la clé `service_role` (secret GitHub).
-- Les jetons de session `garth` sont mis en cache entre deux exécutions
-  (secret ou artefact chiffré), pour ne pas se reconnecter, et déclencher la
-  double authentification, à chaque passage.
+- Le compte n'a pas de double authentification : email et mot de passe sont
+  stockés en secrets GitHub (`GARMIN_EMAIL`, `GARMIN_PASSWORD`), et le job peut
+  se connecter seul.
+- Les jetons de session `garth` (valables environ un an) sont quand même mis en
+  cache entre deux exécutions, dans le cache GitHub Actions et chiffrés avec un
+  secret : Garmin limite les connexions répétées et bloque temporairement un
+  compte qui se reconnecte toutes les 3 h. Le job ne se reconnecte avec le mot
+  de passe que si les jetons sont absents ou refusés.
+- Si la double authentification est activée un jour : générer les jetons une
+  fois en local (`garth login`), puis les déposer en secret GitHub. Le job ne
+  touche alors plus jamais au mot de passe.
 - ⚠️ Fragile par nature : Garmin change son authentification de temps en
   temps. **Plan B** : synchro automatique Garmin → Strava, puis l'API Strava
   (officielle, gratuite, OAuth). On y perd sommeil et Body Battery, mais les
@@ -104,14 +118,26 @@ Seule la météo est appelée en direct depuis le serveur Next (avec mise en cac
 - Coût : dépôt privé = 2000 min/mois gratuites. 8 passages par jour d'environ
   1 min, soit ~250 min/mois.
 
-### Courses & recettes — maison
-- Tables `synapse.shopping_items`, `synapse.recipes` et
+### Courses — checklist Cairn
+- La liste de courses **est une checklist Cairn**, choisie une fois dans les
+  réglages de Synapse (`synapse.settings.shopping_note_id`). Pas de table
+  propre : on profite de l'appli Cairn et de son widget Android.
+- Widget « Courses » : items non cochés de cette checklist, triés par
+  `position`. On peut cocher depuis Synapse (`update` de `is_done`).
+- La checklist choisie ne doit pas être chiffrée par le coffre : Synapse ne
+  sait ni lire ni écrire un contenu chiffré. Le sélecteur ne propose donc que
+  les checklists où `is_encrypted = false`.
+
+### Recettes — maison
+- Tables `synapse.recipes` (titre, ingrédients, étapes, lien source) et
   `synapse.meal_plan(date, recipe_id)`.
 - Recette du jour : tirage dans ses propres recettes (en évitant les 14
   derniers jours), avec un import ponctuel depuis **TheMealDB** (gratuit) pour
   amorcer la base.
-- Bouton « ajouter les ingrédients aux courses ». Plus tard, peut-être une
-  liste de courses en checklist Cairn plutôt qu'une table à part.
+- Bouton « ajouter les ingrédients aux courses » : insère un
+  `checklist_items` par ingrédient dans la checklist Cairn choisie, en fin de
+  liste (`position` = max + 1). C'est une écriture de **données**, autorisée par
+  la politique RLS de Cairn, et non une modification de son schéma.
 
 ## 4. Schéma `synapse`
 
@@ -120,13 +146,13 @@ Schéma Postgres dédié, ajouté aux « Exposed schemas » de l'API Supabase. R
 
 | Table | Contenu |
 |---|---|
-| `settings` | position météo, ordre des widgets, libellés Gmail suivis |
+| `settings` | position météo, ordre des widgets, id de la checklist Cairn des courses |
 | `google_accounts` / `google_credentials` | état de connexion / refresh token chiffré (sans politique) |
 | `calendar_events` | cache des évènements (id Google, début, fin, titre, lieu) |
-| `mail_headers` | cache des en-têtes de mails (id, expéditeur, sujet, extrait, date) |
+| `mail_headers` | les 20 derniers mails reçus (id, expéditeur, sujet, extrait, date, lu) |
 | `garmin_daily` | une ligne par jour : sommeil, Body Battery, pas, FC repos |
 | `garmin_activities` | une ligne par activité : type, durée, distance, FC, dénivelé |
-| `recipes`, `meal_plan`, `shopping_items` | cuisine & courses |
+| `recipes`, `meal_plan` | recettes (les courses sont dans Cairn) |
 | `sync_runs` | journal des jobs (source, début, fin, statut, erreur) → widget « état des syncs » |
 
 **Migrations — point d'attention.** Le projet Supabase a déjà un historique de
@@ -171,10 +197,10 @@ type Connector<T> = {
 | Phase | Contenu | Livrable |
 |---|---|---|
 | 1 | Next.js, connexion Supabase (même compte que Cairn), schéma `synapse` + script de migration, grille de widgets, PWA, **widget météo** | Dashboard en ligne avec la météo |
-| 2 | **Widget Cairn** en lecture (to-do du jour, épinglés, compteur privé) | Les tâches visibles sans rien écrire côté Cairn |
-| 3 | OAuth Google + Edge Function de sync + `pg_cron` → **agenda** et **mails** | Journée et mails importants |
+| 2 | **Widgets Cairn** : to-do du jour, épinglés, compteur privé, **courses** (choix de la checklist, cocher) | Tâches et courses sans rien changer côté Cairn |
+| 3 | OAuth Google + Edge Function de sync + `pg_cron` → **agenda** et **20 derniers mails** | Journée et boîte de réception |
 | 4 | Workflow **Garmin** + widgets sommeil / activité / tendance sur 7 jours | Sport |
-| 5 | **Courses & recettes**, cocher une to-do Cairn depuis Synapse | Cuisine |
+| 5 | **Recettes** : base, recette du jour, ingrédients → checklist Cairn des courses | Cuisine |
 | 6 | Blocs du README restants : finances, homelab, humeur | — |
 
 ## 7. Plafonds gratuits à surveiller
@@ -187,11 +213,9 @@ type Connector<T> = {
 | Google APIs | Quotas Calendar/Gmail très larges | Négligeable |
 | Open-Meteo | 10 000 appels/jour (non commercial) | ~50 |
 
-## 8. Questions ouvertes
+## 8. Choix arrêtés
 
-- Mails : quels critères pour « important » (non lus, libellé précis,
-  expéditeurs) ?
-- Garmin : compte avec double authentification ? Cela change la façon de
-  stocker les jetons en CI.
-- Courses : table dédiée ou checklist Cairn ? La checklist donne le widget
-  Android de Cairn gratuitement.
+- Mails : les 20 derniers de la boîte de réception, sans notion d'« important ».
+- Courses : une checklist Cairn (non chiffrée), pas de table Synapse.
+- Garmin : pas de double authentification pour l'instant ; connexion par
+  mot de passe en secret CI, jetons mis en cache.
