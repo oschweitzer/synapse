@@ -11,4 +11,5 @@ Dashboard de pilotage du quotidien.
 
 ## Stack
 
-À définir.
+Next.js (PWA) + Supabase (projet partagé avec Cairn), jobs de sync via `pg_cron`/Edge Functions et GitHub Actions. 100 % gratuit.
+Détails, sources et étapes : [docs/PLAN.md](docs/PLAN.md).
