@@ -29,8 +29,8 @@ Scripts : `npm run build`, `npm run lint`, `npm run typecheck`.
 | Variable | Rôle |
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Projet Supabase **partagé avec Cairn** (Settings > API) |
-| `NEXT_PUBLIC_SITE_URL` | URL publique de Synapse |
-| `NEXT_PUBLIC_CAIRN_URL` | URL web de Cairn (liens « Ouvrir dans Cairn ») |
+| `NEXT_PUBLIC_SITE_URL` | URL publique de Synapse (utilisée dès la phase 3, OAuth Google) |
+| `NEXT_PUBLIC_CAIRN_URL` | URL web de Cairn, liens « Ouvrir dans Cairn » (utilisée dès la phase 2) |
 
 ### Connexion
 

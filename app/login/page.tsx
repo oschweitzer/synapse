@@ -12,7 +12,7 @@ export default async function LoginPage({
       <h1 className="text-2xl font-semibold">Synapse</h1>
       <p className="text-sm text-slate-600 dark:text-slate-400">Connecte-toi avec ton compte Cairn.</p>
       {error && (
-        <p role="alert" className="rounded bg-red-100 px-3 py-2 text-sm text-red-800">
+        <p className="rounded bg-red-100 px-3 py-2 text-sm text-red-800">
           La connexion a échoué. Réessaie.
         </p>
       )}

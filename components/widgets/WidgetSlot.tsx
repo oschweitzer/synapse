@@ -16,8 +16,9 @@ export async function WidgetSlot<T>({
 }) {
   try {
     const { data, syncedAt, error } = await connector.read(userId)
+    if (error) return <WidgetShell title={title} syncedAt={syncedAt} error={error} />
     return (
-      <WidgetShell title={title} syncedAt={syncedAt} error={error}>
+      <WidgetShell title={title} syncedAt={syncedAt}>
         {render(data)}
       </WidgetShell>
     )

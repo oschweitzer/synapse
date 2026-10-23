@@ -3,6 +3,16 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const PUBLIC_PATHS = ['/login', '/auth']
 
+/** Redirige en conservant les cookies (et en-têtes) de session posés par Supabase. */
+function redirectWithCookies(url: URL, from: NextResponse) {
+  const redirect = NextResponse.redirect(url)
+  from.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie))
+  from.headers.forEach((value, key) => {
+    if (key.toLowerCase() === 'cache-control') redirect.headers.set(key, value)
+  })
+  return redirect
+}
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request })
 
@@ -12,10 +22,12 @@ export async function updateSession(request: NextRequest) {
     {
       cookies: {
         getAll: () => request.cookies.getAll(),
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, headers) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           response = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
+          // Cache-Control: no-store fourni par Supabase, pour qu'un CDN ne cache pas un Set-Cookie de session.
+          Object.entries(headers).forEach(([key, value]) => response.headers.set(key, value))
         },
       },
     },
@@ -29,7 +41,14 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.search = ''
-    return NextResponse.redirect(url)
+    return redirectWithCookies(url, response)
+  }
+
+  if (data.user && pathname === '/login') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/'
+    url.search = ''
+    return redirectWithCookies(url, response)
   }
 
   return response

@@ -14,7 +14,8 @@ export async function createClient() {
           try {
             cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
           } catch {
-            // Appelé depuis un Server Component : le middleware rafraîchit la session.
+            // Appelé depuis un Server Component : le middleware rafraîchit la session
+            // et pose les en-têtes Cache-Control.
           }
         },
       },

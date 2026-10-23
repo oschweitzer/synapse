@@ -37,19 +37,29 @@ export function LoginForm() {
   return (
     <div className="flex flex-col gap-4">
       <form onSubmit={signInWithPassword} className="flex flex-col gap-3">
+        <label htmlFor="email" className="sr-only">
+          Email
+        </label>
         <input
+          id="email"
           type="email"
           required
           autoComplete="email"
+          aria-describedby={error ? 'login-error' : undefined}
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className={inputClass}
         />
+        <label htmlFor="password" className="sr-only">
+          Mot de passe
+        </label>
         <input
+          id="password"
           type="password"
           required
           autoComplete="current-password"
+          aria-describedby={error ? 'login-error' : undefined}
           placeholder="Mot de passe"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -65,13 +75,14 @@ export function LoginForm() {
       </form>
       <button
         type="button"
+        disabled={busy}
         onClick={signInWithGoogle}
         className="rounded border border-slate-300 px-3 py-2 font-medium dark:border-slate-700"
       >
         Continuer avec Google
       </button>
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p id="login-error" role="alert" className="text-sm text-red-600 dark:text-red-400">
           {error}
         </p>
       )}
