@@ -1,8 +1,10 @@
 # Plan technique — Synapse
 
+*Version anglaise : [PLAN.en.md](PLAN.en.md).*
+
 Dashboard perso qui réunit sport (Garmin), agenda, mails, to-do et courses Cairn,
-recette du jour et météo. Contraintes : **100 % gratuit**, utilisable dans le
-navigateur, puis sur mobile.
+recette du jour, météo, humeur et habitudes. Contraintes : **100 % gratuit**,
+utilisable dans le navigateur, puis sur mobile.
 
 ## 1. Décisions
 
@@ -23,7 +25,8 @@ navigateur, puis sur mobile.
 │  Dashboard React (PWA)                                 │
 │  Server Components : lecture Supabase avec la session  │
 │  Route handlers /api/* : OAuth Google, actions         │
-│  lib/connectors/{weather,google,garmin,cairn,meals}.ts │
+│  lib/connectors/{weather,google,garmin,cairn,meals,    │
+│                  mood}.ts                              │
 └──────────────────────────┬─────────────────────────────┘
                            │ supabase-js (clé anon + RLS)
 ┌──────────────────────────▼─────────────────────────────┐
@@ -147,6 +150,24 @@ Seule la météo est appelée en direct depuis le serveur Next (avec mise en cac
   liste (`position` = max + 1). C'est une écriture de **données**, autorisée par
   la politique RLS de Cairn, et non une modification de son schéma.
 
+### Humeur et habitudes — saisie maison
+- Pas de source externe : tout se saisit depuis le dashboard, en un clic.
+- Humeur : une note de 1 à 5 par jour (😞 → 😄) et un mot facultatif, dans
+  `synapse.mood_entries` (clé `user_id` + `day`). Widget « Humeur » : le choix du
+  jour et les 7 derniers jours.
+- Habitudes : définies dans les réglages (`synapse.habits`, 10 actives au plus),
+  cochées chaque jour (`synapse.habit_checks`, une ligne par jour fait). Widget
+  « Habitudes » : case du jour, 7 derniers jours et série en cours (jours
+  d'affilée ; aujourd'hui pas encore coché ne la casse pas). Retirer une
+  habitude l'archive : son historique reste.
+- Le « jour » est la date Europe/Paris, calculée côté serveur Next.
+- Une clé étrangère `(habit_id, user_id)` garantit qu'on ne coche que ses
+  propres habitudes, en plus de la RLS.
+
+### Finances et homelab — reportés
+- Pas de source retenue pour l'instant (saisie, import CSV bancaire, Uptime
+  Kuma… restent possibles). À reprendre dans un ticket dédié.
+
 ## 4. Schéma `synapse`
 
 Schéma Postgres dédié, ajouté aux « Exposed schemas » de l'API Supabase. RLS
@@ -161,6 +182,8 @@ Schéma Postgres dédié, ajouté aux « Exposed schemas » de l'API Supabase. R
 | `garmin_daily` | une ligne par jour : sommeil, Body Battery, pas, FC repos |
 | `garmin_activities` | une ligne par activité : type, durée, distance, FC, dénivelé |
 | `recipes`, `meal_plan` | recettes (les courses sont dans Cairn) |
+| `mood_entries` | humeur du jour (1 à 5) et mot facultatif |
+| `habits` / `habit_checks` | habitudes suivies / jours cochés |
 | `sync_runs` | journal des jobs (source, début, fin, statut, erreur) → widget « état des syncs » |
 
 **Migrations — point d'attention.** Le projet Supabase a déjà un historique de
@@ -179,7 +202,7 @@ synapse/
     (dashboard)/page.tsx        grille de widgets
     api/google/connect|callback route handlers OAuth
     manifest.ts                 manifeste PWA
-  components/widgets/           Weather, Agenda, Mail, Todo, Sport, Meal, Shopping
+  components/widgets/           Weather, Agenda, Mail, Todo, Sport, Meal, Shopping, Mood
   lib/
     supabase/{server,client}.ts
     connectors/                 un fichier par source, même interface
@@ -195,7 +218,7 @@ source en particulier :
 
 ```ts
 type Connector<T> = {
-  id: 'weather' | 'google' | 'garmin' | 'cairn' | 'meals'
+  id: 'weather' | 'google' | 'garmin' | 'cairn' | 'meals' | 'mood' | 'habits'
   read(userId: string): Promise<{ data: T; syncedAt: Date | null; error?: string }>
 }
 ```
@@ -209,7 +232,7 @@ type Connector<T> = {
 | 3 | OAuth Google + Edge Function de sync + `pg_cron` → **agenda** et **20 derniers mails** | Journée et boîte de réception |
 | 4 | Workflow **Garmin** + widgets sommeil / activité / tendance sur 7 jours | Sport |
 | 5 | **Recettes** : base, recette du jour, ingrédients → checklist Cairn des courses | Cuisine |
-| 6 | Blocs du README restants : finances, homelab, humeur | — |
+| 6 | **Humeur et habitudes** : saisie rapide quotidienne ; finances et homelab reportés | Bien-être |
 
 ## 7. Plafonds gratuits à surveiller
 
@@ -227,3 +250,5 @@ type Connector<T> = {
 - Courses : une checklist Cairn (non chiffrée), pas de table Synapse.
 - Garmin : pas de double authentification pour l'instant ; connexion par
   mot de passe en secret CI, jetons mis en cache.
+- Humeur et habitudes : saisies dans Synapse uniquement ; finances et homelab
+  reportés.

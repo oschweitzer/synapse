@@ -1,4 +1,4 @@
-export type ConnectorId = 'weather' | 'google' | 'garmin' | 'cairn' | 'meals'
+export type ConnectorId = 'weather' | 'google' | 'garmin' | 'cairn' | 'meals' | 'mood' | 'habits'
 
 export type ConnectorResult<T> = {
   data: T

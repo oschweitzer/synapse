@@ -1,5 +1,7 @@
 # Synapse
 
+*English version: [README.en.md](README.en.md).*
+
 Dashboard de pilotage du quotidien.
 
 ## Blocs prévus
@@ -135,6 +137,14 @@ Pages **Recettes** (`/recipes`) : saisie et édition (une ligne par ingrédient,
 Widget « Recette du jour » : tirée au premier affichage de la journée (fuseau `Europe/Paris`) par `synapse.pick_daily_recipe`, parmi les recettes non servies dans les 14 derniers jours (sinon la moins récente), et enregistrée dans `synapse.meal_plan`. Le bouton « Ajouter les ingrédients aux courses » crée un item Cairn par ingrédient, en fin de la checklist choisie dans **Réglages** (`position` = max + 1). Écriture de données, jamais dans une checklist du coffre.
 
 Mise en place : migration `0004_recipes.sql` (`npm run db:migrate`).
+
+### Humeur et habitudes
+
+Widget « Humeur » : un clic sur 😞 🙁 😐 🙂 😄 enregistre l’humeur du jour (fuseau `Europe/Paris`), un mot facultatif peut s’y ajouter ; les 7 derniers jours s’affichent dessous. Widget « Habitudes » : une case par habitude pour aujourd’hui, les 7 derniers jours et la série en cours (🔥 jours d’affilée, plafonnée à 90+).
+
+Les habitudes se gèrent dans **Réglages** (10 actives au plus). « Retirer » une habitude la masque sans effacer ses jours cochés. Tables `synapse.mood_entries`, `synapse.habits`, `synapse.habit_checks`.
+
+Mise en place : migration `0005_mood_habits.sql` (`npm run db:migrate`).
 
 ### Connexion
 

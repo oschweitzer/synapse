@@ -5,6 +5,8 @@ import { listShoppingCandidates } from '@/lib/connectors/cairn'
 import { saveShoppingChecklist } from '@/app/actions/cairn'
 import { disconnectGoogle, syncGoogleNow } from '@/app/actions/google'
 import { readGoogleAccount } from '@/lib/connectors/google'
+import { addHabit, archiveHabit } from '@/app/actions/mood'
+import { HABITS_MAX, listHabits } from '@/lib/connectors/mood'
 
 const MESSAGES: Record<string, string> = {
   invalid: 'Cette checklist n’est pas utilisable (introuvable ou dans le coffre).',
@@ -28,6 +30,15 @@ const GOOGLE_MESSAGES: Record<string, [string, boolean]> = {
   error: ['Connexion à Google impossible, réessaie.', true],
 }
 
+/** Retours des habitudes (`?habits=…`) : [message, est une erreur]. */
+const HABIT_MESSAGES: Record<string, [string, boolean]> = {
+  added: ['Habitude ajoutée.', false],
+  archived: ['Habitude retirée. Ses jours cochés sont conservés.', false],
+  name: ['Donne un nom de 80 caractères au plus.', true],
+  max: [`${HABITS_MAX} habitudes au plus : retires-en une d’abord.`, true],
+  save: ['Enregistrement impossible, réessaie.', true],
+}
+
 const card =
   'flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900'
 const primaryButton =
@@ -38,18 +49,22 @@ const secondaryButton =
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; error?: string; google?: string }>
+  searchParams: Promise<{ saved?: string; error?: string; google?: string; habits?: string }>
 }) {
   const supabase = await createClient()
   const { data } = await supabase.auth.getUser()
   if (!data.user) redirect('/login')
 
   const params = await searchParams
-  const [candidates, settings, google] = await Promise.all([
+  const [candidates, settings, google, habits] = await Promise.all([
     listShoppingCandidates(),
     supabase.schema('synapse').from('settings').select('cairn_shopping_checklist_id').maybeSingle(),
     readGoogleAccount().catch((e) => {
       console.error('[settings] lecture du compte Google', e)
+      return null
+    }),
+    listHabits().catch((e) => {
+      console.error('[settings] lecture des habitudes', e)
       return null
     }),
   ])
@@ -57,6 +72,7 @@ export default async function SettingsPage({
   const current = (settings.data?.cairn_shopping_checklist_id as string | null | undefined) ?? ''
   const error = params.error ? (MESSAGES[params.error] ?? MESSAGES.save) : null
   const googleMessage = params.google ? (GOOGLE_MESSAGES[params.google] ?? GOOGLE_MESSAGES.error) : null
+  const habitMessage = params.habits ? (HABIT_MESSAGES[params.habits] ?? HABIT_MESSAGES.save) : null
 
   return (
     <main className="mx-auto max-w-xl px-4 py-6">
@@ -109,6 +125,61 @@ export default async function SettingsPage({
         {error && (
           <p id="settings-error" role="alert" className="text-sm text-red-600 dark:text-red-400">
             {error}
+          </p>
+        )}
+      </section>
+
+      <section className={`${card} mt-4`}>
+        <h2 className="font-semibold">Habitudes</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Cochées chaque jour dans le widget « Habitudes » ({HABITS_MAX} au plus). Retirer une habitude la masque
+          du dashboard sans effacer son historique.
+        </p>
+        {habits === null ? (
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            Lecture des habitudes impossible.
+          </p>
+        ) : habits.length === 0 ? (
+          <p className="text-sm">Aucune habitude pour l’instant.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {habits.map((habit) => (
+              <li key={habit.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 break-words">{habit.name}</span>
+                <form action={archiveHabit}>
+                  <input type="hidden" name="id" value={habit.id} />
+                  <button type="submit" className="text-sm text-slate-500 underline dark:text-slate-400">
+                    Retirer<span className="sr-only"> « {habit.name} »</span>
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        {(habits === null || habits.length < HABITS_MAX) && (
+          <form action={addHabit} className="flex flex-col gap-3 sm:flex-row">
+            <label htmlFor="habit-name" className="sr-only">
+              Nouvelle habitude
+            </label>
+            <input
+              id="habit-name"
+              name="name"
+              required
+              maxLength={80}
+              placeholder="Méditer, lire 20 min…"
+              className="flex-1 rounded border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            />
+            <button type="submit" className={primaryButton}>
+              Ajouter
+            </button>
+          </form>
+        )}
+        {habitMessage && (
+          <p
+            role={habitMessage[1] ? 'alert' : 'status'}
+            className={`text-sm ${habitMessage[1] ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}
+          >
+            {habitMessage[0]}
           </p>
         )}
       </section>

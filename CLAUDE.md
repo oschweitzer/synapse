@@ -4,6 +4,7 @@
 
 - **Pull requests** (title and description) and **GitHub issues** (title, body, comments) are written in **English**.
 - The app itself stays in French: UI text, code comments, README and `docs/PLAN.md`. Match the surrounding code.
+- `README.md` and `docs/PLAN.md` (French, the reference) have English versions, `README.en.md` and `docs/PLAN.en.md`: update both in the same change.
 
 ## Project
 

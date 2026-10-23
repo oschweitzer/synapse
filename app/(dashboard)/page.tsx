@@ -6,7 +6,9 @@ import {
   activitiesConnector,
   agendaConnector,
   dailyRecipeConnector,
+  habitsConnector,
   mailConnector,
+  moodConnector,
   shoppingConnector,
   sleepConnector,
   todoConnector,
@@ -22,6 +24,7 @@ import { AgendaWidget } from '@/components/widgets/Agenda'
 import { MailWidget } from '@/components/widgets/Mail'
 import { ActivitiesWidget, SleepWidget, TrendWidget } from '@/components/widgets/Garmin'
 import { DailyRecipeWidget } from '@/components/widgets/DailyRecipe'
+import { HabitsWidget, MoodWidget } from '@/components/widgets/Mood'
 import { GoogleReauthBanner } from '@/components/widgets/GoogleBanner'
 
 export default async function DashboardPage() {
@@ -81,6 +84,22 @@ export default async function DashboardPage() {
             connector={shoppingConnector}
             userId={data.user.id}
             render={(shopping) => <ShoppingWidget shopping={shopping} />}
+          />
+        </Suspense>
+        <Suspense fallback={<WidgetSkeleton title="Humeur" />}>
+          <WidgetSlot
+            title="Humeur"
+            connector={moodConnector}
+            userId={data.user.id}
+            render={(mood) => <MoodWidget mood={mood} />}
+          />
+        </Suspense>
+        <Suspense fallback={<WidgetSkeleton title="Habitudes" />}>
+          <WidgetSlot
+            title="Habitudes"
+            connector={habitsConnector}
+            userId={data.user.id}
+            render={(habits) => <HabitsWidget habits={habits} />}
           />
         </Suspense>
         <Suspense fallback={<WidgetSkeleton title="Recette du jour" />}>
