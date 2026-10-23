@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { weatherConnector } from '@/lib/connectors'
 import { WidgetSkeleton } from '@/components/widgets/WidgetShell'
 import { WidgetSlot } from '@/components/widgets/WidgetSlot'
+import { WeatherWidget } from '@/components/widgets/Weather'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -26,7 +27,7 @@ export default async function DashboardPage() {
             title="Météo"
             connector={weatherConnector}
             userId={data.user.id}
-            render={() => <p className="text-sm text-slate-500">Bientôt disponible.</p>}
+            render={(weather) => weather && <WeatherWidget weather={weather} />}
           />
         </Suspense>
       </div>

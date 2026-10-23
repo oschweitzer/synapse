@@ -50,6 +50,19 @@ npm run db:types     # régénère lib/types/{synapse,cairn}.ts (après `supabas
 
 Une seule fois, après la première migration : ajouter `synapse` dans Supabase **Settings > API > Exposed schemas** (sinon l'API renvoie « The schema must be one of the following »).
 
+### Météo
+
+Prévisions Open-Meteo (gratuit, sans clé), appelées côté serveur et mises en cache 30 min. Sans réglage, la position est Paris. Pour en changer (dans Supabase > SQL Editor) :
+
+```sql
+insert into synapse.settings (user_id, weather_label, weather_latitude, weather_longitude)
+values ('<uuid du compte>', 'Strasbourg', 48.5734, 7.7521)
+on conflict (user_id) do update set
+  weather_label = excluded.weather_label,
+  weather_latitude = excluded.weather_latitude,
+  weather_longitude = excluded.weather_longitude;
+```
+
 ### Connexion
 
 On se connecte avec le compte Cairn (email/mot de passe ou Google). Dans Supabase, **Authentication > URL Configuration**, ajouter `<NEXT_PUBLIC_SITE_URL>/auth/callback` (et `http://localhost:3000/auth/callback` en local) aux *Redirect URLs*.
