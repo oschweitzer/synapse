@@ -239,6 +239,71 @@ export type Database = {
         }
         Relationships: []
       }
+      meal_plan: {
+        Row: {
+          created_at: string
+          day: string
+          recipe_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day: string
+          recipe_id: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          day?: string
+          recipe_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meal_plan_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recipes: {
+        Row: {
+          created_at: string
+          id: string
+          ingredients: string[]
+          mealdb_id: string | null
+          source_url: string | null
+          steps: string[]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ingredients?: string[]
+          mealdb_id?: string | null
+          source_url?: string | null
+          steps?: string[]
+          title: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ingredients?: string[]
+          mealdb_id?: string | null
+          source_url?: string | null
+          steps?: string[]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       schema_migrations: {
         Row: {
           applied_at: string
@@ -326,6 +391,7 @@ export type Database = {
     }
     Functions: {
       disconnect_google: { Args: never; Returns: undefined }
+      pick_daily_recipe: { Args: { p_day: string }; Returns: string }
       replace_google_cache: {
         Args: { p_events: Json; p_mails: Json; p_user_id: string }
         Returns: undefined

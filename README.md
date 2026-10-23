@@ -128,6 +128,14 @@ Mise en place, une seule fois :
 
 Si la synchro échoue (`select * from synapse.sync_runs where source = 'garmin' order by started_at desc limit 5;`) : « Garmin limite les connexions » se résout seul au passage suivant ; « Connexion Garmin refusée » demande de vérifier le mot de passe. Changer `GARMIN_TOKEN_KEY` force une reconnexion par mot de passe. Tests du parsing : `cd jobs/garmin && python -m unittest test_sync.py`.
 
+### Recettes
+
+Pages **Recettes** (`/recipes`) : saisie et édition (une ligne par ingrédient, quantité comprise ; une ligne par étape ; lien source facultatif), et import ponctuel depuis [TheMealDB](https://www.themealdb.com) pour amorcer la base (recherche par nom en anglais, ou au hasard ; 10 au plus par import, une recette déjà importée est ignorée).
+
+Widget « Recette du jour » : tirée au premier affichage de la journée (fuseau `Europe/Paris`) par `synapse.pick_daily_recipe`, parmi les recettes non servies dans les 14 derniers jours (sinon la moins récente), et enregistrée dans `synapse.meal_plan`. Le bouton « Ajouter les ingrédients aux courses » crée un item Cairn par ingrédient, en fin de la checklist choisie dans **Réglages** (`position` = max + 1). Écriture de données, jamais dans une checklist du coffre.
+
+Mise en place : migration `0004_recipes.sql` (`npm run db:migrate`).
+
 ### Connexion
 
 On se connecte avec le compte Cairn (email/mot de passe ou Google). Dans Supabase, **Authentication > URL Configuration**, ajouter `<NEXT_PUBLIC_SITE_URL>/auth/callback` (et `http://localhost:3000/auth/callback` en local) aux *Redirect URLs*.

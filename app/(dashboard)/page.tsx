@@ -5,6 +5,7 @@ import Link from 'next/link'
 import {
   activitiesConnector,
   agendaConnector,
+  dailyRecipeConnector,
   mailConnector,
   shoppingConnector,
   sleepConnector,
@@ -20,6 +21,7 @@ import { ShoppingWidget } from '@/components/widgets/Shopping'
 import { AgendaWidget } from '@/components/widgets/Agenda'
 import { MailWidget } from '@/components/widgets/Mail'
 import { ActivitiesWidget, SleepWidget, TrendWidget } from '@/components/widgets/Garmin'
+import { DailyRecipeWidget } from '@/components/widgets/DailyRecipe'
 import { GoogleReauthBanner } from '@/components/widgets/GoogleBanner'
 
 export default async function DashboardPage() {
@@ -32,6 +34,9 @@ export default async function DashboardPage() {
       <header className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Synapse</h1>
         <div className="flex items-center gap-4">
+          <Link href="/recipes" className="text-sm text-slate-500 underline">
+            Recettes
+          </Link>
           <Link href="/settings" className="text-sm text-slate-500 underline">
             Réglages
           </Link>
@@ -76,6 +81,14 @@ export default async function DashboardPage() {
             connector={shoppingConnector}
             userId={data.user.id}
             render={(shopping) => <ShoppingWidget shopping={shopping} />}
+          />
+        </Suspense>
+        <Suspense fallback={<WidgetSkeleton title="Recette du jour" />}>
+          <WidgetSlot
+            title="Recette du jour"
+            connector={dailyRecipeConnector}
+            userId={data.user.id}
+            render={(daily) => <DailyRecipeWidget daily={daily} />}
           />
         </Suspense>
         <Suspense fallback={<WidgetSkeleton title="Mails" />}>

@@ -65,7 +65,7 @@ function isMasked(note: Pick<NoteRow, 'is_private' | 'hide_content'>) {
   return note.is_private || note.hide_content
 }
 
-async function readShoppingChecklistId() {
+export async function readShoppingChecklistId() {
   const supabase = await createClient()
   const { data, error } = await supabase
     .schema('synapse')
