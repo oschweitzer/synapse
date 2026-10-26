@@ -34,6 +34,7 @@ Scripts: `npm run build`, `npm run lint`, `npm run typecheck`.
 | `NEXT_PUBLIC_SITE_URL` | Public URL of Synapse (Google OAuth redirect: `<url>/api/google/callback`) |
 | `SYNAPSE_GOOGLE_CLIENT_ID` / `SYNAPSE_GOOGLE_CLIENT_SECRET` | Synapse's Google OAuth client (see "Calendar and mail") |
 | `SYNAPSE_GOOGLE_TOKEN_KEY` | Encryption key for the Google refresh token, 64 hex characters, the same as in the Edge Functions secrets |
+| `SYNAPSE_GOOGLE_PICKER_API_KEY` | Google Picker API key, to choose the cash expenses file (see "Cash expenses") |
 | `NEXT_PUBLIC_CAIRN_URL` | Cairn web URL, for "Open in Cairn" links (used from phase 2) |
 | `DATABASE_URL` | Local only: Postgres connection for migrations (Supabase > Connect > *Session pooler*) |
 | `SUPABASE_PROJECT_REF` | Local only: project id, to generate types |
@@ -145,6 +146,23 @@ Setup: migration `0004_recipes.sql` (`npm run db:migrate`).
 Habits are managed in **Settings** (at most 10 active). "Remove" hides a habit without erasing its checked days. Tables `synapse.mood_entries`, `synapse.habits`, `synapse.habit_checks`.
 
 Setup: migration `0005_mood_habits.sql` (`npm run db:migrate`).
+
+### Cash expenses (Google Sheet)
+
+"Dépenses cash" widget (quick add, current month total, last 5 expenses) and **Dépenses** page (`/cash`: one month at a time, total per category, inline editing, deletion after confirmation). The data lives in the "Dépenses Liquide" Google Sheet, which stays the source of truth and can always be edited by hand:
+
+- `Saisies` tab: `ID | Date | Montant | Catégorie | Remarque`, one row per expense, all years together (hidden ID, written by Synapse; a row added by hand gets one on the next read);
+- `Catégories` tab: one per row, below the header; it feeds the sheet's dropdown and the widget's list (a category created from the widget is added to it);
+- `Récap` tab: `QUERY` formulas over `Saisies` (total per category, per year, month × category pivot).
+
+Synapse reads and writes the file from the server (`/api/cash` route handlers), with the Google refresh token: dates as serial numbers, amounts as numbers (`RAW`), the same validation as the sheet (valid date, amount > 0, known category). Reads are cached by Next for 3 min, invalidated after each write. Nothing is copied to the database except the file id (`synapse.settings.cash_sheet_id`).
+
+One-time setup:
+
+1. **Google Cloud** (same project): enable the *Google Sheets API* and *Google Picker API*. Consent screen: add the `drive.file` scope (non-sensitive: only the files chosen in the Picker). Synapse's OAuth client: add `<NEXT_PUBLIC_SITE_URL>` (and `http://localhost:3000`) to the **Authorized JavaScript origins**, for the Picker's token. Create an **API key** restricted to the *Google Picker API* and to the `<NEXT_PUBLIC_SITE_URL>/*` referrer, and put it in `SYNAPSE_GOOGLE_PICKER_API_KEY` (Vercel).
+2. **Migration** `0006_cash.sql` (`npm run db:migrate`): `cash_sheet_id` column, `google_refresh_token()` (the caller's ciphertext, decrypted by the Next server) and `flag_google_reauth()` functions.
+3. **Settings > Reconnect Google**, to grant `drive.file`, then **Choisir le fichier** (Google Picker).
+4. On first connection, the widget offers **Migrer le fichier**: it reads the `2026` tab, shows a preview where each anomaly has to be confirmed (an invalid date is never fixed silently: `24.20.2026` → `24.10.2026` suggested), then creates the three tabs and copies the rows in a single `batchUpdate`. The `2026` tab is left untouched, as an archive. Run again, the migration creates nothing if `Saisies` exists. The final check compares the row count and total with the source (and its `TOTAL` row). Then check how the `Récap` tab renders.
 
 ### Sign-in
 

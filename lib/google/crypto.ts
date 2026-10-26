@@ -1,5 +1,6 @@
 /**
- * Chiffrement du refresh token Google, côté serveur (route /api/google/callback).
+ * Chiffrement du refresh token Google, côté serveur : chiffré par la route
+ * /api/google/callback, déchiffré par les route handlers /api/cash (Sheets).
  *
  * Même format que l'Edge Function synapse-google-sync, qui le déchiffre
  * (`supabase/functions/_shared/chiffrement.ts`, repris de Cairn) : AES-GCM,
@@ -23,7 +24,7 @@ async function loadKey() {
   if (!/^[0-9a-fA-F]{64}$/.test(raw)) {
     throw new Error('SYNAPSE_GOOGLE_TOKEN_KEY doit faire 64 caractères hexadécimaux (256 bits)')
   }
-  return crypto.subtle.importKey('raw', Buffer.from(raw, 'hex'), { name: 'AES-GCM' }, false, ['encrypt'])
+  return crypto.subtle.importKey('raw', Buffer.from(raw, 'hex'), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'])
 }
 
 export async function encryptToken(plain: string) {
@@ -31,4 +32,21 @@ export async function encryptToken(plain: string) {
   const nonce = crypto.getRandomValues(new Uint8Array(NONCE_BYTES))
   const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, key, new TextEncoder().encode(plain))
   return toHex(nonce) + toHex(new Uint8Array(cipher))
+}
+
+/** `null` pour un chiffré illisible (clé changée depuis la connexion) : seule une reconnexion répare. */
+export async function decryptToken(cipher: string) {
+  if (!/^[0-9a-f]+$/i.test(cipher) || cipher.length <= NONCE_BYTES * 2) return null
+  const key = await loadKey()
+  try {
+    const bytes = Buffer.from(cipher, 'hex')
+    const plain = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: bytes.subarray(0, NONCE_BYTES) },
+      key,
+      bytes.subarray(NONCE_BYTES),
+    )
+    return new TextDecoder().decode(plain)
+  } catch {
+    return null
+  }
 }

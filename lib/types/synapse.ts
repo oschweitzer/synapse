@@ -408,6 +408,7 @@ export type Database = {
       settings: {
         Row: {
           cairn_shopping_checklist_id: string | null
+          cash_sheet_id: string | null
           created_at: string
           updated_at: string
           user_id: string
@@ -418,6 +419,7 @@ export type Database = {
         }
         Insert: {
           cairn_shopping_checklist_id?: string | null
+          cash_sheet_id?: string | null
           created_at?: string
           updated_at?: string
           user_id?: string
@@ -428,6 +430,7 @@ export type Database = {
         }
         Update: {
           cairn_shopping_checklist_id?: string | null
+          cash_sheet_id?: string | null
           created_at?: string
           updated_at?: string
           user_id?: string
@@ -474,6 +477,8 @@ export type Database = {
     }
     Functions: {
       disconnect_google: { Args: never; Returns: undefined }
+      flag_google_reauth: { Args: never; Returns: undefined }
+      google_refresh_token: { Args: never; Returns: string }
       pick_daily_recipe: { Args: { p_day: string }; Returns: string }
       replace_google_cache: {
         Args: { p_events: Json; p_mails: Json; p_user_id: string }

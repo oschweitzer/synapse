@@ -5,6 +5,7 @@ import Link from 'next/link'
 import {
   activitiesConnector,
   agendaConnector,
+  cashConnector,
   dailyRecipeConnector,
   habitsConnector,
   mailConnector,
@@ -26,6 +27,9 @@ import { ActivitiesWidget, SleepWidget, TrendWidget } from '@/components/widgets
 import { DailyRecipeWidget } from '@/components/widgets/DailyRecipe'
 import { HabitsWidget, MoodWidget } from '@/components/widgets/Mood'
 import { GoogleReauthBanner } from '@/components/widgets/GoogleBanner'
+import { CashWidget } from '@/components/widgets/Cash'
+import { pickerConfig } from '@/lib/google/oauth'
+import { dayKey } from '@/lib/time'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -39,6 +43,9 @@ export default async function DashboardPage() {
         <div className="flex items-center gap-4">
           <Link href="/recipes" className="text-sm text-slate-500 underline">
             Recettes
+          </Link>
+          <Link href="/cash" className="text-sm text-slate-500 underline">
+            Dépenses
           </Link>
           <Link href="/settings" className="text-sm text-slate-500 underline">
             Réglages
@@ -100,6 +107,14 @@ export default async function DashboardPage() {
             connector={habitsConnector}
             userId={data.user.id}
             render={(habits) => <HabitsWidget habits={habits} />}
+          />
+        </Suspense>
+        <Suspense fallback={<WidgetSkeleton title="Dépenses cash" />}>
+          <WidgetSlot
+            title="Dépenses cash"
+            connector={cashConnector}
+            userId={data.user.id}
+            render={(cash) => <CashWidget cash={cash} picker={pickerConfig()} today={dayKey(new Date())} />}
           />
         </Suspense>
         <Suspense fallback={<WidgetSkeleton title="Recette du jour" />}>

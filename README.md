@@ -34,6 +34,7 @@ Scripts : `npm run build`, `npm run lint`, `npm run typecheck`.
 | `NEXT_PUBLIC_SITE_URL` | URL publique de Synapse (redirection OAuth Google : `<url>/api/google/callback`) |
 | `SYNAPSE_GOOGLE_CLIENT_ID` / `SYNAPSE_GOOGLE_CLIENT_SECRET` | Client OAuth Google de Synapse (voir « Agenda et mails ») |
 | `SYNAPSE_GOOGLE_TOKEN_KEY` | Clé de chiffrement du refresh token Google, 64 caractères hexadécimaux, la même que dans les secrets des Edge Functions |
+| `SYNAPSE_GOOGLE_PICKER_API_KEY` | Clé d'API du Google Picker, pour choisir le fichier des dépenses cash (voir « Dépenses cash ») |
 | `NEXT_PUBLIC_CAIRN_URL` | URL web de Cairn, liens « Ouvrir dans Cairn » (utilisée dès la phase 2) |
 | `DATABASE_URL` | Local uniquement : connexion Postgres pour les migrations (Supabase > Connect > *Session pooler*) |
 | `SUPABASE_PROJECT_REF` | Local uniquement : id du projet, pour générer les types |
@@ -145,6 +146,23 @@ Widget « Humeur » : un clic sur 😞 🙁 😐 🙂 😄 enregistre l’humeur
 Les habitudes se gèrent dans **Réglages** (10 actives au plus). « Retirer » une habitude la masque sans effacer ses jours cochés. Tables `synapse.mood_entries`, `synapse.habits`, `synapse.habit_checks`.
 
 Mise en place : migration `0005_mood_habits.sql` (`npm run db:migrate`).
+
+### Dépenses cash (Google Sheet)
+
+Widget « Dépenses cash » (ajout rapide, total du mois en cours, 5 dernières dépenses) et page **Dépenses** (`/cash` : un mois à la fois, total par catégorie, édition en ligne, suppression après confirmation). Les données vivent dans le Google Sheet « Dépenses Liquide », qui reste la source de vérité et s’édite toujours à la main :
+
+- onglet `Saisies` : `ID | Date | Montant | Catégorie | Remarque`, une ligne par dépense, toutes années confondues (ID masqué, écrit par Synapse ; une ligne ajoutée à la main en reçoit un à la lecture suivante) ;
+- onglet `Catégories` : une par ligne, sous l’en-tête ; il alimente la liste déroulante de la feuille et celle du widget (une catégorie créée depuis le widget y est ajoutée) ;
+- onglet `Récap` : formules `QUERY` sur `Saisies` (total par catégorie, par année, croisé mois × catégorie).
+
+Synapse lit et écrit le fichier depuis le serveur (route handlers `/api/cash`), avec le refresh token Google : dates en numéro de série, montants en nombre (`RAW`), validation identique à celle de la feuille (date valide, montant > 0, catégorie connue). Lecture en cache Next 3 min, invalidé après chaque écriture. Rien n’est copié en base hormis l’id du fichier (`synapse.settings.cash_sheet_id`).
+
+Mise en place, une seule fois :
+
+1. **Google Cloud** (même projet) : activer *Google Sheets API* et *Google Picker API*. Écran de consentement : ajouter le scope `drive.file` (non sensible : seuls les fichiers choisis dans le Picker). Client OAuth de Synapse : ajouter `<NEXT_PUBLIC_SITE_URL>` (et `http://localhost:3000`) aux **Origines JavaScript autorisées**, pour le jeton du Picker. Créer une **clé d’API** restreinte à la *Google Picker API* et au référent `<NEXT_PUBLIC_SITE_URL>/*`, à mettre dans `SYNAPSE_GOOGLE_PICKER_API_KEY` (Vercel).
+2. **Migration** `0006_cash.sql` (`npm run db:migrate`) : colonne `cash_sheet_id`, fonctions `google_refresh_token()` (chiffré de l’appelant, déchiffré par le serveur Next) et `flag_google_reauth()`.
+3. **Réglages > Reconnecter Google**, pour accorder `drive.file`, puis **Choisir le fichier** (Google Picker).
+4. Au premier branchement, le widget propose **Migrer le fichier** : lecture de l’onglet `2026`, aperçu avec chaque anomalie à valider (une date invalide n’est jamais corrigée d’office : `24.20.2026` → `24.10.2026` proposé), puis création des trois onglets et recopie des lignes en un seul `batchUpdate`. L’onglet `2026` reste intact, en archive. Relancée, la migration ne crée rien si `Saisies` existe. Le contrôle final compare lignes et total à la source (et à sa ligne `TOTAL`). Vérifier ensuite le rendu de l’onglet `Récap`.
 
 ### Connexion
 

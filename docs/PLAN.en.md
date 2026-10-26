@@ -42,8 +42,9 @@ to-dos and shopping, recipe of the day, weather, mood and habits. Constraints:
               └───────────────────────────┘
 ```
 
-Only the weather is called directly from the Next server (cached with
-`revalidate`), because it needs neither a key nor storage.
+Only the weather and cash expenses are called directly from the Next server
+(with caching): the weather needs neither a key nor storage, and the cash
+expenses Google Sheet is itself the source of truth.
 
 ## 3. Sources
 
@@ -54,7 +55,8 @@ Only the weather is called directly from the Next server (cached with
 
 ### Calendar & Gmail — Google APIs
 - A "Web" OAuth client in **Cairn's Google Cloud project**, with a separate
-  consent for Synapse: `calendar.readonly` + `gmail.readonly`.
+  consent for Synapse: `calendar.readonly` + `gmail.readonly` (+ `drive.file`
+  for cash expenses, see below).
 - The refresh token stays server-side, encrypted, in a table with no RLS
   policy. This is Cairn's `google_credentials` model, reused as is
   (`supabase/functions/_shared/chiffrement.ts`), but in a separate
@@ -157,9 +159,33 @@ Only the weather is called directly from the Next server (cached with
 - A `(habit_id, user_id)` foreign key guarantees that you can only check your
   own habits, on top of RLS.
 
-### Finances and homelab — postponed
-- No source chosen for now (manual entry, bank CSV import, Uptime Kuma… remain
-  possible). To be picked up in a dedicated ticket.
+### Cash expenses — Google Sheet
+- The "Dépenses Liquide" Google Sheet stays the source of truth, editable by
+  hand. Target format: `Saisies` tab (`ID | Date | Montant | Catégorie |
+  Remarque`, raw data only), `Catégories` (feeds the sheet's dropdown and the
+  widget's list), `Récap` (`QUERY` formulas over `Saisies`, unaffected by
+  additions and deletions).
+- Access: `drive.file` scope (non-sensitive) added to Synapse's Google
+  consent. The file is chosen once with the **Google Picker**; its id goes in
+  `synapse.settings.cash_sheet_id`. The Picker's token is requested in the
+  browser (Google Identity Services, `drive.file` only): the server's refresh
+  token, which also reads Gmail, never leaves it.
+- Reads and writes go through the `/api/cash` route handlers, on the Next
+  server: the refresh token ciphertext is read by
+  `synapse.google_refresh_token()` (SECURITY DEFINER, the caller's row only),
+  then decrypted with `SYNAPSE_GOOGLE_TOKEN_KEY`. Still no `service_role` key
+  on Vercel.
+- Editing or deleting finds the row **by ID** (UUID in column A, hidden): the
+  sheet may have changed since it was displayed. Dates as serial numbers,
+  amounts as numbers (`valueInputOption=RAW`). 3 min Next cache, invalidated
+  after each write.
+- One-time migration from the `2026` tab: a preview where each anomaly has to
+  be confirmed, then a single `spreadsheets.batchUpdate`; the source tab stays
+  as an archive.
+
+### Homelab — postponed
+- No source chosen for now (Uptime Kuma… remains possible). To be picked up in
+  a dedicated ticket.
 
 ## 4. `synapse` schema
 
@@ -168,7 +194,7 @@ A dedicated Postgres schema, added to the Supabase API "Exposed schemas". RLS
 
 | Table | Contents |
 |---|---|
-| `settings` | weather location, widget order, id of the Cairn shopping checklist |
+| `settings` | weather location, widget order, id of the Cairn shopping checklist, id of the cash expenses Google Sheet |
 | `google_accounts` / `google_credentials` | connection state / encrypted refresh token (no policy) |
 | `calendar_events` | event cache (Google id, start, end, title, location) |
 | `mail_headers` | the last 20 received messages (id, sender, subject, snippet, date, read) |
@@ -194,6 +220,7 @@ synapse/
   app/
     (dashboard)/page.tsx        widget grid
     api/google/connect|callback OAuth route handlers
+    api/cash/                   cash expenses (Google Sheet)
     manifest.ts                 PWA manifest
   components/widgets/           Weather, Agenda, Mail, Todo, Sport, Meal, Shopping, Mood
   lib/
@@ -211,7 +238,7 @@ source:
 
 ```ts
 type Connector<T> = {
-  id: 'weather' | 'google' | 'garmin' | 'cairn' | 'meals' | 'mood' | 'habits'
+  id: 'weather' | 'google' | 'garmin' | 'cairn' | 'meals' | 'mood' | 'habits' | 'cash'
   read(userId: string): Promise<{ data: T; syncedAt: Date | null; error?: string }>
 }
 ```
@@ -226,6 +253,7 @@ type Connector<T> = {
 | 4 | **Garmin** workflow + sleep / activity / 7-day trend widgets | Sport |
 | 5 | **Recipes**: collection, recipe of the day, ingredients → Cairn shopping checklist | Cooking |
 | 6 | **Mood and habits**: quick daily entry; finances and homelab postponed | Well-being |
+| 7 | **Cash expenses**: Google Sheet chosen with the Picker, file migration, CRUD from the dashboard | Finances |
 
 ## 7. Free-tier limits to watch
 
@@ -234,7 +262,7 @@ type Connector<T> = {
 | Supabase free | 500 MB database, 500k Edge Function invocations/month, pause after 7 days of inactivity | A few MB; ~1500 invocations/month; no pause thanks to `pg_cron` and Cairn |
 | Vercel Hobby | Non-commercial use, 100 GB bandwidth | One user |
 | GitHub Actions | 2000 min/month (private) | ~250 min |
-| Google APIs | Very generous Calendar/Gmail quotas | Negligible |
+| Google APIs | Very generous Calendar/Gmail quotas; Sheets: 300 reads/min per project | Negligible |
 | Open-Meteo | 10,000 calls/day (non-commercial) | ~50 |
 
 ## 8. Settled choices
@@ -243,4 +271,6 @@ type Connector<T> = {
 - Shopping: a Cairn checklist (not encrypted), no Synapse table.
 - Garmin: no two-factor authentication for now; password login as a CI secret,
   tokens cached.
-- Mood and habits: entered in Synapse only; finances and homelab postponed.
+- Mood and habits: entered in Synapse only; homelab postponed.
+- Cash expenses: the Google Sheet is the source of truth, Synapse keeps
+  nothing of it in the database.

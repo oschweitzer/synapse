@@ -7,6 +7,9 @@ import { disconnectGoogle, syncGoogleNow } from '@/app/actions/google'
 import { readGoogleAccount } from '@/lib/connectors/google'
 import { addHabit, archiveHabit } from '@/app/actions/mood'
 import { HABITS_MAX, listHabits } from '@/lib/connectors/mood'
+import { pickerConfig, SCOPE_DRIVE_FILE } from '@/lib/google/oauth'
+import { SheetPicker } from '@/components/cash/SheetPicker'
+import { UnlinkSheet } from '@/components/cash/UnlinkSheet'
 
 const MESSAGES: Record<string, string> = {
   invalid: 'Cette checklist n’est pas utilisable (introuvable ou dans le coffre).',
@@ -58,7 +61,7 @@ export default async function SettingsPage({
   const params = await searchParams
   const [candidates, settings, google, habits] = await Promise.all([
     listShoppingCandidates(),
-    supabase.schema('synapse').from('settings').select('cairn_shopping_checklist_id').maybeSingle(),
+    supabase.schema('synapse').from('settings').select('cairn_shopping_checklist_id, cash_sheet_id').maybeSingle(),
     readGoogleAccount().catch((e) => {
       console.error('[settings] lecture du compte Google', e)
       return null
@@ -70,6 +73,9 @@ export default async function SettingsPage({
   ])
   if (settings.error) console.error('[settings] lecture', settings.error)
   const current = (settings.data?.cairn_shopping_checklist_id as string | null | undefined) ?? ''
+  const cashSheetId = (settings.data?.cash_sheet_id as string | null | undefined) ?? null
+  const picker = pickerConfig()
+  const canPick = Boolean(google && !google.needsReauth && google.scopes.includes(SCOPE_DRIVE_FILE))
   const error = params.error ? (MESSAGES[params.error] ?? MESSAGES.save) : null
   const googleMessage = params.google ? (GOOGLE_MESSAGES[params.google] ?? GOOGLE_MESSAGES.error) : null
   const habitMessage = params.habits ? (HABIT_MESSAGES[params.habits] ?? HABIT_MESSAGES.save) : null
@@ -188,7 +194,8 @@ export default async function SettingsPage({
         <h2 className="font-semibold">Google (agenda et mails)</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
           Lecture seule : évènements de la veille à J+7 et en-têtes des 20 derniers mails de la boîte de réception,
-          synchronisés toutes les 30 min. Le corps des mails n’est jamais lu.
+          synchronisés toutes les 30 min. Le corps des mails n’est jamais lu. Pour les dépenses cash, accès au seul
+          fichier choisi plus bas, en lecture et écriture.
         </p>
         {google ? (
           <p className="text-sm">
@@ -230,6 +237,46 @@ export default async function SettingsPage({
             {googleMessage[0]}
           </p>
         )}
+      </section>
+
+      <section className={`${card} mt-4`}>
+        <h2 className="font-semibold">Dépenses cash</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Google Sheet lu et modifié par le widget « Dépenses cash ». Il reste la source de vérité : on peut
+          toujours l’éditer à la main. Synapse n’a accès qu’au fichier choisi ici (scope « drive.file »).
+        </p>
+        {cashSheetId ? (
+          <p className="text-sm">
+            Fichier :{' '}
+            <a
+              href={`https://docs.google.com/spreadsheets/d/${encodeURIComponent(cashSheetId)}/edit`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              ouvrir dans Google Sheets
+            </a>
+          </p>
+        ) : (
+          <p className="text-sm">Aucun fichier choisi.</p>
+        )}
+        {!canPick ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {google
+              ? 'Reconnecte Google (ci-dessus) et accepte l’accès aux fichiers choisis pour choisir le fichier.'
+              : 'Connecte Google (ci-dessus) pour choisir le fichier.'}
+          </p>
+        ) : !picker ? (
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            Google Picker non configuré côté serveur (SYNAPSE_GOOGLE_PICKER_API_KEY).
+          </p>
+        ) : null}
+        <div className="flex flex-col gap-3 sm:flex-row">
+          {canPick && picker && (
+            <SheetPicker {...picker} loginHint={google?.email} label={cashSheetId ? 'Changer de fichier' : 'Choisir le fichier'} />
+          )}
+          {cashSheetId && <UnlinkSheet />}
+        </div>
       </section>
     </main>
   )

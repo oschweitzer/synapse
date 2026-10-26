@@ -14,7 +14,7 @@ const UPCOMING_DAYS = 7
 /** Évènements affichés au plus dans l'aperçu des jours suivants. */
 const UPCOMING_LIMIT = 12
 
-type AccountRow = Pick<Tables<{ schema: 'synapse' }, 'google_accounts'>, 'google_email' | 'needs_reauth'>
+type AccountRow = Pick<Tables<{ schema: 'synapse' }, 'google_accounts'>, 'google_email' | 'needs_reauth' | 'scopes'>
 type EventRow = Pick<
   Tables<{ schema: 'synapse' }, 'calendar_events'>,
   'calendar_id' | 'event_id' | 'title' | 'location' | 'all_day' | 'start_at' | 'end_at' | 'html_link'
@@ -24,7 +24,7 @@ type MailRow = Pick<
   'message_id' | 'thread_id' | 'sender' | 'subject' | 'snippet' | 'received_at' | 'is_unread'
 >
 
-export type GoogleAccount = { email: string | null; needsReauth: boolean }
+export type GoogleAccount = { email: string | null; needsReauth: boolean; scopes: string[] }
 
 export type CalendarEvent = {
   id: string
@@ -62,12 +62,12 @@ export async function readGoogleAccount(): Promise<GoogleAccount | null> {
   const { data, error } = await supabase
     .schema('synapse')
     .from('google_accounts')
-    .select('google_email, needs_reauth')
+    .select('google_email, needs_reauth, scopes')
     .maybeSingle()
   if (error) throw error
   if (!data) return null
   const row = data as AccountRow
-  return { email: row.google_email, needsReauth: row.needs_reauth }
+  return { email: row.google_email, needsReauth: row.needs_reauth, scopes: row.scopes }
 }
 
 /** Fin de la dernière synchro Google réussie. */

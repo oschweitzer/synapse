@@ -42,8 +42,9 @@ utilisable dans le navigateur, puis sur mobile.
               └───────────────────────────┘
 ```
 
-Seule la météo est appelée en direct depuis le serveur Next (avec mise en cache
-`revalidate`), parce qu'elle ne demande ni clé ni stockage.
+Seules la météo et les dépenses cash sont appelées en direct depuis le serveur
+Next (avec mise en cache) : la météo ne demande ni clé ni stockage, et le Google
+Sheet des dépenses est lui-même la source de vérité.
 
 ## 3. Sources
 
@@ -55,7 +56,7 @@ Seule la météo est appelée en direct depuis le serveur Next (avec mise en cac
 ### Agenda & Gmail — Google APIs
 - Un client OAuth « Web » dans le **projet Google Cloud de Cairn**, avec un
   second consentement propre à Synapse : `calendar.readonly` +
-  `gmail.readonly`.
+  `gmail.readonly` (+ `drive.file` pour les dépenses cash, voir plus bas).
 - Le refresh token reste côté serveur, chiffré, dans une table sans politique
   RLS. C'est le modèle `google_credentials` de Cairn, à reprendre tel quel
   (`supabase/functions/_shared/chiffrement.ts`), mais dans une table
@@ -164,9 +165,32 @@ Seule la météo est appelée en direct depuis le serveur Next (avec mise en cac
 - Une clé étrangère `(habit_id, user_id)` garantit qu'on ne coche que ses
   propres habitudes, en plus de la RLS.
 
-### Finances et homelab — reportés
-- Pas de source retenue pour l'instant (saisie, import CSV bancaire, Uptime
-  Kuma… restent possibles). À reprendre dans un ticket dédié.
+### Dépenses cash — Google Sheet
+- Le Google Sheet « Dépenses Liquide » reste la source de vérité, éditable à la
+  main. Format cible : onglet `Saisies` (`ID | Date | Montant | Catégorie |
+  Remarque`, données brutes uniquement), `Catégories` (alimente la liste
+  déroulante de la feuille et celle du widget), `Récap` (formules `QUERY` sur
+  `Saisies`, insensibles aux ajouts et suppressions).
+- Accès : scope `drive.file` (non sensible) ajouté au consentement Google de
+  Synapse. Le fichier se choisit une fois avec le **Google Picker** ; son id va
+  dans `synapse.settings.cash_sheet_id`. Le jeton du Picker est demandé dans le
+  navigateur (Google Identity Services, `drive.file` seul) : le refresh token
+  du serveur, qui lit aussi Gmail, n'en sort jamais.
+- Lecture et écriture par les route handlers `/api/cash`, côté serveur Next :
+  le chiffré du refresh token est lu par `synapse.google_refresh_token()`
+  (SECURITY DEFINER, ligne de l'appelant seulement), déchiffré avec
+  `SYNAPSE_GOOGLE_TOKEN_KEY`. Toujours pas de clé `service_role` sur Vercel.
+- Modifier ou supprimer retrouve la ligne **par ID** (UUID en colonne A,
+  masquée) : la feuille a pu bouger depuis l'affichage. Dates en numéro de
+  série, montants en nombre (`valueInputOption=RAW`). Cache Next de 3 min,
+  invalidé après chaque écriture.
+- Migration unique depuis l'onglet `2026` : aperçu avec chaque anomalie à
+  valider, puis un seul `spreadsheets.batchUpdate` ; l'onglet source reste en
+  archive.
+
+### Homelab — reporté
+- Pas de source retenue pour l'instant (Uptime Kuma… reste possible). À
+  reprendre dans un ticket dédié.
 
 ## 4. Schéma `synapse`
 
@@ -175,7 +199,7 @@ Schéma Postgres dédié, ajouté aux « Exposed schemas » de l'API Supabase. R
 
 | Table | Contenu |
 |---|---|
-| `settings` | position météo, ordre des widgets, id de la checklist Cairn des courses |
+| `settings` | position météo, ordre des widgets, id de la checklist Cairn des courses, id du Google Sheet des dépenses cash |
 | `google_accounts` / `google_credentials` | état de connexion / refresh token chiffré (sans politique) |
 | `calendar_events` | cache des évènements (id Google, début, fin, titre, lieu) |
 | `mail_headers` | les 20 derniers mails reçus (id, expéditeur, sujet, extrait, date, lu) |
@@ -201,6 +225,7 @@ synapse/
   app/
     (dashboard)/page.tsx        grille de widgets
     api/google/connect|callback route handlers OAuth
+    api/cash/                   dépenses cash (Google Sheet)
     manifest.ts                 manifeste PWA
   components/widgets/           Weather, Agenda, Mail, Todo, Sport, Meal, Shopping, Mood
   lib/
@@ -218,7 +243,7 @@ source en particulier :
 
 ```ts
 type Connector<T> = {
-  id: 'weather' | 'google' | 'garmin' | 'cairn' | 'meals' | 'mood' | 'habits'
+  id: 'weather' | 'google' | 'garmin' | 'cairn' | 'meals' | 'mood' | 'habits' | 'cash'
   read(userId: string): Promise<{ data: T; syncedAt: Date | null; error?: string }>
 }
 ```
@@ -233,6 +258,7 @@ type Connector<T> = {
 | 4 | Workflow **Garmin** + widgets sommeil / activité / tendance sur 7 jours | Sport |
 | 5 | **Recettes** : base, recette du jour, ingrédients → checklist Cairn des courses | Cuisine |
 | 6 | **Humeur et habitudes** : saisie rapide quotidienne ; finances et homelab reportés | Bien-être |
+| 7 | **Dépenses cash** : Google Sheet choisi avec le Picker, migration du fichier, CRUD depuis le dashboard | Finances |
 
 ## 7. Plafonds gratuits à surveiller
 
@@ -241,7 +267,7 @@ type Connector<T> = {
 | Supabase free | 500 Mo de base, 500 k invocations d'Edge Functions/mois, pause après 7 jours d'inactivité | Quelques Mo ; ~1500 invocations/mois ; pas de pause grâce à `pg_cron` et Cairn |
 | Vercel Hobby | Usage non commercial, 100 Go de bande passante | Un utilisateur |
 | GitHub Actions | 2000 min/mois (privé) | ~250 min |
-| Google APIs | Quotas Calendar/Gmail très larges | Négligeable |
+| Google APIs | Quotas Calendar/Gmail très larges ; Sheets : 300 lectures/min par projet | Négligeable |
 | Open-Meteo | 10 000 appels/jour (non commercial) | ~50 |
 
 ## 8. Choix arrêtés
@@ -250,5 +276,6 @@ type Connector<T> = {
 - Courses : une checklist Cairn (non chiffrée), pas de table Synapse.
 - Garmin : pas de double authentification pour l'instant ; connexion par
   mot de passe en secret CI, jetons mis en cache.
-- Humeur et habitudes : saisies dans Synapse uniquement ; finances et homelab
-  reportés.
+- Humeur et habitudes : saisies dans Synapse uniquement ; homelab reporté.
+- Dépenses cash : le Google Sheet est la source de vérité, Synapse n'en garde
+  rien en base.
