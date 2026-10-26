@@ -5,6 +5,7 @@ import { listShoppingCandidates } from '@/lib/connectors/cairn'
 import { saveShoppingChecklist } from '@/app/actions/cairn'
 import { disconnectGoogle, syncGoogleNow } from '@/app/actions/google'
 import { readGoogleAccount } from '@/lib/connectors/google'
+import { resetWidgetOrder } from '@/app/actions/dashboard'
 import { addHabit, archiveHabit } from '@/app/actions/mood'
 import { HABITS_MAX, listHabits } from '@/lib/connectors/mood'
 import { pickerConfig, SCOPE_DRIVE_FILE } from '@/lib/google/oauth'
@@ -52,7 +53,7 @@ const secondaryButton =
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; error?: string; google?: string; habits?: string }>
+  searchParams: Promise<{ saved?: string; order?: string; error?: string; google?: string; habits?: string }>
 }) {
   const supabase = await createClient()
   const { data } = await supabase.auth.getUser()
@@ -131,6 +132,24 @@ export default async function SettingsPage({
         {error && (
           <p id="settings-error" role="alert" className="text-sm text-red-600 dark:text-red-400">
             {error}
+          </p>
+        )}
+      </section>
+
+      <section className={`${card} mt-4`}>
+        <h2 className="font-semibold">Ordre des widgets</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Réordonne les widgets du dashboard avec la poignée en haut à droite de chacun (souris, doigt, ou clavier :
+          espace puis flèches). L’ordre est enregistré pour ton compte.
+        </p>
+        <form action={resetWidgetOrder}>
+          <button type="submit" className={secondaryButton}>
+            Rétablir l’ordre par défaut
+          </button>
+        </form>
+        {params.order === 'reset' && (
+          <p role="status" className="text-sm text-green-700 dark:text-green-400">
+            Ordre par défaut rétabli.
           </p>
         )}
       </section>

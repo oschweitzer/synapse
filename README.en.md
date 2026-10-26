@@ -179,6 +179,7 @@ Sign-in is Google only (`openid email profile`, no access to Google data), throu
 - `tailwind.config.ts` exposes the tokens (`ink-*`, `hull-*`, `cyan-*`, `amber-*`…); the `slate`, `red`, `green`, `amber` and `sky` palettes are aliased to the tokens there so existing screens pick up the style without being rewritten. For a new screen, use the tokens and `components/ui/`.
 - Fonts (Chakra Petch, IBM Plex Sans, JetBrains Mono) are loaded by `next/font/google` in `app/layout.tsx`.
 - A widget fits 4 or 8 columns of the `.hud-dash` grid (see `WidgetShell`).
+- Widget order is per user (`synapse.settings.widget_order`, `lib/dashboard.ts`): a new widget must be added to `WIDGET_IDS` and to the registry in `app/(dashboard)/page.tsx`.
 
 ### Deployment (Vercel Hobby)
 

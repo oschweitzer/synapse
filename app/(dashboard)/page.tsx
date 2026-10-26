@@ -16,6 +16,8 @@ import {
   trendConnector,
   weatherConnector,
 } from '@/lib/connectors'
+import { SortableDashboard, type DashboardItem } from '@/components/dashboard/SortableDashboard'
+import { resolveWidgetOrder, type WidgetId } from '@/lib/dashboard'
 import { WidgetSkeleton } from '@/components/widgets/WidgetShell'
 import { WidgetSlot } from '@/components/widgets/WidgetSlot'
 import { WeatherWidget } from '@/components/widgets/Weather'
@@ -42,6 +44,209 @@ export default async function DashboardPage() {
   const supabase = await createClient()
   const { data } = await supabase.auth.getUser()
   if (!data.user) redirect('/login')
+
+  const { data: settings, error: settingsError } = await supabase
+    .schema('synapse')
+    .from('settings')
+    .select('widget_order')
+    .maybeSingle()
+  if (settingsError) console.error('[dashboard] lecture de l’ordre des widgets', settingsError)
+
+  const widgets: Record<WidgetId, DashboardItem> = {
+    activities: {
+      id: 'activities',
+      title: 'Activités',
+      span: 8,
+      node: (
+        <Suspense fallback={<WidgetSkeleton title="Activités" index="auto" icon="run" span={8} hero />}>
+          <WidgetSlot
+            title="Activités"
+            index="auto" icon="run" span={8} hero
+            connector={activitiesConnector}
+            userId={data.user.id}
+            render={(activities) => <ActivitiesWidget activities={activities} />}
+          />
+        </Suspense>
+      ),
+    },
+    mail: {
+      id: 'mail',
+      title: 'Mails',
+      span: 4,
+      node: (
+        <Suspense fallback={<WidgetSkeleton title="Mails" index="auto" icon="mail" span={4} />}>
+          <WidgetSlot
+            title="Mails"
+            index="auto" icon="mail" span={4}
+            connector={mailConnector}
+            userId={data.user.id}
+            render={(mail) => <MailWidget mail={mail} />}
+          />
+        </Suspense>
+      ),
+    },
+    trend: {
+      id: 'trend',
+      title: '7 derniers jours',
+      span: 8,
+      node: (
+        <Suspense fallback={<WidgetSkeleton title="7 derniers jours" index="auto" icon="run" span={8} />}>
+          <WidgetSlot
+            title="7 derniers jours"
+            index="auto" icon="run" span={8}
+            connector={trendConnector}
+            userId={data.user.id}
+            render={(trend) => <TrendWidget trend={trend} />}
+          />
+        </Suspense>
+      ),
+    },
+    sleep: {
+      id: 'sleep',
+      title: 'Sommeil',
+      span: 4,
+      node: (
+        <Suspense fallback={<WidgetSkeleton title="Sommeil" index="auto" icon="moon" span={4} />}>
+          <WidgetSlot
+            title="Sommeil"
+            index="auto" icon="moon" span={4}
+            connector={sleepConnector}
+            userId={data.user.id}
+            render={(sleep) => <SleepWidget sleep={sleep} />}
+          />
+        </Suspense>
+      ),
+    },
+    cash: {
+      id: 'cash',
+      title: 'Dépenses cash',
+      span: 8,
+      node: (
+        <Suspense fallback={<WidgetSkeleton title="Dépenses cash" index="auto" icon="wallet" span={8} />}>
+          <WidgetSlot
+            title="Dépenses cash"
+            index="auto" icon="wallet" span={8}
+            connector={cashConnector}
+            userId={data.user.id}
+            render={(cash) => <CashWidget cash={cash} picker={pickerConfig()} today={dayKey(new Date())} />}
+          />
+        </Suspense>
+      ),
+    },
+    todo: {
+      id: 'todo',
+      title: 'À faire',
+      span: 4,
+      node: (
+        <Suspense fallback={<WidgetSkeleton title="À faire" index="auto" icon="task" span={4} />}>
+          <WidgetSlot
+            title="À faire"
+            index="auto" icon="task" span={4}
+            connector={todoConnector}
+            userId={data.user.id}
+            render={(todo) => <TodoWidget todo={todo} />}
+          />
+        </Suspense>
+      ),
+    },
+    shopping: {
+      id: 'shopping',
+      title: 'Courses',
+      span: 4,
+      node: (
+        <Suspense fallback={<WidgetSkeleton title="Courses" index="auto" icon="cart" span={4} />}>
+          <WidgetSlot
+            title="Courses"
+            index="auto" icon="cart" span={4}
+            connector={shoppingConnector}
+            userId={data.user.id}
+            render={(shopping) => <ShoppingWidget shopping={shopping} />}
+          />
+        </Suspense>
+      ),
+    },
+    agenda: {
+      id: 'agenda',
+      title: 'Agenda',
+      span: 4,
+      node: (
+        <Suspense fallback={<WidgetSkeleton title="Agenda" index="auto" icon="grid" span={4} />}>
+          <WidgetSlot
+            title="Agenda"
+            index="auto" icon="grid" span={4}
+            connector={agendaConnector}
+            userId={data.user.id}
+            render={(agenda) => <AgendaWidget agenda={agenda} />}
+          />
+        </Suspense>
+      ),
+    },
+    weather: {
+      id: 'weather',
+      title: 'Météo',
+      span: 4,
+      node: (
+        <Suspense fallback={<WidgetSkeleton title="Météo" index="auto" icon="grid" span={4} />}>
+          <WidgetSlot
+            title="Météo"
+            index="auto" icon="grid" span={4}
+            connector={weatherConnector}
+            userId={data.user.id}
+            render={(weather) => weather && <WeatherWidget weather={weather} />}
+          />
+        </Suspense>
+      ),
+    },
+    mood: {
+      id: 'mood',
+      title: 'Humeur',
+      span: 4,
+      node: (
+        <Suspense fallback={<WidgetSkeleton title="Humeur" index="auto" icon="heart" span={4} />}>
+          <WidgetSlot
+            title="Humeur"
+            index="auto" icon="heart" span={4}
+            connector={moodConnector}
+            userId={data.user.id}
+            render={(mood) => <MoodWidget mood={mood} />}
+          />
+        </Suspense>
+      ),
+    },
+    habits: {
+      id: 'habits',
+      title: 'Habitudes',
+      span: 4,
+      node: (
+        <Suspense fallback={<WidgetSkeleton title="Habitudes" index="auto" icon="check" span={4} />}>
+          <WidgetSlot
+            title="Habitudes"
+            index="auto" icon="check" span={4}
+            connector={habitsConnector}
+            userId={data.user.id}
+            render={(habits) => <HabitsWidget habits={habits} />}
+          />
+        </Suspense>
+      ),
+    },
+    'daily-recipe': {
+      id: 'daily-recipe',
+      title: 'Recette du jour',
+      span: 4,
+      node: (
+        <Suspense fallback={<WidgetSkeleton title="Recette du jour" index="auto" icon="cart" span={4} />}>
+          <WidgetSlot
+            title="Recette du jour"
+            index="auto" icon="cart" span={4}
+            connector={dailyRecipeConnector}
+            userId={data.user.id}
+            render={(daily) => <DailyRecipeWidget daily={daily} />}
+          />
+        </Suspense>
+      ),
+    },
+  }
+  const items = resolveWidgetOrder(settings?.widget_order).map((id) => widgets[id])
 
   return (
     <main>
@@ -72,116 +277,7 @@ export default async function DashboardPage() {
         <GoogleReauthBanner />
       </Suspense>
       </div>
-      <div className="hud-dash">
-        <Suspense fallback={<WidgetSkeleton title="Activités" index={1} icon="run" span={8} hero />}>
-          <WidgetSlot
-            title="Activités"
-            index={1} icon="run" span={8} hero
-            connector={activitiesConnector}
-            userId={data.user.id}
-            render={(activities) => <ActivitiesWidget activities={activities} />}
-          />
-        </Suspense>
-        <Suspense fallback={<WidgetSkeleton title="Mails" index={2} icon="mail" />}>
-          <WidgetSlot
-            title="Mails"
-            index={2} icon="mail"
-            connector={mailConnector}
-            userId={data.user.id}
-            render={(mail) => <MailWidget mail={mail} />}
-          />
-        </Suspense>
-        <Suspense fallback={<WidgetSkeleton title="7 derniers jours" index={3} icon="run" span={8} />}>
-          <WidgetSlot
-            title="7 derniers jours"
-            index={3} icon="run" span={8}
-            connector={trendConnector}
-            userId={data.user.id}
-            render={(trend) => <TrendWidget trend={trend} />}
-          />
-        </Suspense>
-        <Suspense fallback={<WidgetSkeleton title="Sommeil" index={4} icon="moon" />}>
-          <WidgetSlot
-            title="Sommeil"
-            index={4} icon="moon"
-            connector={sleepConnector}
-            userId={data.user.id}
-            render={(sleep) => <SleepWidget sleep={sleep} />}
-          />
-        </Suspense>
-        <Suspense fallback={<WidgetSkeleton title="Dépenses cash" index={5} icon="wallet" span={8} />}>
-          <WidgetSlot
-            title="Dépenses cash"
-            index={5} icon="wallet" span={8}
-            connector={cashConnector}
-            userId={data.user.id}
-            render={(cash) => <CashWidget cash={cash} picker={pickerConfig()} today={dayKey(new Date())} />}
-          />
-        </Suspense>
-        <Suspense fallback={<WidgetSkeleton title="À faire" index={6} icon="task" span={4} />}>
-          <WidgetSlot
-            title="À faire"
-            index={6} icon="task" span={4}
-            connector={todoConnector}
-            userId={data.user.id}
-            render={(todo) => <TodoWidget todo={todo} />}
-          />
-        </Suspense>
-        <Suspense fallback={<WidgetSkeleton title="Courses" index={7} icon="cart" />}>
-          <WidgetSlot
-            title="Courses"
-            index={7} icon="cart"
-            connector={shoppingConnector}
-            userId={data.user.id}
-            render={(shopping) => <ShoppingWidget shopping={shopping} />}
-          />
-        </Suspense>
-        <Suspense fallback={<WidgetSkeleton title="Agenda" index={8} icon="grid" />}>
-          <WidgetSlot
-            title="Agenda"
-            index={8} icon="grid"
-            connector={agendaConnector}
-            userId={data.user.id}
-            render={(agenda) => <AgendaWidget agenda={agenda} />}
-          />
-        </Suspense>
-        <Suspense fallback={<WidgetSkeleton title="Météo" index={9} icon="grid" />}>
-          <WidgetSlot
-            title="Météo"
-            index={9} icon="grid"
-            connector={weatherConnector}
-            userId={data.user.id}
-            render={(weather) => weather && <WeatherWidget weather={weather} />}
-          />
-        </Suspense>
-        <Suspense fallback={<WidgetSkeleton title="Humeur" index={10} icon="heart" />}>
-          <WidgetSlot
-            title="Humeur"
-            index={10} icon="heart"
-            connector={moodConnector}
-            userId={data.user.id}
-            render={(mood) => <MoodWidget mood={mood} />}
-          />
-        </Suspense>
-        <Suspense fallback={<WidgetSkeleton title="Habitudes" index={11} icon="check" />}>
-          <WidgetSlot
-            title="Habitudes"
-            index={11} icon="check"
-            connector={habitsConnector}
-            userId={data.user.id}
-            render={(habits) => <HabitsWidget habits={habits} />}
-          />
-        </Suspense>
-        <Suspense fallback={<WidgetSkeleton title="Recette du jour" index={12} icon="cart" />}>
-          <WidgetSlot
-            title="Recette du jour"
-            index={12} icon="cart"
-            connector={dailyRecipeConnector}
-            userId={data.user.id}
-            render={(daily) => <DailyRecipeWidget daily={daily} />}
-          />
-        </Suspense>
-      </div>
+      <SortableDashboard items={items} />
     </main>
   )
 }

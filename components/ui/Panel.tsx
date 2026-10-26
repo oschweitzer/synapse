@@ -16,7 +16,8 @@ export function Panel({
   children,
 }: {
   title?: string
-  index?: number
+  /** 'auto' : numéro de position dans la grille (compteur CSS), pour les grilles réordonnables. */
+  index?: number | 'auto'
   icon?: IconName
   meta?: ReactNode
   /** hero = grand biseau (un seul par écran) · alert = cadre ambre, une action est attendue. */
@@ -37,7 +38,11 @@ export function Panel({
       <div className="hud-panel__inner">
         {(title || meta) && (
           <header className="hud-panel__head">
-            {index != null && <span className="hud-panel__index">{String(index).padStart(2, '0')}</span>}
+            {index != null && (
+              <span className="hud-panel__index" data-auto={index === 'auto' || undefined}>
+                {index === 'auto' ? null : String(index).padStart(2, '0')}
+              </span>
+            )}
             {icon && (
               <span className="inline-flex text-cyan-400">
                 <Icon name={icon} />

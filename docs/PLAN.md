@@ -190,6 +190,16 @@ Sheet des dépenses est lui-même la source de vérité.
   valider, puis un seul `spreadsheets.batchUpdate` ; l'onglet source reste en
   archive.
 
+### Ordre des widgets — glisser-déposer
+- Chaque utilisateur réordonne les widgets du dashboard (poignée en haut à droite : souris,
+  tactile, ou clavier avec espace puis flèches, via `@dnd-kit`). L'ordre est une liste d'ids
+  (`lib/dashboard.ts`) enregistrée dans `synapse.settings.widget_order` (Server Action
+  `saveWidgetOrder`), donc la même sur tous les appareils.
+- Liste vide = ordre par défaut. Les ids inconnus sont ignorés et un widget ajouté plus tard
+  est placé en fin de liste. **Réglages** propose « Rétablir l'ordre par défaut ».
+- Les tailles (4 ou 8 colonnes) ne changent pas ; la numérotation `01…` suit la position
+  (compteur CSS).
+
 ### Homelab — reporté
 - Pas de source retenue pour l'instant (Uptime Kuma… reste possible). À
   reprendre dans un ticket dédié.

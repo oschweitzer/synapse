@@ -3,7 +3,7 @@ import { Panel } from '@/components/ui/Panel'
 import type { IconName } from '@/components/ui/Icon'
 
 /** Placement du widget sur la grille 12 colonnes : 8 (héros, tables) ou 4 (listes, mini-stats). */
-export type PanelLayout = { index?: number; icon?: IconName; span?: 4 | 8; hero?: boolean }
+export type PanelLayout = { index?: number | 'auto'; icon?: IconName; span?: 4 | 8; hero?: boolean }
 
 function layoutProps({ index, icon, span = 4, hero }: PanelLayout, error?: boolean) {
   const variant = error ? 'alert' : hero ? 'hero' : 'default'

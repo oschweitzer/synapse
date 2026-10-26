@@ -179,6 +179,7 @@ Interface « poste de pilotage » : sombre uniquement, accent cyan (données) et
 - `tailwind.config.ts` expose les tokens (`ink-*`, `hull-*`, `cyan-*`, `amber-*`…) ; les palettes `slate`, `red`, `green`, `amber` et `sky` y sont aliasées sur les tokens pour que les écrans existants prennent le style sans être réécrits. Pour un nouvel écran, utiliser les tokens et `components/ui/`.
 - Polices (Chakra Petch, IBM Plex Sans, JetBrains Mono) chargées par `next/font/google` dans `app/layout.tsx`.
 - Un widget tient sur 4 ou 8 colonnes de la grille `.hud-dash` (voir `WidgetShell`).
+- L'ordre des widgets est propre à chaque utilisateur (`synapse.settings.widget_order`, `lib/dashboard.ts`) : un nouveau widget doit être ajouté à `WIDGET_IDS` et au registre de `app/(dashboard)/page.tsx`.
 
 ### Déploiement (Vercel Hobby)
 

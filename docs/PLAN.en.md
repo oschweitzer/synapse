@@ -185,6 +185,15 @@ expenses Google Sheet is itself the source of truth.
   be confirmed, then a single `spreadsheets.batchUpdate`; the source tab stays
   as an archive.
 
+### Widget order — drag and drop
+- Each user reorders the dashboard widgets (handle at the top right: mouse, touch, or
+  keyboard with space then arrows, via `@dnd-kit`). The order is a list of ids
+  (`lib/dashboard.ts`) stored in `synapse.settings.widget_order` (`saveWidgetOrder` Server
+  Action), so it is the same on every device.
+- Empty list = default order. Unknown ids are ignored and a widget added later is appended
+  to the end. **Settings** offers "Restore the default order".
+- Sizes (4 or 8 columns) do not change; the `01…` numbering follows the position (CSS counter).
+
 ### Homelab — postponed
 - No source chosen for now (Uptime Kuma… remains possible). To be picked up in
   a dedicated ticket.
