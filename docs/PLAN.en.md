@@ -54,9 +54,11 @@ expenses Google Sheet is itself the source of truth.
 - 30 min Next cache.
 
 ### Calendar & Gmail — Google APIs
-- A "Web" OAuth client in **Cairn's Google Cloud project**, with a separate
-  consent for Synapse: `calendar.readonly` + `gmail.readonly` (+ `drive.file`
-  for cash expenses, see below).
+- A **Google Cloud project dedicated to Synapse**, with a single "Web" OAuth
+  client, also used for sign-in (Supabase Auth's Google provider). Consent
+  specific to Synapse: `calendar.readonly` + `gmail.readonly` (+ `drive.file`
+  for cash expenses, see below). Cairn's project is left alone; its consent
+  screens and quotas stay separate.
 - The refresh token stays server-side, encrypted, in a table with no RLS
   policy. This is Cairn's `google_credentials` model, reused as is
   (`supabase/functions/_shared/chiffrement.ts`), but in a separate

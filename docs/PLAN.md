@@ -54,9 +54,11 @@ Sheet des dépenses est lui-même la source de vérité.
 - Cache Next de 30 min.
 
 ### Agenda & Gmail — Google APIs
-- Un client OAuth « Web » dans le **projet Google Cloud de Cairn**, avec un
-  second consentement propre à Synapse : `calendar.readonly` +
-  `gmail.readonly` (+ `drive.file` pour les dépenses cash, voir plus bas).
+- Un **projet Google Cloud dédié à Synapse**, avec un client OAuth « Web »
+  unique, qui sert aussi à la connexion (provider Google de Supabase Auth).
+  Consentement propre à Synapse : `calendar.readonly` + `gmail.readonly`
+  (+ `drive.file` pour les dépenses cash, voir plus bas). Le projet de Cairn
+  n'est pas touché ; ses écrans de consentement et ses quotas restent séparés.
 - Le refresh token reste côté serveur, chiffré, dans une table sans politique
   RLS. C'est le modèle `google_credentials` de Cairn, à reprendre tel quel
   (`supabase/functions/_shared/chiffrement.ts`), mais dans une table
