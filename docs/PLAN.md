@@ -200,6 +200,22 @@ Sheet des dépenses est lui-même la source de vérité.
 - Les tailles (4 ou 8 colonnes) ne changent pas ; la numérotation `01…` suit la position
   (compteur CSS).
 
+### Verrouillage — second facteur local
+- Optionnel, par utilisateur. Une ligne `synapse.lock` (hash du code, `idle_minutes`, `epoch`,
+  compteur d'échecs) = verrouillage activé ; `synapse.lock_passkeys` liste les empreintes
+  (WebAuthn, authentificateur de plateforme, vérification utilisateur obligatoire).
+- Le code est haché par `scrypt` après un HMAC avec `SYNAPSE_LOCK_SECRET` (aucune clé
+  `service_role` : la RLS suffit). Le middleware exige un cookie signé (`httpOnly`, expiration
+  glissante, lié à l'utilisateur et à l'`epoch`) pour toute page, Server Action et route
+  `/api/*` ; exemptés : `/unlock` (GET), `/api/lock/verify|lock|passkey/auth-*`, `/auth/*`.
+  Erreur de lecture ou secret absent = reste verrouillé.
+- Essais : temporisation exponentielle dès le 3ᵉ échec (RPC atomique
+  `register_lock_failure`), déconnexion Supabase au 10ᵉ.
+- Auto-verrouillage : 1, 5 ou 15 min, ou fermeture du navigateur ; côté client
+  (`AutoLock`, inactivité + retour d'arrière-plan) et côté serveur (expiration du cookie).
+- Choix par défaut : code de 6 caractères au moins (PIN ou phrase de passe), verrou sur
+  toute l'application, 5 min d'inactivité.
+
 ### Homelab — reporté
 - Pas de source retenue pour l'instant (Uptime Kuma… reste possible). À
   reprendre dans un ticket dédié.

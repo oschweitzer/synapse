@@ -13,6 +13,11 @@ import { HABITS_MAX, listHabits } from '@/lib/connectors/mood'
 import { pickerConfig, SCOPE_DRIVE_FILE } from '@/lib/google/oauth'
 import { SheetPicker } from '@/components/cash/SheetPicker'
 import { UnlinkSheet } from '@/components/cash/UnlinkSheet'
+import { IDLE_CHOICES, readLockConfig } from '@/lib/lock/config'
+import { CODE_MIN } from '@/lib/lock/code'
+import { disableLock, removePasskey, saveLockCode, saveLockIdle } from '@/app/actions/lock'
+import { AutoLock } from '@/components/lock/AutoLock'
+import { PasskeyEnroll } from '@/components/lock/PasskeyEnroll'
 
 const MESSAGES: Record<string, string> = {
   invalid: 'Cette checklist n’est pas utilisable (introuvable ou dans le coffre).',
@@ -55,6 +60,24 @@ const WEATHER_MESSAGES: Record<string, [string, boolean]> = {
   save: ['Enregistrement impossible, réessaie.', true],
 }
 
+/** Retours du verrouillage (`?lock=…`) : [message, est une erreur]. */
+function lockMessage(code: string | undefined): [string, boolean] | null {
+  if (!code) return null
+  if (code.startsWith('throttled-')) return [`Trop d’essais. Réessaie dans ${Number(code.slice(10)) || 60} s.`, true]
+  const messages: Record<string, [string, boolean]> = {
+    enabled: ['Verrouillage activé. Le dashboard se verrouille après inactivité.', false],
+    changed: ['Code modifié. Les autres appareils devront le ressaisir.', false],
+    disabled: ['Verrouillage désactivé.', false],
+    idle: ['Délai enregistré.', false],
+    revoked: ['Empreinte retirée.', false],
+    short: [`Le code doit faire ${CODE_MIN} caractères au moins.`, true],
+    mismatch: ['Les deux saisies du code ne correspondent pas.', true],
+    current: ['Code actuel incorrect.', true],
+    save: ['Enregistrement impossible, réessaie.', true],
+  }
+  return messages[code] ?? messages.save
+}
+
 const card =
   'hud-card flex flex-col gap-3'
 const primaryButton =
@@ -65,7 +88,7 @@ const secondaryButton =
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; order?: string; error?: string; google?: string; habits?: string; weather?: string; city?: string }>
+  searchParams: Promise<{ saved?: string; order?: string; error?: string; google?: string; habits?: string; weather?: string; city?: string; lock?: string }>
 }) {
   const supabase = await createClient()
   const { data } = await supabase.auth.getUser()
@@ -73,7 +96,7 @@ export default async function SettingsPage({
 
   const params = await searchParams
   const cityQuery = params.city?.trim().slice(0, 80) ?? ''
-  const [candidates, settings, google, habits, cities, found] = await Promise.all([
+  const [candidates, settings, google, habits, cities, found, lock, passkeys] = await Promise.all([
     listShoppingCandidates(),
     supabase.schema('synapse').from('settings').select('cairn_shopping_checklist_id, cash_sheet_id').maybeSingle(),
     readGoogleAccount().catch((e) => {
@@ -94,6 +117,11 @@ export default async function SettingsPage({
           return null
         })
       : Promise.resolve<CityResult[]>([]),
+    readLockConfig(supabase).catch((e) => {
+      console.error('[settings] lecture du verrouillage', e)
+      return null
+    }),
+    supabase.schema('synapse').from('lock_passkeys').select('id, label, created_at, last_used_at').order('created_at'),
   ])
   if (settings.error) console.error('[settings] lecture', settings.error)
   const current = (settings.data?.cairn_shopping_checklist_id as string | null | undefined) ?? ''
@@ -103,10 +131,12 @@ export default async function SettingsPage({
   const error = params.error ? (MESSAGES[params.error] ?? MESSAGES.save) : null
   const googleMessage = params.google ? (GOOGLE_MESSAGES[params.google] ?? GOOGLE_MESSAGES.error) : null
   const weatherMessage = params.weather ? (WEATHER_MESSAGES[params.weather] ?? WEATHER_MESSAGES.save) : null
+  const lockInfo = lockMessage(params.lock)
   const habitMessage = params.habits ? (HABIT_MESSAGES[params.habits] ?? HABIT_MESSAGES.save) : null
 
   return (
     <main className="mx-auto max-w-xl px-4 py-6">
+      {lock && <AutoLock idleMinutes={lock.idleMinutes} />}
       <header className="mb-6 flex items-center justify-between">
         <h1 className="font-display text-2xl font-semibold uppercase tracking-wider">Réglages</h1>
         <Link href="/" className="text-sm text-slate-500 underline">
@@ -272,6 +302,91 @@ export default async function SettingsPage({
             className={`text-sm ${weatherMessage[1] ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}
           >
             {weatherMessage[0]}
+          </p>
+        )}
+      </section>
+
+      <section className={`${card} mt-4`}>
+        <h2 className="font-semibold">Verrouillage</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Second facteur : un code à saisir pour ouvrir le dashboard, même connecté à Google. Sur mobile, l’empreinte
+          (ou le déverrouillage de l’appareil) peut le remplacer ; elle ne quitte jamais le téléphone.
+        </p>
+        <form action={saveLockCode} className="flex flex-col gap-3">
+          {lock && (
+            <input name="current" type="password" autoComplete="off" required placeholder="Code actuel" aria-label="Code actuel" className="hud-input" />
+          )}
+          <input name="code" type="password" autoComplete="new-password" required minLength={CODE_MIN} placeholder={lock ? 'Nouveau code' : 'Choisis un code'} aria-label={lock ? 'Nouveau code' : 'Code'} className="hud-input" />
+          <input name="confirm" type="password" autoComplete="new-password" required minLength={CODE_MIN} placeholder="Confirme le code" aria-label="Confirmer le code" className="hud-input" />
+          <p className="text-sm text-slate-500 dark:text-slate-400">{CODE_MIN} caractères au moins (chiffres ou phrase de passe).</p>
+          <button type="submit" className={`${primaryButton} sm:self-start`}>
+            {lock ? 'Changer le code' : 'Activer le verrouillage'}
+          </button>
+        </form>
+        {lock && (
+          <>
+            <form action={saveLockIdle} className="flex flex-col gap-3 sm:flex-row">
+              <label htmlFor="idle_minutes" className="sr-only">
+                Verrouiller après
+              </label>
+              <select id="idle_minutes" name="idle_minutes" defaultValue={lock.idleMinutes} className="hud-input flex-1">
+                {IDLE_CHOICES.map((c) => (
+                  <option key={c.minutes} value={c.minutes}>
+                    {c.minutes === 0 ? c.label : `Verrouiller après ${c.label} d’inactivité`}
+                  </option>
+                ))}
+              </select>
+              <button type="submit" className={secondaryButton}>
+                Enregistrer le délai
+              </button>
+            </form>
+            <form action="/api/lock/lock" method="post">
+              <button type="submit" className={secondaryButton}>
+                Verrouiller maintenant
+              </button>
+            </form>
+
+            <h3 className="mt-2 text-sm font-semibold">Empreintes</h3>
+            {passkeys.error ? (
+              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+                Lecture des appareils impossible.
+              </p>
+            ) : passkeys.data.length === 0 ? (
+              <p className="text-sm">Aucun appareil enregistré.</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {passkeys.data.map((p) => (
+                  <li key={p.id as string} className="flex items-center justify-between gap-3 text-sm">
+                    <span className="min-w-0 break-words">
+                      {p.label as string}
+                      <span className="text-slate-500 dark:text-slate-400">
+                        {' '}
+                        · {p.last_used_at ? `utilisée le ${new Date(p.last_used_at as string).toLocaleDateString('fr-FR')}` : 'jamais utilisée'}
+                      </span>
+                    </span>
+                    <form action={removePasskey}>
+                      <input type="hidden" name="id" value={p.id as string} />
+                      <button type="submit" className="text-sm text-slate-500 underline dark:text-slate-400">
+                        Retirer<span className="sr-only"> « {p.label as string} »</span>
+                      </button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <PasskeyEnroll />
+
+            <form action={disableLock} className="flex flex-col gap-3 sm:flex-row">
+              <input name="current" type="password" autoComplete="off" required placeholder="Code actuel" aria-label="Code actuel pour désactiver" className="hud-input flex-1" />
+              <button type="submit" className={secondaryButton}>
+                Désactiver le verrouillage
+              </button>
+            </form>
+          </>
+        )}
+        {lockInfo && (
+          <p role={lockInfo[1] ? 'alert' : 'status'} className={`text-sm ${lockInfo[1] ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>
+            {lockInfo[0]}
           </p>
         )}
       </section>

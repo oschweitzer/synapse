@@ -36,6 +36,7 @@ Scripts: `npm run build`, `npm run lint`, `npm run typecheck`.
 | `SYNAPSE_GOOGLE_CLIENT_ID` / `SYNAPSE_GOOGLE_CLIENT_SECRET` | Synapse's Google OAuth client (see "Calendar and mail") |
 | `SYNAPSE_GOOGLE_TOKEN_KEY` | Encryption key for the Google refresh token, 64 hex characters, the same as in the Edge Functions secrets |
 | `SYNAPSE_GOOGLE_PICKER_API_KEY` | Google Picker API key, to choose the cash expenses file (see "Cash expenses") |
+| `SYNAPSE_LOCK_SECRET` | Lock secret (32 characters minimum, `openssl rand -hex 32`): signs the cookies and peppers the code hash (see "Lock") |
 | `NEXT_PUBLIC_CAIRN_URL` | Cairn web URL, for "Open in Cairn" links (used from phase 2) |
 | `DATABASE_URL` | Local only: Postgres connection for migrations (Supabase > Connect > *Session pooler*) |
 | `SUPABASE_PROJECT_REF` | Local only: project id, to generate types |
@@ -166,6 +167,19 @@ Setup: migration `0008_mindmaps.sql` (`npm run db:migrate`), `synapse.mindmaps` 
 
 Sign-in is Google only (`openid email profile`, no access to Google data), through Supabase Auth: the session is the Cairn account's, provided the Google address is the Cairn account's (Supabase links the Google identity to the existing account with the same verified address; check in *Authentication > Users* after the first sign-in that `auth.uid()` is the Cairn account's uuid). An account outside `ALLOWED_EMAILS` is signed out immediately ("Accès refusé"). Enable the *Google* provider in Supabase (the "Web" OAuth client of Synapse's Google Cloud project, whose authorised redirect URIs include `https://<project-ref>.supabase.co/auth/v1/callback`). If Cairn already uses this provider, its sign-in now goes through this client: check that it still works. In Supabase, **Authentication > URL Configuration**, add `<NEXT_PUBLIC_SITE_URL>/auth/callback` (and `http://localhost:3000/auth/callback` locally) to the *Redirect URLs*.
 
+### Lock (second factor)
+
+Optional, enabled in **Settings > Lock**. Even when signed in with Google, the dashboard stays closed until the code is entered.
+
+- **Code** chosen by the user (6 characters minimum, digits or a passphrase). It is never stored in clear: `scrypt` after an HMAC with `SYNAPSE_LOCK_SECRET`, in `synapse.lock`. Without that secret the hash is unusable.
+- **Server-side gate**: the middleware rejects any page, Server Action or `/api/*` route without a valid unlock cookie (signed, `httpOnly`, sliding expiry). Only the `/unlock` page, its `/api/lock/*` routes and sign-out remain reachable. The cookie is bound to the user and to an `epoch` that changes with the code: changing the code re-locks the other devices.
+- **Rate-limited attempts**: from the 3rd failure the delay doubles on each attempt (30 s, 1 min… capped at 1 h); on the 10th failure the Supabase session is closed. The counter is persisted in `synapse.lock`.
+- **Fingerprint (mobile)**: WebAuthn with a platform authenticator and mandatory user verification (`@simplewebauthn`). No biometric data leaves the device; the code stays the fallback. Devices are listed and revocable in Settings. HTTPS (or `localhost`) is required; the WebAuthn RP ID is the request hostname, so a passkey only works on the domain where it was created.
+- **Auto-lock**: after 1, 5 or 15 minutes of inactivity, or when the browser closes; when returning from the background after longer than the delay; "Verrouiller" button in the top bar.
+- Threat model: an open session left unattended. The lock does not protect against someone holding the Supabase token and calling the API directly.
+
+Prerequisites: set `SYNAPSE_LOCK_SECRET` (Vercel and `.env.local`) **before** enabling the lock, then apply migration `0009_lock.sql` (`npm run db:migrate`).
+
 ### Design system
 
 "Ship's console" interface: dark only, cyan accent (data) and amber (attention), cut corners. Reference: the *Synapse* design system (tokens, components, usage rules).
@@ -174,7 +188,7 @@ Sign-in is Google only (`openid email profile`, no access to Google data), throu
 - `app/hud.css`: `hud-*` classes (panel, button, badge, input, gauge, sparkline, mail…).
 - `components/ui/`: React components ported from the design system (`Panel`, `Button`, `Badge`, `Input`, `Stat`, `Gauge`, `Sparkline`, `Icon`), same props and classes.
 - `tailwind.config.ts` exposes the tokens (`ink-*`, `hull-*`, `cyan-*`, `amber-*`…); the `slate`, `red`, `green`, `amber` and `sky` palettes are aliased to the tokens there so existing screens pick up the style without being rewritten. For a new screen, use the tokens and `components/ui/`.
-- Fonts (Chakra Petch, IBM Plex Sans, JetBrains Mono) are loaded by `next/font/google` in `app/layout.tsx`.
+- Fonts (Chakra Petch, IBM Plex Sans, JetBrains Mono) are self-hosted (`app/fonts`, OFL licence, latin subset) and loaded by `next/font/local` in `app/layout.tsx`, so the build does not depend on Google Fonts.
 - A widget fits 4 or 8 columns of the `.hud-dash` grid (see `WidgetShell`).
 - Widget order is per user (`synapse.settings.widget_order`, `lib/dashboard.ts`): a new widget must be added to `WIDGET_IDS` and to the registry in `app/(dashboard)/page.tsx`.
 

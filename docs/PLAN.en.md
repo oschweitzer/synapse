@@ -194,6 +194,22 @@ expenses Google Sheet is itself the source of truth.
   to the end. **Settings** offers "Restore the default order".
 - Sizes (4 or 8 columns) do not change; the `01…` numbering follows the position (CSS counter).
 
+### Lock — local second factor
+- Optional, per user. A `synapse.lock` row (code hash, `idle_minutes`, `epoch`, failure
+  counter) = lock enabled; `synapse.lock_passkeys` lists the fingerprints (WebAuthn, platform
+  authenticator, mandatory user verification).
+- The code is hashed with `scrypt` after an HMAC with `SYNAPSE_LOCK_SECRET` (no
+  `service_role` key: RLS is enough). The middleware requires a signed cookie (`httpOnly`,
+  sliding expiry, bound to the user and the `epoch`) for every page, Server Action and
+  `/api/*` route; exempt: `/unlock` (GET), `/api/lock/verify|lock|passkey/auth-*`, `/auth/*`.
+  A read error or a missing secret = stays locked.
+- Attempts: exponential delay from the 3rd failure (atomic `register_lock_failure` RPC),
+  Supabase sign-out on the 10th.
+- Auto-lock: 1, 5 or 15 min, or browser close; client side (`AutoLock`, inactivity and
+  return from background) and server side (cookie expiry).
+- Defaults chosen: code of 6 characters minimum (PIN or passphrase), lock covers the whole
+  app, 5 min of inactivity.
+
 ### Homelab — postponed
 - No source chosen for now (Uptime Kuma… remains possible). To be picked up in
   a dedicated ticket.

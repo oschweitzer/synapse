@@ -262,6 +262,78 @@ export type Database = {
         }
         Relationships: []
       }
+      lock: {
+        Row: {
+          code_hash: string
+          code_salt: string
+          created_at: string
+          epoch: number
+          failed_attempts: number
+          idle_minutes: number
+          locked_until: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          code_hash: string
+          code_salt: string
+          created_at?: string
+          epoch?: number
+          failed_attempts?: number
+          idle_minutes?: number
+          locked_until?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          code_hash?: string
+          code_salt?: string
+          created_at?: string
+          epoch?: number
+          failed_attempts?: number
+          idle_minutes?: number
+          locked_until?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      lock_passkeys: {
+        Row: {
+          counter: number
+          created_at: string
+          credential_id: string
+          id: string
+          label: string
+          last_used_at: string | null
+          public_key: string
+          transports: string[]
+          user_id: string
+        }
+        Insert: {
+          counter?: number
+          created_at?: string
+          credential_id: string
+          id?: string
+          label: string
+          last_used_at?: string | null
+          public_key: string
+          transports?: string[]
+          user_id?: string
+        }
+        Update: {
+          counter?: number
+          created_at?: string
+          credential_id?: string
+          id?: string
+          label?: string
+          last_used_at?: string | null
+          public_key?: string
+          transports?: string[]
+          user_id?: string
+        }
+        Relationships: []
+      }
       mail_headers: {
         Row: {
           is_unread: boolean
@@ -543,6 +615,10 @@ export type Database = {
       flag_google_reauth: { Args: never; Returns: undefined }
       google_refresh_token: { Args: never; Returns: string }
       pick_daily_recipe: { Args: { p_day: string }; Returns: string }
+      register_lock_failure: {
+        Args: never
+        Returns: { failed_attempts: number; locked_until: string | null }[]
+      }
       replace_google_cache: {
         Args: { p_events: Json; p_mails: Json; p_user_id: string }
         Returns: undefined

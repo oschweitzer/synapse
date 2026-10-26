@@ -31,6 +31,8 @@ import { HabitsWidget, MoodWidget } from '@/components/widgets/Mood'
 import { GoogleReauthBanner } from '@/components/widgets/GoogleBanner'
 import { CashWidget } from '@/components/widgets/Cash'
 import { buttonClass } from '@/components/ui/Button'
+import { AutoLock } from '@/components/lock/AutoLock'
+import { readLockConfig } from '@/lib/lock/config'
 import { pickerConfig } from '@/lib/google/oauth'
 import { TIME_ZONE, dayKey } from '@/lib/time'
 
@@ -51,6 +53,11 @@ export default async function DashboardPage() {
     .select('widget_order')
     .maybeSingle()
   if (settingsError) console.error('[dashboard] lecture de l’ordre des widgets', settingsError)
+
+  const lock = await readLockConfig(supabase).catch((e) => {
+    console.error('[dashboard] lecture du verrouillage', e)
+    return null
+  })
 
   const widgets: Record<WidgetId, DashboardItem> = {
     activities: {
@@ -262,6 +269,7 @@ export default async function DashboardPage() {
 
   return (
     <main>
+      {lock && <AutoLock idleMinutes={lock.idleMinutes} />}
       <header className="hud-topbar">
         <div>
           <h1 className="hud-topbar__title">Synapse</h1>
@@ -280,6 +288,13 @@ export default async function DashboardPage() {
           <Link href="/settings" className={buttonClass({ size: 'sm' })}>
             Réglages
           </Link>
+          {lock && (
+            <form action="/api/lock/lock" method="post">
+              <button type="submit" className={buttonClass({ variant: 'quiet', size: 'sm' })}>
+                Verrouiller
+              </button>
+            </form>
+          )}
           <form action="/auth/signout" method="post">
             <button type="submit" className={buttonClass({ variant: 'quiet', size: 'sm' })}>
               Se déconnecter

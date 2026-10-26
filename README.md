@@ -36,6 +36,7 @@ Scripts : `npm run build`, `npm run lint`, `npm run typecheck`.
 | `SYNAPSE_GOOGLE_CLIENT_ID` / `SYNAPSE_GOOGLE_CLIENT_SECRET` | Client OAuth Google de Synapse (voir « Agenda et mails ») |
 | `SYNAPSE_GOOGLE_TOKEN_KEY` | Clé de chiffrement du refresh token Google, 64 caractères hexadécimaux, la même que dans les secrets des Edge Functions |
 | `SYNAPSE_GOOGLE_PICKER_API_KEY` | Clé d'API du Google Picker, pour choisir le fichier des dépenses cash (voir « Dépenses cash ») |
+| `SYNAPSE_LOCK_SECRET` | Secret du verrouillage (32 caractères au moins, `openssl rand -hex 32`) : signe les cookies et poivre le hash du code (voir « Verrouillage ») |
 | `NEXT_PUBLIC_CAIRN_URL` | URL web de Cairn, liens « Ouvrir dans Cairn » (utilisée dès la phase 2) |
 | `DATABASE_URL` | Local uniquement : connexion Postgres pour les migrations (Supabase > Connect > *Session pooler*) |
 | `SUPABASE_PROJECT_REF` | Local uniquement : id du projet, pour générer les types |
@@ -166,6 +167,19 @@ Mise en place : migration `0008_mindmaps.sql` (`npm run db:migrate`), table `syn
 
 On se connecte uniquement avec Google (`openid email profile`, aucun accès aux données Google), via Supabase Auth : la session est celle du compte Cairn, à condition que l’adresse Google soit celle du compte Cairn (Supabase lie l’identité Google au compte existant de même adresse vérifiée ; à contrôler dans *Authentication > Users* après la première connexion : `auth.uid()` doit être l’uuid du compte Cairn). Un compte hors `ALLOWED_EMAILS` est déconnecté aussitôt (« Accès refusé »). Activer le provider *Google* dans Supabase (le client OAuth « Web » du projet Google Cloud de Synapse, dont les URI de redirection autorisées incluent `https://<project-ref>.supabase.co/auth/v1/callback`). Si Cairn utilise déjà ce provider, sa connexion passe désormais par ce client : vérifier qu’elle fonctionne toujours. Dans Supabase, **Authentication > URL Configuration**, ajouter `<NEXT_PUBLIC_SITE_URL>/auth/callback` (et `http://localhost:3000/auth/callback` en local) aux *Redirect URLs*.
 
+### Verrouillage (second facteur)
+
+Optionnel, activé dans **Réglages > Verrouillage**. Même connecté à Google, le dashboard reste fermé tant que le code n’est pas saisi.
+
+- **Code** choisi par l’utilisateur (6 caractères au moins, chiffres ou phrase de passe). Il n’est jamais stocké en clair : `scrypt` après un HMAC avec `SYNAPSE_LOCK_SECRET`, dans `synapse.lock`. Sans ce secret, le hash est inexploitable.
+- **Barrière côté serveur** : le middleware refuse toute page, Server Action ou route `/api/*` sans cookie de déverrouillage valide (signé, `httpOnly`, expiration glissante). Seuls la page `/unlock`, ses routes `/api/lock/*` et la déconnexion restent accessibles. Le cookie est lié à l’utilisateur et à une `epoch` qui change avec le code : changer le code reverrouille les autres appareils.
+- **Essais limités** : à partir du 3ᵉ échec, temporisation doublée à chaque essai (30 s, 1 min… plafonnée à 1 h) ; au 10ᵉ échec, la session Supabase est fermée. Compteur persisté dans `synapse.lock`.
+- **Empreinte (mobile)** : WebAuthn avec un authentificateur de plateforme et vérification utilisateur obligatoire (`@simplewebauthn`). Aucune donnée biométrique ne quitte l’appareil ; le code reste la solution de secours. Appareils listés et révocables dans les Réglages. Il faut HTTPS (ou `localhost`) ; l’identifiant WebAuthn est le nom d’hôte de la requête, donc une passkey n’est valable que pour le domaine où elle a été créée.
+- **Verrouillage automatique** : après 1, 5 ou 15 minutes d’inactivité, ou à la fermeture du navigateur ; au retour d’un passage en arrière-plan plus long que le délai ; bouton « Verrouiller » dans la barre du haut.
+- Modèle de menace : session ouverte laissée sans surveillance. Le verrouillage ne protège pas contre qui détiendrait le jeton Supabase et appellerait directement l’API.
+
+Dépendances : définir `SYNAPSE_LOCK_SECRET` (Vercel et `.env.local`) **avant** d’activer le verrouillage, puis appliquer la migration `0009_lock.sql` (`npm run db:migrate`).
+
 ### Design system
 
 Interface « poste de pilotage » : sombre uniquement, accent cyan (données) et ambre (attention), coins coupés. Référence : le design system *Synapse* (tokens, composants, règles d’usage).
@@ -174,7 +188,7 @@ Interface « poste de pilotage » : sombre uniquement, accent cyan (données) et
 - `app/hud.css` : classes `hud-*` (panel, bouton, badge, champ, jauge, courbe, mail…).
 - `components/ui/` : composants React portés du design system (`Panel`, `Button`, `Badge`, `Input`, `Stat`, `Gauge`, `Sparkline`, `Icon`), mêmes props et classes.
 - `tailwind.config.ts` expose les tokens (`ink-*`, `hull-*`, `cyan-*`, `amber-*`…) ; les palettes `slate`, `red`, `green`, `amber` et `sky` y sont aliasées sur les tokens pour que les écrans existants prennent le style sans être réécrits. Pour un nouvel écran, utiliser les tokens et `components/ui/`.
-- Polices (Chakra Petch, IBM Plex Sans, JetBrains Mono) chargées par `next/font/google` dans `app/layout.tsx`.
+- Polices (Chakra Petch, IBM Plex Sans, JetBrains Mono) auto-hébergées (`app/fonts`, licence OFL, sous-ensemble latin) et chargées par `next/font/local` dans `app/layout.tsx`, pour que le build ne dépende pas de Google Fonts.
 - Un widget tient sur 4 ou 8 colonnes de la grille `.hud-dash` (voir `WidgetShell`).
 - L'ordre des widgets est propre à chaque utilisateur (`synapse.settings.widget_order`, `lib/dashboard.ts`) : un nouveau widget doit être ajouté à `WIDGET_IDS` et au registre de `app/(dashboard)/page.tsx`.
 

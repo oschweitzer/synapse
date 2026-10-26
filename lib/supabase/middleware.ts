@@ -1,12 +1,13 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { isAllowedUser } from '@/lib/auth'
+import { enforceLock } from '@/lib/lock/gate'
 
 const PUBLIC_PATHS = ['/login', '/auth']
 
 /** Redirige en conservant les cookies (et en-têtes) de session posés par Supabase. */
-function redirectWithCookies(url: URL, from: NextResponse) {
-  const redirect = NextResponse.redirect(url)
+function redirectWithCookies(url: URL, from: NextResponse, status = 307) {
+  const redirect = NextResponse.redirect(url, status)
   from.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie))
   from.headers.forEach((value, key) => {
     if (key.toLowerCase() === 'cache-control') redirect.headers.set(key, value)
@@ -60,6 +61,14 @@ export async function updateSession(request: NextRequest) {
     url.pathname = '/'
     url.search = ''
     return redirectWithCookies(url, response)
+  }
+
+  if (data.user && !isPublic) {
+    // Second facteur : sans code (ou passkey) saisi, le dashboard et ses actions restent fermés.
+    const blocked = await enforceLock(request, supabase, data.user.id, response, (url) =>
+      redirectWithCookies(url, response, request.method === 'GET' ? 307 : 303),
+    )
+    if (blocked) return blocked
   }
 
   return response
