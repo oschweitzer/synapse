@@ -280,6 +280,7 @@ type Connector<T> = {
 | 5 | **Recettes** : base, recette du jour, ingrédients → checklist Cairn des courses | Cuisine |
 | 6 | **Humeur et habitudes** : saisie rapide quotidienne ; finances et homelab reportés | Bien-être |
 | 7 | **Dépenses cash** : Google Sheet choisi avec le Picker, migration du fichier, CRUD depuis le dashboard | Finances |
+| 8 | **Mind maps** : cartes libres (boîtes, textes, liens) sur React Flow, enregistrées dans `synapse.mindmaps` | Idées et schémas |
 
 ## 7. Plafonds gratuits à surveiller
 

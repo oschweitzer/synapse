@@ -156,6 +156,12 @@ Mise en place, une seule fois :
 3. **Réglages > Reconnecter Google**, pour accorder `drive.file`, puis **Choisir le fichier** (Google Picker).
 4. Au premier branchement, le widget propose **Migrer le fichier** : lecture de l’onglet `2026`, aperçu avec chaque anomalie à valider (une date invalide n’est jamais corrigée d’office : `24.20.2026` → `24.10.2026` proposé), puis création des trois onglets et recopie des lignes en un seul `batchUpdate`. L’onglet `2026` reste intact, en archive. Relancée, la migration ne crée rien si `Saisies` existe. Le contrôle final compare lignes et total à la source (et à sa ligne `TOTAL`). Vérifier ensuite le rendu de l’onglet `Récap`.
 
+### Mind maps
+
+Page **Mind maps** (`/mindmaps`) : liste de cartes, chacune avec un canevas libre (zoom, déplacement, minimap) basé sur [React Flow](https://reactflow.dev). Texte libre et boîtes (rectangle, arrondi, ellipse, losange) à éditer par double-clic, redimensionnables ; liens fléchés entre n’importe quels nœuds (flèches, trait plein/tirets/pointillés, courbe/droit/angles, texte sur le lien) ; couleurs, bordure et taille du texte ; annuler/rétablir (Ctrl+Z / Ctrl+Y), dupliquer (Ctrl+D), export PNG. Enregistrement automatique.
+
+Mise en place : migration `0008_mindmaps.sql` (`npm run db:migrate`), table `synapse.mindmaps` (nœuds, liens et vue en JSONB, RLS limitée au propriétaire).
+
 ### Connexion
 
 On se connecte uniquement avec Google (`openid email profile`, aucun accès aux données Google), via Supabase Auth : la session est celle du compte Cairn, à condition que l’adresse Google soit celle du compte Cairn (Supabase lie l’identité Google au compte existant de même adresse vérifiée ; à contrôler dans *Authentication > Users* après la première connexion : `auth.uid()` doit être l’uuid du compte Cairn). Un compte hors `ALLOWED_EMAILS` est déconnecté aussitôt (« Accès refusé »). Activer le provider *Google* dans Supabase (le client OAuth « Web » du projet Google Cloud de Synapse, dont les URI de redirection autorisées incluent `https://<project-ref>.supabase.co/auth/v1/callback`). Si Cairn utilise déjà ce provider, sa connexion passe désormais par ce client : vérifier qu’elle fonctionne toujours. Dans Supabase, **Authentication > URL Configuration**, ajouter `<NEXT_PUBLIC_SITE_URL>/auth/callback` (et `http://localhost:3000/auth/callback` en local) aux *Redirect URLs*.

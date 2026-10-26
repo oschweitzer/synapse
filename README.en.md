@@ -156,6 +156,12 @@ One-time setup:
 3. **Settings > Reconnect Google**, to grant `drive.file`, then **Choisir le fichier** (Google Picker).
 4. On first connection, the widget offers **Migrer le fichier**: it reads the `2026` tab, shows a preview where each anomaly has to be confirmed (an invalid date is never fixed silently: `24.20.2026` → `24.10.2026` suggested), then creates the three tabs and copies the rows in a single `batchUpdate`. The `2026` tab is left untouched, as an archive. Run again, the migration creates nothing if `Saisies` exists. The final check compares the row count and total with the source (and its `TOTAL` row). Then check how the `Récap` tab renders.
 
+### Mind maps
+
+**Mind maps** page (`/mindmaps`): a list of maps, each with a free-form canvas (zoom, pan, minimap) built on [React Flow](https://reactflow.dev). Free text and boxes (rectangle, rounded, ellipse, diamond), edited with a double-click and resizable; arrow links between any nodes (arrowheads, solid/dashed/dotted line, curved/straight/step, label on the link); colors, border and text size; undo/redo (Ctrl+Z / Ctrl+Y), duplicate (Ctrl+D), PNG export. Autosaved.
+
+Setup: migration `0008_mindmaps.sql` (`npm run db:migrate`), `synapse.mindmaps` table (nodes, links and viewport as JSONB, RLS limited to the owner).
+
 ### Sign-in
 
 Sign-in is Google only (`openid email profile`, no access to Google data), through Supabase Auth: the session is the Cairn account's, provided the Google address is the Cairn account's (Supabase links the Google identity to the existing account with the same verified address; check in *Authentication > Users* after the first sign-in that `auth.uid()` is the Cairn account's uuid). An account outside `ALLOWED_EMAILS` is signed out immediately ("Accès refusé"). Enable the *Google* provider in Supabase (the "Web" OAuth client of Synapse's Google Cloud project, whose authorised redirect URIs include `https://<project-ref>.supabase.co/auth/v1/callback`). If Cairn already uses this provider, its sign-in now goes through this client: check that it still works. In Supabase, **Authentication > URL Configuration**, add `<NEXT_PUBLIC_SITE_URL>/auth/callback` (and `http://localhost:3000/auth/callback` locally) to the *Redirect URLs*.

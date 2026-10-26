@@ -273,6 +273,7 @@ type Connector<T> = {
 | 5 | **Recipes**: collection, recipe of the day, ingredients → Cairn shopping checklist | Cooking |
 | 6 | **Mood and habits**: quick daily entry; finances and homelab postponed | Well-being |
 | 7 | **Cash expenses**: Google Sheet chosen with the Picker, file migration, CRUD from the dashboard | Finances |
+| 8 | **Mind maps**: free-form maps (boxes, text, links) on React Flow, saved in `synapse.mindmaps` | Ideas and diagrams |
 
 ## 7. Free-tier limits to watch
 

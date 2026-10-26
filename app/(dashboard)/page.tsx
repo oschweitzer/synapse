@@ -274,6 +274,9 @@ export default async function DashboardPage() {
           <Link href="/cash" className={buttonClass({ size: 'sm' })}>
             Dépenses
           </Link>
+          <Link href="/mindmaps" className={buttonClass({ size: 'sm' })}>
+            Mind maps
+          </Link>
           <Link href="/settings" className={buttonClass({ size: 'sm' })}>
             Réglages
           </Link>
