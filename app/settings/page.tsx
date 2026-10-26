@@ -6,6 +6,8 @@ import { saveShoppingChecklist } from '@/app/actions/cairn'
 import { disconnectGoogle, syncGoogleNow } from '@/app/actions/google'
 import { readGoogleAccount } from '@/lib/connectors/google'
 import { resetWidgetOrder } from '@/app/actions/dashboard'
+import { addCity, moveCity, removeCity } from '@/app/actions/weather'
+import { listLocations, searchCities, WEATHER_LOCATIONS_MAX, type CityResult } from '@/lib/connectors/weather'
 import { addHabit, archiveHabit } from '@/app/actions/mood'
 import { HABITS_MAX, listHabits } from '@/lib/connectors/mood'
 import { pickerConfig, SCOPE_DRIVE_FILE } from '@/lib/google/oauth'
@@ -43,6 +45,16 @@ const HABIT_MESSAGES: Record<string, [string, boolean]> = {
   save: ['Enregistrement impossible, réessaie.', true],
 }
 
+/** Retours de la météo (`?weather=…`) : [message, est une erreur]. */
+const WEATHER_MESSAGES: Record<string, [string, boolean]> = {
+  added: ['Ville ajoutée.', false],
+  removed: ['Ville retirée.', false],
+  moved: ['Ordre enregistré.', false],
+  invalid: ['Ville invalide.', true],
+  max: [`${WEATHER_LOCATIONS_MAX} villes au plus : retires-en une d’abord.`, true],
+  save: ['Enregistrement impossible, réessaie.', true],
+}
+
 const card =
   'hud-card flex flex-col gap-3'
 const primaryButton =
@@ -53,14 +65,15 @@ const secondaryButton =
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; order?: string; error?: string; google?: string; habits?: string }>
+  searchParams: Promise<{ saved?: string; order?: string; error?: string; google?: string; habits?: string; weather?: string; city?: string }>
 }) {
   const supabase = await createClient()
   const { data } = await supabase.auth.getUser()
   if (!data.user) redirect('/login')
 
   const params = await searchParams
-  const [candidates, settings, google, habits] = await Promise.all([
+  const cityQuery = params.city?.trim().slice(0, 80) ?? ''
+  const [candidates, settings, google, habits, cities, found] = await Promise.all([
     listShoppingCandidates(),
     supabase.schema('synapse').from('settings').select('cairn_shopping_checklist_id, cash_sheet_id').maybeSingle(),
     readGoogleAccount().catch((e) => {
@@ -71,6 +84,16 @@ export default async function SettingsPage({
       console.error('[settings] lecture des habitudes', e)
       return null
     }),
+    listLocations().catch((e) => {
+      console.error('[settings] lecture des villes', e)
+      return null
+    }),
+    cityQuery
+      ? searchCities(cityQuery).catch((e) => {
+          console.error('[settings] recherche de ville', e)
+          return null
+        })
+      : Promise.resolve<CityResult[]>([]),
   ])
   if (settings.error) console.error('[settings] lecture', settings.error)
   const current = (settings.data?.cairn_shopping_checklist_id as string | null | undefined) ?? ''
@@ -79,6 +102,7 @@ export default async function SettingsPage({
   const canPick = Boolean(google && !google.needsReauth && google.scopes.includes(SCOPE_DRIVE_FILE))
   const error = params.error ? (MESSAGES[params.error] ?? MESSAGES.save) : null
   const googleMessage = params.google ? (GOOGLE_MESSAGES[params.google] ?? GOOGLE_MESSAGES.error) : null
+  const weatherMessage = params.weather ? (WEATHER_MESSAGES[params.weather] ?? WEATHER_MESSAGES.save) : null
   const habitMessage = params.habits ? (HABIT_MESSAGES[params.habits] ?? HABIT_MESSAGES.save) : null
 
   return (
@@ -150,6 +174,104 @@ export default async function SettingsPage({
         {params.order === 'reset' && (
           <p role="status" className="text-sm text-green-700 dark:text-green-400">
             Ordre par défaut rétabli.
+          </p>
+        )}
+      </section>
+
+      <section className={`${card} mt-4`}>
+        <h2 className="font-semibold">Météo</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Villes affichées dans le widget « Météo » ({WEATHER_LOCATIONS_MAX} au plus). Sans ville, c’est Paris.
+        </p>
+        {cities === null ? (
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            Lecture des villes impossible.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {cities.map((city, i) => (
+              <li key={city.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 break-words">{city.label}</span>
+                {city.id !== 'default' && (
+                  <span className="flex gap-3">
+                    {([-1, 1] as const).map((direction) => {
+                      const disabled = direction === -1 ? i === 0 : i === cities.length - 1
+                      return (
+                        <form key={direction} action={moveCity}>
+                          <input type="hidden" name="id" value={city.id} />
+                          <input type="hidden" name="direction" value={direction} />
+                          <button
+                            type="submit"
+                            disabled={disabled}
+                            className="text-sm text-slate-500 underline disabled:no-underline disabled:opacity-40 dark:text-slate-400"
+                          >
+                            {direction === -1 ? 'Monter' : 'Descendre'}
+                            <span className="sr-only"> « {city.label} »</span>
+                          </button>
+                        </form>
+                      )
+                    })}
+                    <form action={removeCity}>
+                      <input type="hidden" name="id" value={city.id} />
+                      <button type="submit" className="text-sm text-slate-500 underline dark:text-slate-400">
+                        Retirer<span className="sr-only"> « {city.label} »</span>
+                      </button>
+                    </form>
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        <form method="get" action="/settings" className="flex flex-col gap-3 sm:flex-row">
+          <label htmlFor="city-search" className="sr-only">
+            Rechercher une ville
+          </label>
+          <input
+            id="city-search"
+            name="city"
+            required
+            maxLength={80}
+            defaultValue={cityQuery}
+            placeholder="Strasbourg, Lyon…"
+            className="hud-input flex-1"
+          />
+          <button type="submit" className={secondaryButton}>
+            Rechercher
+          </button>
+        </form>
+        {found === null && (
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            Recherche impossible : Open-Meteo ne répond pas.
+          </p>
+        )}
+        {found && cityQuery && found.length === 0 && <p className="text-sm">Aucune ville trouvée pour « {cityQuery} ».</p>}
+        {found && found.length > 0 && (
+          <ul className="flex flex-col gap-2">
+            {found.map((city) => (
+              <li key={`${city.latitude},${city.longitude}`} className="flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 break-words">
+                  {city.label}
+                  {city.detail && <span className="text-slate-500 dark:text-slate-400"> · {city.detail}</span>}
+                </span>
+                <form action={addCity}>
+                  <input type="hidden" name="label" value={city.label} />
+                  <input type="hidden" name="latitude" value={city.latitude} />
+                  <input type="hidden" name="longitude" value={city.longitude} />
+                  <button type="submit" className="text-sm underline">
+                    Ajouter<span className="sr-only"> « {city.label} »</span>
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        {weatherMessage && (
+          <p
+            role={weatherMessage[1] ? 'alert' : 'status'}
+            className={`text-sm ${weatherMessage[1] ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}
+          >
+            {weatherMessage[0]}
           </p>
         )}
       </section>

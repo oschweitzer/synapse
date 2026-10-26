@@ -58,16 +58,7 @@ Une seule fois, après la première migration : ajouter `synapse` dans Supabase 
 
 ### Météo
 
-Prévisions Open-Meteo (gratuit, sans clé), appelées côté serveur et mises en cache 30 min. Sans réglage, la position est Paris. Pour en changer (dans Supabase > SQL Editor) :
-
-```sql
-insert into synapse.settings (user_id, weather_label, weather_latitude, weather_longitude)
-values ('<uuid du compte>', 'Strasbourg', 48.5734, 7.7521)
-on conflict (user_id) do update set
-  weather_label = excluded.weather_label,
-  weather_latitude = excluded.weather_latitude,
-  weather_longitude = excluded.weather_longitude;
-```
+Prévisions Open-Meteo (gratuit, sans clé), appelées côté serveur et mises en cache 30 min. Sans réglage, la position est Paris. Les villes (cinq au plus, affichées en onglets dans le widget) se choisissent dans **Réglages > Météo** : recherche par nom (géocodage Open-Meteo), ajout, retrait et réordonnancement.
 
 ### To-do et courses (Cairn)
 

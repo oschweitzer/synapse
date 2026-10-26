@@ -49,8 +49,8 @@ expenses Google Sheet is itself the source of truth.
 ## 3. Sources
 
 ### Weather — Open-Meteo
-- Free, no key. Today's forecast and the coming hours, for a fixed location set
-  in configuration.
+- Free, no key. Today's forecast and the coming hours, for one or several cities
+  (five at most) chosen in the settings (Open-Meteo geocoding).
 - 30 min Next cache.
 
 ### Calendar & Gmail — Google APIs
@@ -205,7 +205,8 @@ A dedicated Postgres schema, added to the Supabase API "Exposed schemas". RLS
 
 | Table | Contents |
 |---|---|
-| `settings` | weather location, widget order, id of the Cairn shopping checklist, id of the cash expenses Google Sheet |
+| `weather_locations` | weather cities (name, latitude, longitude, position) |
+| `settings` | widget order, id of the Cairn shopping checklist, id of the cash expenses Google Sheet |
 | `google_accounts` / `google_credentials` | connection state / encrypted refresh token (no policy) |
 | `calendar_events` | event cache (Google id, start, end, title, location) |
 | `mail_headers` | the last 20 received messages (id, sender, subject, snippet, date, read) |

@@ -49,8 +49,8 @@ Sheet des dépenses est lui-même la source de vérité.
 ## 3. Sources
 
 ### Météo — Open-Meteo
-- Gratuit, sans clé. Prévisions du jour et des heures à venir, pour une position
-  fixe en configuration.
+- Gratuit, sans clé. Prévisions du jour et des heures à venir, pour une ou
+  plusieurs villes (cinq au plus) choisies dans les réglages (géocodage Open-Meteo).
 - Cache Next de 30 min.
 
 ### Agenda & Gmail — Google APIs
@@ -211,7 +211,8 @@ Schéma Postgres dédié, ajouté aux « Exposed schemas » de l'API Supabase. R
 
 | Table | Contenu |
 |---|---|
-| `settings` | position météo, ordre des widgets, id de la checklist Cairn des courses, id du Google Sheet des dépenses cash |
+| `weather_locations` | villes de la météo (nom, latitude, longitude, position) |
+| `settings` | ordre des widgets, id de la checklist Cairn des courses, id du Google Sheet des dépenses cash |
 | `google_accounts` / `google_credentials` | état de connexion / refresh token chiffré (sans politique) |
 | `calendar_events` | cache des évènements (id Google, début, fin, titre, lieu) |
 | `mail_headers` | les 20 derniers mails reçus (id, expéditeur, sujet, extrait, date, lu) |

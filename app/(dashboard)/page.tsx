@@ -192,7 +192,7 @@ export default async function DashboardPage() {
             index="auto" icon="grid" span={4}
             connector={weatherConnector}
             userId={data.user.id}
-            render={(weather) => weather && <WeatherWidget weather={weather} />}
+            render={(cities) => <WeatherWidget cities={cities} />}
           />
         </Suspense>
       ),

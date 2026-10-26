@@ -1,27 +1,19 @@
 import { createClient } from '@/lib/supabase/server'
 import type { Connector } from './types'
+import type { CityWeather, Weather, WeatherHour } from '@/lib/weather'
 
-/** Position utilisée tant que `synapse.settings` n'en définit pas. */
-export const DEFAULT_LOCATION = { label: 'Paris', latitude: 48.8566, longitude: 2.3522 }
+export { describeWeatherCode } from '@/lib/weather'
+export type { CityWeather, Weather, WeatherHour }
+
+/** Ville utilisée tant qu'aucune n'est configurée. */
+export const DEFAULT_LOCATION = { id: 'default', label: 'Paris', latitude: 48.8566, longitude: 2.3522 }
+
+/** Nombre maximal de villes dans le widget. */
+export const WEATHER_LOCATIONS_MAX = 5
 
 /** Durée du cache Next sur l'appel Open-Meteo (30 min). */
 const REVALIDATE_SECONDS = 30 * 60
 const HOURS_AHEAD = 6
-
-export type WeatherHour = {
-  /** Heure locale du lieu, ex. "14:00". */
-  time: string
-  temperature: number
-  precipitationProbability: number | null
-  weatherCode: number
-}
-
-export type Weather = {
-  location: string
-  current: { temperature: number; weatherCode: number }
-  today: { min: number; max: number; precipitationProbability: number | null }
-  hours: WeatherHour[]
-}
 
 type OpenMeteoResponse = {
   utc_offset_seconds: number
@@ -39,20 +31,19 @@ type OpenMeteoResponse = {
   }
 }
 
-async function readLocation() {
+export type WeatherLocation = { id: string; label: string; latitude: number; longitude: number }
+
+/** Villes configurées, dans l'ordre ; Paris par défaut si aucune. */
+export async function listLocations(): Promise<WeatherLocation[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .schema('synapse')
-    .from('settings')
-    .select('weather_label, weather_latitude, weather_longitude')
-    .maybeSingle()
-  if (error) console.error('[weather] lecture des réglages', error)
-  if (data?.weather_latitude == null || data.weather_longitude == null) return DEFAULT_LOCATION
-  return {
-    label: data.weather_label ?? 'Position enregistrée',
-    latitude: data.weather_latitude as number,
-    longitude: data.weather_longitude as number,
-  }
+    .from('weather_locations')
+    .select('id, label, latitude, longitude')
+    .order('position')
+    .order('created_at')
+  if (error) throw error
+  return data.length ? data : [DEFAULT_LOCATION]
 }
 
 async function fetchForecast(latitude: number, longitude: number): Promise<OpenMeteoResponse> {
@@ -102,38 +93,64 @@ export function toWeather(location: string, raw: OpenMeteoResponse): Weather {
   }
 }
 
-export const weatherConnector: Connector<Weather | null> = {
+export const weatherConnector: Connector<CityWeather[]> = {
   id: 'weather',
   async read() {
-    const location = await readLocation()
+    let locations: WeatherLocation[]
     try {
-      const raw = await fetchForecast(location.latitude, location.longitude)
-      return {
-        data: toWeather(location.label, raw),
-        syncedAt: localToDate(raw.current.time, raw.utc_offset_seconds),
-      }
+      locations = await listLocations()
     } catch (e) {
-      console.error('[weather] Open-Meteo', e)
+      console.error('[weather] lecture des villes', e)
+      locations = [DEFAULT_LOCATION]
+    }
+
+    // Une ville en échec n'empêche pas les autres de s'afficher.
+    const results = await Promise.all(
+      locations.map(async (location) => {
+        try {
+          const raw = await fetchForecast(location.latitude, location.longitude)
+          return {
+            city: { id: location.id, label: location.label, weather: toWeather(location.label, raw) },
+            syncedAt: localToDate(raw.current.time, raw.utc_offset_seconds),
+          }
+        } catch (e) {
+          console.error('[weather] Open-Meteo', location.label, e)
+          return { city: { id: location.id, label: location.label, weather: null }, syncedAt: null }
+        }
+      }),
+    )
+
+    const cities = results.map((r) => r.city)
+    const syncedAt = results.find((r) => r.syncedAt)?.syncedAt ?? null
+    if (!syncedAt) {
       return {
-        data: null,
+        data: cities,
         syncedAt: null,
         error: 'Météo indisponible : Open-Meteo ne répond pas. Nouvel essai au prochain chargement.',
       }
     }
+    return { data: cities, syncedAt }
   },
 }
 
-/** Codes météo WMO renvoyés par Open-Meteo. */
-export function describeWeatherCode(code: number): { label: string; icon: string } {
-  if (code === 0) return { label: 'Ciel dégagé', icon: '☀️' }
-  if (code <= 2) return { label: 'Peu nuageux', icon: '🌤️' }
-  if (code === 3) return { label: 'Couvert', icon: '☁️' }
-  if (code === 45 || code === 48) return { label: 'Brouillard', icon: '🌫️' }
-  if (code >= 51 && code <= 57) return { label: 'Bruine', icon: '🌦️' }
-  if (code >= 61 && code <= 67) return { label: 'Pluie', icon: '🌧️' }
-  if (code >= 71 && code <= 77) return { label: 'Neige', icon: '🌨️' }
-  if (code >= 80 && code <= 82) return { label: 'Averses', icon: '🌦️' }
-  if (code === 85 || code === 86) return { label: 'Averses de neige', icon: '🌨️' }
-  if (code >= 95) return { label: 'Orage', icon: '⛈️' }
-  return { label: 'Inconnu', icon: '🌡️' }
+export type CityResult = { label: string; detail: string; latitude: number; longitude: number }
+
+type GeocodingResponse = {
+  results?: { name: string; admin1?: string; country?: string; latitude: number; longitude: number }[]
+}
+
+/** Recherche de villes par nom (géocodage Open-Meteo, gratuit, sans clé). */
+export async function searchCities(query: string): Promise<CityResult[]> {
+  const params = new URLSearchParams({ name: query, count: '5', language: 'fr', format: 'json' })
+  const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params}`, {
+    signal: AbortSignal.timeout(5000),
+  })
+  if (!res.ok) throw new Error(`Open-Meteo geocoding HTTP ${res.status}`)
+  const body: GeocodingResponse = await res.json()
+  return (body.results ?? []).map((r) => ({
+    label: r.name.slice(0, 80),
+    detail: [r.admin1, r.country].filter(Boolean).join(', '),
+    latitude: r.latitude,
+    longitude: r.longitude,
+  }))
 }

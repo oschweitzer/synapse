@@ -1,8 +1,11 @@
-import { describeWeatherCode, type Weather } from '@/lib/connectors/weather'
+'use client'
+
+import { useState } from 'react'
+import { describeWeatherCode, type CityWeather, type Weather } from '@/lib/weather'
 
 const round = (n: number) => `${Math.round(n)}°`
 
-export function WeatherWidget({ weather }: { weather: Weather }) {
+function City({ weather }: { weather: Weather }) {
   const now = describeWeatherCode(weather.current.weatherCode)
   const rain = weather.today.precipitationProbability
 
@@ -41,6 +44,39 @@ export function WeatherWidget({ weather }: { weather: Weather }) {
             )
           })}
         </ul>
+      )}
+    </div>
+  )
+}
+
+export function WeatherWidget({ cities }: { cities: CityWeather[] }) {
+  const [selected, setSelected] = useState(cities[0]?.id)
+  const city = cities.find((c) => c.id === selected) ?? cities[0]
+  if (!city) return null
+
+  return (
+    <div className="flex flex-col gap-3">
+      {cities.length > 1 && (
+        <div role="group" aria-label="Ville" className="flex flex-wrap gap-1">
+          {cities.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              aria-pressed={c.id === city.id}
+              onClick={() => setSelected(c.id)}
+              className={`hud-btn hud-btn--sm ${c.id === city.id ? 'hud-btn--primary' : 'hud-btn--ghost'}`}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {city.weather ? (
+        <City weather={city.weather} />
+      ) : (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          Météo de {city.label} indisponible pour le moment.
+        </p>
       )}
     </div>
   )

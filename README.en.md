@@ -58,16 +58,7 @@ Once, after the first migration: add `synapse` under Supabase **Settings > API >
 
 ### Weather
 
-Open-Meteo forecasts (free, no key), fetched server-side and cached for 30 min. Without a setting, the location is Paris. To change it (in Supabase > SQL Editor):
-
-```sql
-insert into synapse.settings (user_id, weather_label, weather_latitude, weather_longitude)
-values ('<account uuid>', 'Strasbourg', 48.5734, 7.7521)
-on conflict (user_id) do update set
-  weather_label = excluded.weather_label,
-  weather_latitude = excluded.weather_latitude,
-  weather_longitude = excluded.weather_longitude;
-```
+Open-Meteo forecasts (free, no key), fetched server-side and cached for 30 min. Without a setting, the location is Paris. Cities (up to five, shown as tabs in the widget) are chosen in **Settings > Weather**: search by name (Open-Meteo geocoding), add, remove and reorder.
 
 ### To-dos and shopping (Cairn)
 
