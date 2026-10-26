@@ -85,10 +85,10 @@ export function SleepWidget({ sleep }: { sleep: Sleep }) {
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={night.bodyBatteryAtWake}
-              className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"
+              className="h-2 overflow-hidden bg-line-500"
             >
               <div
-                className="h-full rounded-full bg-sky-600 dark:bg-sky-400"
+                className="h-full bg-cyan-400"
                 style={{ width: `${Math.min(100, Math.max(0, night.bodyBatteryAtWake))}%` }}
               />
             </div>
@@ -191,7 +191,7 @@ export function TrendWidget({ trend }: { trend: Trend }) {
             >
               {d.steps != null && (
                 <div
-                  className="w-full rounded-t bg-sky-600 group-hover:bg-sky-700 dark:bg-sky-400 dark:group-hover:bg-sky-300"
+                  className="w-full bg-cyan-600 group-hover:bg-cyan-400"
                   style={{ height: `${Math.max(1, (d.steps / scale) * 100)}%` }}
                 />
               )}

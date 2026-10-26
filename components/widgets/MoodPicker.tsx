@@ -74,12 +74,12 @@ export function MoodPicker({ score, note }: { score: number | null; note: string
             onChange={(e) => setText(e.target.value)}
             maxLength={500}
             placeholder="Un mot sur la journée (facultatif)"
-            className="min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className="hud-input hud-input--sm min-w-0 flex-1"
           />
           <button
             type="submit"
             disabled={pending}
-            className="rounded border border-slate-300 px-2 py-1 text-sm font-medium disabled:opacity-60 dark:border-slate-700"
+            className="hud-btn hud-btn--ghost hud-btn--sm"
           >
             OK
           </button>

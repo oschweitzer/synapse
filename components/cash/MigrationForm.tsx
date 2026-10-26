@@ -9,7 +9,7 @@ import { cashApi } from './api'
 
 const muted = 'text-slate-500 dark:text-slate-400'
 const field =
-  'min-w-0 rounded border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100'
+  'hud-input hud-input--sm min-w-0'
 
 type Choice = { action: 'fix' | 'exclude' | null; date: string; amount: string; category: string }
 
@@ -106,7 +106,7 @@ export function MigrationForm({ plan }: { plan: MigrationPlan }) {
             const choice = choices[row.row]
             const id = `row-${row.row}`
             return (
-              <div key={row.row} className="flex flex-col gap-2 rounded border border-amber-300 p-3 dark:border-amber-700">
+              <div key={row.row} className="flex flex-col gap-2 border border-amber-400 p-3">
                 <p className="text-sm">
                   <span className="font-medium">Ligne {row.row}</span> : {problems(row)}.
                   {row.suggestion && <> Proposition : {formatDay(row.suggestion)}.</>}
@@ -200,7 +200,7 @@ export function MigrationForm({ plan }: { plan: MigrationPlan }) {
       <button
         type="submit"
         disabled={pending || undecided > 0}
-        className="rounded bg-slate-900 px-3 py-2 text-center font-medium text-white disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900"
+        className="hud-btn hud-btn--primary"
       >
         {pending ? 'Migration en cours…' : 'Migrer le fichier'}
       </button>

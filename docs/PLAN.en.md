@@ -213,6 +213,13 @@ and are applied by `scripts/migrate.mjs` (Node + the `postgres` package on
 `DATABASE_URL`, without depending on `psql`), with its own tracking table
 `synapse.schema_migrations`. The Supabase CLI stays reserved for Cairn.
 
+### Design system
+
+Decision: the UI applies the *Synapse* design system (ship's console, dark only).
+Tokens live in `app/tokens.css`, `hud-*` classes in `app/hud.css`, components in
+`components/ui/`. The legacy Tailwind palettes (`slate`, `red`…) are aliased to the
+tokens: existing screens follow without a rewrite, and new ones use the tokens directly.
+
 ## 5. Target layout
 
 ```

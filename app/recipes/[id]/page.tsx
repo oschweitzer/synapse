@@ -20,7 +20,7 @@ export default async function RecipePage({
   return (
     <main className="mx-auto max-w-xl px-4 py-6">
       <header className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="min-w-0 break-words text-2xl font-semibold">{recipe.title}</h1>
+        <h1 className="min-w-0 break-words font-display text-2xl font-semibold uppercase tracking-wider">{recipe.title}</h1>
         <Link href="/recipes" className={`shrink-0 text-sm underline ${muted}`}>
           Recettes
         </Link>

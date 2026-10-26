@@ -43,11 +43,11 @@ const HABIT_MESSAGES: Record<string, [string, boolean]> = {
 }
 
 const card =
-  'flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900'
+  'hud-card flex flex-col gap-3'
 const primaryButton =
-  'rounded bg-slate-900 px-3 py-2 text-center font-medium text-white dark:bg-slate-100 dark:text-slate-900'
+  'hud-btn hud-btn--primary'
 const secondaryButton =
-  'rounded border border-slate-300 px-3 py-2 font-medium text-slate-900 dark:border-slate-700 dark:text-slate-100'
+  'hud-btn hud-btn--ghost'
 
 export default async function SettingsPage({
   searchParams,
@@ -83,7 +83,7 @@ export default async function SettingsPage({
   return (
     <main className="mx-auto max-w-xl px-4 py-6">
       <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Réglages</h1>
+        <h1 className="font-display text-2xl font-semibold uppercase tracking-wider">Réglages</h1>
         <Link href="/" className="text-sm text-slate-500 underline">
           Retour au dashboard
         </Link>
@@ -104,7 +104,7 @@ export default async function SettingsPage({
             name="note_id"
             defaultValue={current}
             aria-describedby={error ? 'settings-error' : undefined}
-            className="flex-1 rounded border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className="hud-input flex-1"
           >
             <option value="">— Aucune —</option>
             {candidates.map((c) => (
@@ -173,7 +173,7 @@ export default async function SettingsPage({
               required
               maxLength={80}
               placeholder="Méditer, lire 20 min…"
-              className="flex-1 rounded border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="hud-input flex-1"
             />
             <button type="submit" className={primaryButton}>
               Ajouter

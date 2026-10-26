@@ -218,6 +218,14 @@ Décision (phase 1) : les migrations du schéma `synapse` vivent dans
 `postgres` sur `DATABASE_URL`, sans dépendre de `psql`), avec sa propre table de
 suivi `synapse.schema_migrations`. Le CLI Supabase reste réservé à Cairn.
 
+### Design system
+
+Décision : l'interface applique le design system *Synapse* (poste de pilotage, sombre
+uniquement). Tokens dans `app/tokens.css`, classes `hud-*` dans `app/hud.css`,
+composants dans `components/ui/`. Les palettes Tailwind historiques (`slate`, `red`…)
+sont aliasées sur les tokens : les écrans existants suivent sans réécriture, et les
+nouveaux utilisent directement les tokens.
+
 ## 5. Arborescence cible
 
 ```

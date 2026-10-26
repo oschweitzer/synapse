@@ -1,0 +1,243 @@
+/* Synapse — classes hud-* du design system. Chaque valeur vient de tokens.css. */
+.hud-grid {
+  background-color: var(--void-900);
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+    radial-gradient(ellipse at 70% -10%, var(--cyan-wash), transparent 60%);
+  background-size: var(--space-8) var(--space-8), var(--space-8) var(--space-8), 100% 100%;
+}
+.hud-pad { padding: var(--space-4); }
+.hud-row { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
+.hud-stack { display: flex; flex-direction: column; gap: var(--space-3); }
+.hud-label { font-family: var(--font-display); font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500); }
+.hud-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.hud-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ── Panel: two clipped layers draw a 1px frame that follows the cut corners ── */
+.hud-panel { --b: var(--bevel-md); position: relative; min-width: 0; padding: 1px; background: var(--line-500);
+  clip-path: polygon(0 0, calc(100% - var(--b)) 0, 100% var(--b), 100% 100%, var(--b) 100%, 0 calc(100% - var(--b))); }
+.hud-panel--hero { --b: var(--bevel-lg); }
+.hud-panel--alert { background: var(--amber-400); }
+.hud-panel__inner { position: relative; height: 100%; box-sizing: border-box; background: var(--hull-800); padding: var(--space-5);
+  display: flex; flex-direction: column; gap: var(--space-4);
+  clip-path: polygon(0 0, calc(100% - var(--b) + 0.4px) 0, 100% calc(var(--b) - 0.4px), 100% 100%, calc(var(--b) - 0.4px) 100%, 0 calc(100% - var(--b) + 0.4px)); }
+.hud-panel--compact .hud-panel__inner { padding: var(--space-4); gap: var(--space-3); }
+.hud-panel__inner::before, .hud-panel__inner::after { content: ""; position: absolute; width: 10px; height: 10px; border-color: var(--cyan-600); border-style: solid; pointer-events: none; }
+.hud-panel__inner::before { top: 4px; left: 4px; border-width: 1px 0 0 1px; }
+.hud-panel__inner::after { bottom: 4px; right: 4px; border-width: 0 1px 1px 0; }
+.hud-panel--alert .hud-panel__inner::before, .hud-panel--alert .hud-panel__inner::after { border-color: var(--amber-400); }
+.hud-panel__head { display: flex; align-items: center; gap: var(--space-2); min-height: 24px; }
+.hud-panel__index { font-family: var(--font-mono); font-size: 11px; color: var(--cyan-600); }
+.hud-panel__title { font-family: var(--font-display); font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--cyan-400); margin: 0; }
+.hud-panel__rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--line-500), transparent); }
+.hud-panel__meta { display: flex; align-items: center; gap: var(--space-2); color: var(--ink-500); font-size: 12px; }
+.hud-panel__body { flex: 1; min-height: 0; min-width: 0; }
+
+/* ── Button ── */
+.hud-btn { --b: var(--bevel-sm); position: relative; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  font-family: var(--font-display); font-weight: 600; font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+  height: 36px; padding: 0 var(--space-4); border: 1px solid transparent; cursor: pointer; background: none; color: var(--ink-100);
+  clip-path: polygon(0 0, calc(100% - var(--b)) 0, 100% var(--b), 100% 100%, var(--b) 100%, 0 calc(100% - var(--b)));
+  transition: background-color 120ms, box-shadow 120ms, color 120ms; }
+.hud-btn:focus-visible { outline: 2px solid var(--cyan-400); outline-offset: 2px; clip-path: none; }
+.hud-btn--sm { height: 28px; padding: 0 var(--space-3); font-size: 11px; }
+.hud-btn--icon { width: 36px; padding: 0; }
+.hud-btn--sm.hud-btn--icon { width: 28px; }
+.hud-btn--primary { background: var(--cyan-400); color: var(--on-accent); }
+.hud-btn--primary:hover { background: var(--cyan-300); }
+/* ghost: the two diagonal gradients redraw the border along the 45° cuts */
+.hud-btn--ghost { --bc: var(--line-300); border-color: var(--bc); color: var(--cyan-400);
+  background:
+    linear-gradient(to bottom left, transparent calc(50% - 0.75px), var(--bc) calc(50% - 0.75px), var(--bc) calc(50% + 0.75px), transparent calc(50% + 0.75px)) top -1px right -1px / var(--b) var(--b) no-repeat,
+    linear-gradient(to bottom left, transparent calc(50% - 0.75px), var(--bc) calc(50% - 0.75px), var(--bc) calc(50% + 0.75px), transparent calc(50% + 0.75px)) bottom -1px left -1px / var(--b) var(--b) no-repeat; }
+.hud-btn--ghost:hover { --bc: var(--cyan-400); background-color: var(--cyan-wash); }
+.hud-btn--quiet { color: var(--ink-300); clip-path: none; }
+.hud-btn--quiet:hover { color: var(--cyan-400); background: var(--cyan-wash); }
+.hud-btn--danger { background: var(--signal-danger); color: var(--on-accent); }
+.hud-btn--danger-quiet { color: var(--ink-300); clip-path: none; }
+.hud-btn--danger-quiet:hover { color: var(--signal-danger); background: var(--danger-wash); }
+.hud-btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+.hud-btn svg { width: 16px; height: 16px; flex: none; }
+
+/* ── Badge ── */
+.hud-badge { display: inline-flex; align-items: center; gap: var(--space-1); height: 20px; padding: 0 var(--space-2); border: 1px solid currentColor;
+  font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; border-radius: var(--radius-sm); white-space: nowrap; }
+.hud-badge--cyan { color: var(--cyan-400); background: var(--cyan-wash); }
+.hud-badge--amber { color: var(--amber-400); background: var(--amber-wash); }
+.hud-badge--ok { color: var(--signal-ok); background: var(--ok-wash); }
+.hud-badge--danger { color: var(--signal-danger); background: var(--danger-wash); }
+.hud-badge--neutral { color: var(--ink-300); border-color: var(--line-300); }
+.hud-dot { width: 6px; height: 6px; border-radius: var(--radius-full); background: currentColor; }
+
+/* ── Input ── */
+.hud-field { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.hud-input { height: 36px; box-sizing: border-box; width: 100%; padding: 0 var(--space-3); background: var(--hull-700); color: var(--ink-100);
+  border: 1px solid var(--line-300); border-radius: var(--radius-none); font: 14px/20px var(--font-sans); transition: border-color 120ms, box-shadow 120ms; }
+.hud-input--mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.hud-input--sm { height: 30px; font-size: 13px; padding: 0 var(--space-2); }
+.hud-input::placeholder { color: var(--ink-500); }
+.hud-input:focus { outline: 1px solid var(--cyan-400); outline-offset: 0; border-color: var(--cyan-400); }
+.hud-field__hint { font-size: 12px; line-height: 16px; color: var(--ink-500); }
+.hud-field--error .hud-input { border-color: var(--signal-danger); }
+.hud-field--error .hud-field__hint { color: var(--signal-danger); }
+
+/* ── Stat ── */
+.hud-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hud-stat__value { font-family: var(--font-mono); font-weight: 500; font-size: 22px; line-height: 28px; color: var(--ink-100); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hud-stat--xl .hud-stat__value { font-size: 44px; line-height: 48px; letter-spacing: -.02em; }
+.hud-stat__unit { font-size: .5em; color: var(--ink-500); margin-left: 4px; letter-spacing: .04em; }
+.hud-stat__delta { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--ink-500); }
+.hud-stat__delta--up { color: var(--signal-ok); }
+.hud-stat__delta--down { color: var(--signal-danger); }
+.hud-stat__delta--warn { color: var(--amber-400); }
+
+/* ── Gauge ── */
+.hud-gauge { position: relative; display: inline-grid; place-items: center; }
+.hud-gauge svg { display: block; overflow: visible; }
+.hud-gauge__track { fill: none; stroke: var(--line-500); }
+.hud-gauge__tick { stroke: var(--line-300); stroke-width: 1; }
+.hud-gauge__arc { fill: none; stroke: var(--cyan-400); stroke-linecap: butt; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--cyan-400) 50%, transparent)); transition: stroke-dashoffset 240ms cubic-bezier(.16, 1, .3, 1); }
+.hud-gauge--amber .hud-gauge__arc { stroke: var(--amber-400); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--amber-400) 45%, transparent)); }
+.hud-gauge--ok .hud-gauge__arc { stroke: var(--signal-ok); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--signal-ok) 45%, transparent)); }
+.hud-gauge__center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.hud-gauge__value { font-family: var(--font-mono); font-weight: 500; font-size: 22px; line-height: 26px; color: var(--ink-100); }
+.hud-gauge__label { font-family: var(--font-display); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500); }
+
+/* ── Sparkline / bars ── */
+.hud-spark { display: block; width: 100%; overflow: visible; }
+.hud-spark__line { fill: none; stroke: var(--cyan-400); stroke-width: 1.5; stroke-linejoin: round; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--cyan-400) 55%, transparent)); }
+.hud-spark__area { fill: var(--cyan-wash); }
+.hud-spark__base { stroke: var(--line-500); stroke-dasharray: 2 3; }
+.hud-spark__dot { fill: var(--cyan-400); }
+.hud-spark__bar { fill: var(--cyan-600); }
+.hud-spark__bar--hi { fill: var(--cyan-400); }
+.hud-spark__goal { stroke: var(--amber-400); stroke-dasharray: 4 3; stroke-width: 1; }
+.hud-spark__axis { font-family: var(--font-mono); font-size: 10px; fill: var(--ink-500); }
+
+/* ── Checklist (todo + courses) ── */
+.hud-checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.hud-check { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-1); border-bottom: 1px solid var(--line-500); min-height: 36px; }
+.hud-check:hover { background: var(--hull-600); }
+.hud-check:hover .hud-check__meta { color: var(--ink-300); }
+.hud-check__hit { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-3); min-height: 32px; cursor: pointer; }
+.hud-check__box { appearance: none; -webkit-appearance: none; margin: 0; flex: none; width: 16px; height: 16px; border: 1px solid var(--line-300); border-radius: var(--radius-sm);
+  background: var(--hull-700); display: grid; place-items: center; cursor: pointer; transition: background-color 120ms, border-color 120ms; }
+.hud-check__box:checked { background: var(--cyan-400); border-color: var(--cyan-400); }
+.hud-check__box:checked::after { content: ""; width: 4px; height: 8px; border: solid var(--on-accent); border-width: 0 2px 2px 0; transform: translateY(-1px) rotate(45deg); }
+.hud-check__box:focus-visible { outline: 2px solid var(--cyan-400); outline-offset: 2px; }
+.hud-check__label { flex: 1; min-width: 0; color: var(--ink-100); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hud-check--done .hud-check__label { color: var(--ink-500); text-decoration: line-through; text-decoration-color: var(--line-300); }
+.hud-check__qty { font-family: var(--font-mono); font-size: 12px; color: var(--cyan-400); min-width: 28px; text-align: right; }
+.hud-check__meta { font-family: var(--font-mono); font-size: 12px; color: var(--ink-500); white-space: nowrap; }
+.hud-check__meta--due { color: var(--amber-400); }
+.hud-check .hud-btn { opacity: 0; }
+.hud-check:hover .hud-btn, .hud-check .hud-btn:focus-visible, .hud-check:focus-within .hud-btn { opacity: 1; }
+@media (hover: none) { .hud-check .hud-btn { opacity: 1; } }
+.hud-checklist__add { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+.hud-checklist__add .hud-field { flex: 1; }
+
+/* ── Mail ── */
+.hud-mail { position: relative; display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; gap: 2px var(--space-3); width: 100%; padding: var(--space-3) var(--space-1); border: 0; border-bottom: 1px solid var(--line-500); background: none; cursor: pointer; text-decoration: none; text-align: left; font: inherit; color: inherit; }
+.hud-mail:focus-visible { outline: 2px solid var(--cyan-400); outline-offset: -2px; background: var(--hull-600); }
+.hud-mail:hover { background: var(--hull-600); }
+.hud-mail:hover .hud-mail__time { color: var(--ink-300); }
+.hud-mail__pip { grid-row: 1 / span 2; align-self: center; width: 6px; height: 6px; border-radius: var(--radius-full); }
+.hud-mail--unread .hud-mail__pip { background: var(--amber-400); }
+.hud-mail__from { font-size: 14px; line-height: 20px; color: var(--ink-300); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; gap: var(--space-2); align-items: center; }
+.hud-mail--unread .hud-mail__from { color: var(--ink-100); font-weight: 600; }
+.hud-mail__time { font-family: var(--font-mono); font-size: 12px; color: var(--ink-500); text-align: right; white-space: nowrap; }
+.hud-mail__subject { grid-column: 2 / span 2; font-size: 12px; line-height: 16px; color: var(--ink-300); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hud-mail--unread .hud-mail__subject { color: var(--ink-100); }
+.hud-mail__preview { color: var(--ink-500); }
+
+/* ── Expense table ── */
+.hud-table-wrap { position: relative; overflow-x: auto; }
+.hud-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.hud-table th { text-align: left; font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500);
+  padding: var(--space-2) var(--space-2); border-bottom: 1px solid var(--line-300); background: var(--hull-700); white-space: nowrap; }
+.hud-table td { padding: var(--space-2); border-bottom: 1px solid var(--line-500); color: var(--ink-300); height: 30px; }
+.hud-table tr:hover td { background: var(--hull-600); }
+.hud-table tr.is-editing td { background: var(--cyan-wash); }
+.hud-table .num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink-100); white-space: nowrap; }
+.hud-table .date { font-family: var(--font-mono); color: var(--ink-500); white-space: nowrap; }
+.hud-table tr:hover .date { color: var(--ink-300); }
+.hud-table .actions { width: 1%; white-space: nowrap; text-align: right; }
+.hud-table tfoot td { border-bottom: 0; border-top: 1px solid var(--line-300); color: var(--ink-100); font-family: var(--font-display); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; padding-top: var(--space-3); }
+.hud-table tfoot .num { font-size: 18px; color: var(--cyan-400); letter-spacing: 0; text-transform: none; }
+.hud-table__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); flex-wrap: wrap; }
+.hud-sync { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 12px; color: var(--ink-500); }
+.hud-sync--ok { color: var(--signal-ok); }
+.hud-sync--pending { color: var(--amber-400); }
+
+/* ── Dashboard layout helper ── */
+.hud-dash { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--space-4); padding: var(--space-8); }
+.hud-topbar { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); padding: var(--space-6) var(--space-8) 0; flex-wrap: wrap; }
+.hud-topbar__title { font-family: var(--font-display); font-size: 36px; line-height: 40px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; margin: 0; color: var(--ink-100); }
+.hud-topbar__sub { font-family: var(--font-mono); font-size: 12px; color: var(--ink-500); margin-top: var(--space-1); }
+@media (max-width: 900px) { .hud-dash { grid-template-columns: minmax(0, 1fr); padding: var(--space-4); } .hud-dash > * { grid-column: auto !important; } .hud-topbar { padding: var(--space-4) var(--space-4) 0; } }
+
+/* ── Tabs (dashboards) ── */
+.hud-tabs { display: flex; align-items: flex-end; gap: var(--space-2); border-bottom: 1px solid var(--line-500); }
+.hud-tabs__list { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.hud-tab { --b: var(--bevel-sm); position: relative; display: inline-flex; align-items: center; gap: var(--space-2); height: 36px; padding: 0 var(--space-4);
+  background: transparent; border: 0; color: var(--ink-500); cursor: pointer; white-space: nowrap;
+  font-family: var(--font-display); font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - var(--b)) 0, 100% var(--b), 100% 100%, 0 100%); transition: color 120ms, background-color 120ms; }
+.hud-tab:hover { color: var(--ink-100); background: var(--hull-800); }
+.hud-tab.is-active { color: var(--cyan-400); background: var(--hull-800); }
+.hud-tab.is-active::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--cyan-400); }
+.hud-tab:focus-visible { outline: 2px solid var(--cyan-400); outline-offset: -2px; }
+.hud-tab__lock { display: inline-flex; color: var(--ink-500); }
+.hud-tab--locked.is-active .hud-tab__lock { color: var(--amber-400); }
+.hud-tab--unlocked .hud-tab__lock { color: var(--signal-ok); }
+.hud-tab__count { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0; color: var(--amber-400); }
+.hud-tabs__add { margin-bottom: 4px; }
+.hud-tabs__actions { margin-left: auto; display: flex; gap: var(--space-2); align-items: center; padding-bottom: 4px; }
+
+/* ── AuthGate (lock screen) ── */
+.hud-gate { position: relative; min-height: 520px; display: grid; place-items: center; overflow: hidden; }
+.hud-gate__backdrop { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(12, 1fr); grid-auto-rows: 200px; gap: var(--space-4); padding: var(--space-8); filter: blur(2px); }
+.hud-gate__ghost { border: 1px solid var(--line-500); background: var(--hull-800); }
+.hud-gate__scrim { position: absolute; inset: 0; background: var(--scrim); }
+/* Same two-layer frame as Panel: the 1px border follows the cut corners */
+.hud-gate__card { --b: var(--bevel-lg); position: relative; width: min(380px, calc(100% - 32px)); padding: 1px; background: var(--line-300);
+  filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.55));
+  clip-path: polygon(0 0, calc(100% - var(--b)) 0, 100% var(--b), 100% 100%, var(--b) 100%, 0 calc(100% - var(--b))); }
+/* amber top edge: full width, then follows the 45° cut down to the right edge */
+.hud-gate__card::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: var(--amber-400);
+  clip-path: polygon(0 0, calc(100% - var(--b)) 0, 100% var(--b), 100% calc(var(--b) + 2px), calc(100% - var(--b) - 0.8px) 2px, 0 2px); }
+.hud-gate__inner { position: relative; box-sizing: border-box; padding: var(--space-8) var(--space-6) var(--space-6);
+  display: flex; flex-direction: column; align-items: stretch; gap: var(--space-4); background: var(--hull-800);
+  clip-path: polygon(0 0, calc(100% - var(--b) + 0.4px) 0, 100% calc(var(--b) - 0.4px), 100% 100%, calc(var(--b) - 0.4px) 100%, 0 calc(100% - var(--b) + 0.4px)); }
+.hud-gate__inner::before, .hud-gate__inner::after { content: ""; position: absolute; width: 10px; height: 10px; border-color: var(--cyan-600); border-style: solid; pointer-events: none; }
+.hud-gate__inner::before { top: 6px; left: 6px; border-width: 1px 0 0 1px; }
+.hud-gate__inner::after { bottom: 6px; right: 6px; border-width: 0 1px 1px 0; }
+.hud-gate__emblem { align-self: center; width: 64px; height: 64px; display: grid; place-items: center; color: var(--amber-400);
+  border: 1px solid var(--amber-400); background: var(--amber-wash); transform: rotate(45deg); margin: var(--space-2) 0 var(--space-2); }
+.hud-gate__emblem svg { transform: rotate(-45deg); }
+.hud-gate__emblem.is-error { color: var(--signal-danger); border-color: var(--signal-danger); background: var(--danger-wash); }
+.hud-gate__head { text-align: center; display: flex; flex-direction: column; gap: var(--space-1); }
+.hud-gate__title { margin: 0; font-family: var(--font-display); font-size: 18px; line-height: 24px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-100); }
+.hud-gate__desc { margin: 0; font-size: 12px; line-height: 16px; color: var(--ink-300); }
+.hud-gate__pin .hud-input { height: 48px; text-align: center; font-size: 22px; letter-spacing: .6em; padding-left: .6em; }
+.hud-gate__submit { width: 100%; }
+.hud-gate__error { margin: 0; padding: var(--space-3); text-align: center; font-size: 13px; color: var(--signal-danger); border: 1px solid var(--signal-danger); background: var(--danger-wash); }
+.hud-gate__foot { text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-500); }
+
+/* ── Browser surfaces ── */
+::selection { background: var(--cyan-400); color: var(--on-accent); }
+input, textarea { caret-color: var(--cyan-400); }
+* { scrollbar-color: var(--line-300) transparent; scrollbar-width: thin; }
+
+/* ── Reduced motion: state changes stay, movement goes ── */
+@media (prefers-reduced-motion: reduce) {
+  .hud-gauge__arc, .hud-btn, .hud-input, .hud-check__box, .hud-tab { transition: none; }
+}
+
+/* ── Contrôles natifs de l'app (formulaires, boutons de liste) ── */
+.hud-btn--block { width: 100%; }
+select.hud-input { padding-right: var(--space-2); }
+
+/* ── Carte des écrans secondaires (réglages, recettes, dépenses) ── */
+.hud-card { padding: var(--space-4); background: var(--hull-800); border: 1px solid var(--line-500); }

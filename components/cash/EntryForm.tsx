@@ -7,7 +7,7 @@ import { cashApi } from './api'
 const NEW_CATEGORY = '__new__'
 
 const field =
-  'min-w-0 rounded border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100'
+  'hud-input hud-input--sm min-w-0'
 
 /**
  * Saisie d'une dépense : ajout rapide ou édition en ligne. « Nouvelle
@@ -137,7 +137,7 @@ export function EntryForm({
         <button
           type="submit"
           disabled={pending}
-          className="flex-1 rounded bg-slate-900 px-2 py-1 text-sm font-medium text-white disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900"
+          className="hud-btn hud-btn--primary hud-btn--sm flex-1"
         >
           {pending ? 'Enregistrement…' : submitLabel}
         </button>
@@ -146,7 +146,7 @@ export function EntryForm({
             type="button"
             onClick={onCancel}
             disabled={pending}
-            className="rounded border border-slate-300 px-2 py-1 text-sm font-medium disabled:opacity-60 dark:border-slate-700"
+            className="hud-btn hud-btn--ghost hud-btn--sm"
           >
             Annuler
           </button>

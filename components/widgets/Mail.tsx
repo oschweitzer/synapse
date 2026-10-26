@@ -1,5 +1,6 @@
 import type { Mail } from '@/lib/connectors/google'
 import { TIME_ZONE } from '@/lib/time'
+import { Badge } from '@/components/ui/Badge'
 import { ConnectGoogle } from './GoogleBanner'
 
 const muted = 'text-slate-500 dark:text-slate-400'
@@ -22,30 +23,31 @@ export function MailWidget({ mail }: { mail: Mail }) {
   return (
     <div className="flex flex-col gap-2">
       {unread > 0 && (
-        <p className={`text-xs ${muted}`}>
-          {unread} non lu{unread > 1 ? 's' : ''}
+        <p>
+          <Badge tone="amber">
+            {unread} non lu{unread > 1 ? 's' : ''}
+          </Badge>
         </p>
       )}
-      <ul className="flex max-h-96 flex-col divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800" aria-label="Derniers mails">
+      <ul className="flex max-h-96 flex-col overflow-y-auto" aria-label="Derniers mails">
         {mail.mails.map((m) => (
           <li key={m.id}>
             <a
               href={m.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex flex-col gap-0.5 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800/50"
+              className={`hud-mail ${m.isUnread ? 'hud-mail--unread' : ''}`}
             >
-              <span className="flex items-baseline gap-2">
-                {m.isUnread && (
-                  <span className="h-2 w-2 shrink-0 self-center rounded-full bg-sky-600 dark:bg-sky-400">
-                    <span className="sr-only">Non lu : </span>
-                  </span>
-                )}
-                <span className={`min-w-0 flex-1 truncate ${m.isUnread ? 'font-semibold' : ''}`}>{m.sender}</span>
-                <span className={`shrink-0 text-xs ${muted}`}>{formatReceived(m.receivedAt)}</span>
+              <span className="hud-mail__pip" aria-hidden />
+              <span className="hud-mail__from">
+                {m.isUnread && <span className="hud-sr">Non lu : </span>}
+                {m.sender}
               </span>
-              <span className={`truncate ${m.isUnread ? 'font-medium' : ''}`}>{m.subject}</span>
-              {m.snippet && <span className={`truncate text-xs ${muted}`}>{m.snippet}</span>}
+              <span className="hud-mail__time">{formatReceived(m.receivedAt)}</span>
+              <span className="hud-mail__subject">
+                {m.subject}
+                {m.snippet && <span className="hud-mail__preview"> — {m.snippet}</span>}
+              </span>
             </a>
           </li>
         ))}

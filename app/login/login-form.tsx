@@ -24,7 +24,7 @@ export function LoginForm() {
       <button
         type="button"
         onClick={signInWithGoogle}
-        className="rounded bg-slate-900 px-3 py-2 font-medium text-white dark:bg-slate-100 dark:text-slate-900"
+        className="hud-btn hud-btn--primary"
       >
         Se connecter avec Google
       </button>

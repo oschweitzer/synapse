@@ -29,12 +29,12 @@ export async function GoogleReauthBanner() {
   return (
     <div
       role="alert"
-      className="mb-4 flex flex-col gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+      className="mb-4 flex flex-col gap-2 border border-amber-400 bg-amber-wash p-3 text-sm text-ink-100 sm:flex-row sm:items-center sm:justify-between"
     >
       <p>Google a refusé l’accès de Synapse : l’agenda et les mails ne se mettent plus à jour.</p>
       <a
         href="/api/google/connect"
-        className="shrink-0 rounded bg-amber-900 px-3 py-1.5 text-center font-medium text-white dark:bg-amber-200 dark:text-amber-950"
+        className="hud-btn hud-btn--primary hud-btn--sm shrink-0"
       >
         Reconnecter Google
       </a>

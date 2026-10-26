@@ -22,7 +22,7 @@ export function UnlinkSheet() {
             router.refresh()
           })
         }
-        className="rounded border border-slate-300 px-3 py-2 text-sm font-medium text-slate-900 disabled:opacity-60 dark:border-slate-700 dark:text-slate-100"
+        className="hud-btn hud-btn--ghost"
       >
         Oublier ce fichier
       </button>

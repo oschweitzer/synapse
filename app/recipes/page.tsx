@@ -47,7 +47,7 @@ export default async function RecipesPage({
   return (
     <main className="mx-auto max-w-xl px-4 py-6">
       <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Recettes</h1>
+        <h1 className="font-display text-2xl font-semibold uppercase tracking-wider">Recettes</h1>
         <Link href="/" className={`text-sm underline ${muted}`}>
           Retour au dashboard
         </Link>

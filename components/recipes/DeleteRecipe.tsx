@@ -14,7 +14,7 @@ export function DeleteRecipe({ id, title }: { id: string; title: string }) {
       <input type="hidden" name="id" value={id} />
       <button
         type="submit"
-        className="rounded border border-red-300 px-3 py-2 font-medium text-red-700 dark:border-red-900 dark:text-red-400"
+        className="hud-btn hud-btn--danger"
       >
         Supprimer
       </button>

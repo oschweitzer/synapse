@@ -1,0 +1,39 @@
+/* Synapse — tokens du design system (généré depuis tokens.json). Sombre uniquement. */
+:root {
+  --void-900: #05080d;
+  --hull-800: #0a111a;
+  --hull-700: #0f1924;
+  --hull-600: #16222f;
+  --line-500: #1e3042;
+  --line-300: #4d7192;
+  --ink-100: #e4eef5;
+  --ink-300: #9fb4c4;
+  --ink-500: #7189a0;
+  --cyan-400: #3fd8f2;
+  --cyan-300: #6fe3f6;
+  --cyan-600: #2aa3bb;
+  --cyan-wash: rgba(63, 216, 242, 0.09);
+  --amber-400: #ffb547;
+  --amber-wash: rgba(255, 181, 71, 0.10);
+  --signal-ok: #5ee6a8;
+  --ok-wash: rgba(94, 230, 168, 0.08);
+  --signal-danger: #ff6b6b;
+  --danger-wash: rgba(255, 107, 107, 0.10);
+  --grid-line: rgba(63, 216, 242, 0.035);
+  --scrim: rgba(5, 8, 13, 0.78);
+  --on-accent: #04121a;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --radius-none: 0;
+  --radius-sm: 2px;
+  --radius-full: 999px;
+  --bevel-sm: 6px;
+  --bevel-md: 14px;
+  --bevel-lg: 24px;
+  --panel-depth: 0 12px 32px rgba(0, 0, 0, 0.55);
+}

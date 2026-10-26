@@ -169,6 +169,17 @@ Mise en place, une seule fois :
 
 On se connecte uniquement avec Google (`openid email profile`, aucun accès aux données Google), via Supabase Auth : la session est celle du compte Cairn, à condition que l’adresse Google soit celle du compte Cairn (Supabase lie l’identité Google au compte existant de même adresse vérifiée ; à contrôler dans *Authentication > Users* après la première connexion : `auth.uid()` doit être l’uuid du compte Cairn). Un compte hors `ALLOWED_EMAILS` est déconnecté aussitôt (« Accès refusé »). Activer le provider *Google* dans Supabase (client OAuth « Web » du projet Google Cloud de Cairn, dont les URI de redirection autorisées incluent `https://<project-ref>.supabase.co/auth/v1/callback`). Dans Supabase, **Authentication > URL Configuration**, ajouter `<NEXT_PUBLIC_SITE_URL>/auth/callback` (et `http://localhost:3000/auth/callback` en local) aux *Redirect URLs*.
 
+### Design system
+
+Interface « poste de pilotage » : sombre uniquement, accent cyan (données) et ambre (attention), coins coupés. Référence : le design system *Synapse* (tokens, composants, règles d’usage).
+
+- `app/tokens.css` : tokens (couleurs, espacements, biseaux), copiés depuis `tokens.json` du design system.
+- `app/hud.css` : classes `hud-*` (panel, bouton, badge, champ, jauge, courbe, mail…).
+- `components/ui/` : composants React portés du design system (`Panel`, `Button`, `Badge`, `Input`, `Stat`, `Gauge`, `Sparkline`, `Icon`), mêmes props et classes.
+- `tailwind.config.ts` expose les tokens (`ink-*`, `hull-*`, `cyan-*`, `amber-*`…) ; les palettes `slate`, `red`, `green`, `amber` et `sky` y sont aliasées sur les tokens pour que les écrans existants prennent le style sans être réécrits. Pour un nouvel écran, utiliser les tokens et `components/ui/`.
+- Polices (Chakra Petch, IBM Plex Sans, JetBrains Mono) chargées par `next/font/google` dans `app/layout.tsx`.
+- Un widget tient sur 4 ou 8 colonnes de la grille `.hud-dash` (voir `WidgetShell`).
+
 ### Déploiement (Vercel Hobby)
 
 Importer le dépôt dans Vercel (preset Next.js), renseigner les variables ci-dessus, puis déployer. Installer ensuite l'appli depuis le navigateur du téléphone (« Ajouter à l'écran d'accueil »).

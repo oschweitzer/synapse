@@ -158,7 +158,7 @@ export function SheetPicker({
           setBusy(true)
           tokenClient.current?.requestAccessToken()
         }}
-        className="rounded bg-slate-900 px-3 py-2 text-center text-sm font-medium text-white disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900"
+        className="hud-btn hud-btn--primary"
       >
         {busy ? 'Choix en cours…' : label}
       </button>

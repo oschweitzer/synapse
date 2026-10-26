@@ -169,6 +169,17 @@ One-time setup:
 
 Sign-in is Google only (`openid email profile`, no access to Google data), through Supabase Auth: the session is the Cairn account's, provided the Google address is the Cairn account's (Supabase links the Google identity to the existing account with the same verified address; check in *Authentication > Users* after the first sign-in that `auth.uid()` is the Cairn account's uuid). An account outside `ALLOWED_EMAILS` is signed out immediately ("Accès refusé"). Enable the *Google* provider in Supabase (the "Web" OAuth client of Cairn's Google Cloud project, whose authorised redirect URIs include `https://<project-ref>.supabase.co/auth/v1/callback`). In Supabase, **Authentication > URL Configuration**, add `<NEXT_PUBLIC_SITE_URL>/auth/callback` (and `http://localhost:3000/auth/callback` locally) to the *Redirect URLs*.
 
+### Design system
+
+"Ship's console" interface: dark only, cyan accent (data) and amber (attention), cut corners. Reference: the *Synapse* design system (tokens, components, usage rules).
+
+- `app/tokens.css`: tokens (colours, spacing, bevels), copied from the design system's `tokens.json`.
+- `app/hud.css`: `hud-*` classes (panel, button, badge, input, gauge, sparkline, mail…).
+- `components/ui/`: React components ported from the design system (`Panel`, `Button`, `Badge`, `Input`, `Stat`, `Gauge`, `Sparkline`, `Icon`), same props and classes.
+- `tailwind.config.ts` exposes the tokens (`ink-*`, `hull-*`, `cyan-*`, `amber-*`…); the `slate`, `red`, `green`, `amber` and `sky` palettes are aliased to the tokens there so existing screens pick up the style without being rewritten. For a new screen, use the tokens and `components/ui/`.
+- Fonts (Chakra Petch, IBM Plex Sans, JetBrains Mono) are loaded by `next/font/google` in `app/layout.tsx`.
+- A widget fits 4 or 8 columns of the `.hud-dash` grid (see `WidgetShell`).
+
 ### Deployment (Vercel Hobby)
 
 Import the repository into Vercel (Next.js preset), set the variables above, then deploy. Then install the app from the phone's browser ("Add to Home Screen").
