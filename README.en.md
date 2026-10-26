@@ -31,6 +31,7 @@ Scripts: `npm run build`, `npm run lint`, `npm run typecheck`.
 | Variable | Purpose |
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase project **shared with Cairn** (Settings > API) |
+| `ALLOWED_EMAILS` | Allowlist: authorised Google emails, comma-separated (empty: everyone denied) |
 | `NEXT_PUBLIC_SITE_URL` | Public URL of Synapse (Google OAuth redirect: `<url>/api/google/callback`) |
 | `SYNAPSE_GOOGLE_CLIENT_ID` / `SYNAPSE_GOOGLE_CLIENT_SECRET` | Synapse's Google OAuth client (see "Calendar and mail") |
 | `SYNAPSE_GOOGLE_TOKEN_KEY` | Encryption key for the Google refresh token, 64 hex characters, the same as in the Edge Functions secrets |
@@ -166,7 +167,7 @@ One-time setup:
 
 ### Sign-in
 
-Sign in with the Cairn account (email/password or Google). In Supabase, **Authentication > URL Configuration**, add `<NEXT_PUBLIC_SITE_URL>/auth/callback` (and `http://localhost:3000/auth/callback` locally) to the *Redirect URLs*.
+Sign-in is Google only (`openid email profile`, no access to Google data), through Supabase Auth: the session is the Cairn account's, provided the Google address is the Cairn account's (Supabase links the Google identity to the existing account with the same verified address; check in *Authentication > Users* after the first sign-in that `auth.uid()` is the Cairn account's uuid). An account outside `ALLOWED_EMAILS` is signed out immediately ("Accès refusé"). Enable the *Google* provider in Supabase (the "Web" OAuth client of Cairn's Google Cloud project, whose authorised redirect URIs include `https://<project-ref>.supabase.co/auth/v1/callback`). In Supabase, **Authentication > URL Configuration**, add `<NEXT_PUBLIC_SITE_URL>/auth/callback` (and `http://localhost:3000/auth/callback` locally) to the *Redirect URLs*.
 
 ### Deployment (Vercel Hobby)
 

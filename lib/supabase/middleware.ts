@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isAllowedUser } from '@/lib/auth'
 
 const PUBLIC_PATHS = ['/login', '/auth']
 
@@ -36,6 +37,16 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+
+  if (data.user && !isAllowedUser(data.user)) {
+    // Compte hors liste blanche : déconnecté aussitôt (les cookies effacés sont dans `response`).
+    await supabase.auth.signOut()
+    if (pathname === '/login') return response
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    url.search = '?error=denied'
+    return redirectWithCookies(url, response)
+  }
 
   if (!data.user && !isPublic) {
     const url = request.nextUrl.clone()

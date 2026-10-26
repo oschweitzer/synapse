@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { isAllowedUser } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl
@@ -11,7 +12,12 @@ export async function GET(request: NextRequest) {
   if (code) {
     const supabase = await createClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) return NextResponse.redirect(`${origin}${safeNext}`)
+    if (!error) {
+      const { data } = await supabase.auth.getUser()
+      if (data.user && isAllowedUser(data.user)) return NextResponse.redirect(`${origin}${safeNext}`)
+      await supabase.auth.signOut()
+      return NextResponse.redirect(`${origin}/login?error=denied`)
+    }
     console.error('[auth/callback]', error.message)
   }
 
