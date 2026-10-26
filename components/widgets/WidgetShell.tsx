@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Panel } from '@/components/ui/Panel'
 import type { IconName } from '@/components/ui/Icon'
+import { Spinner } from '@/components/ui/Spinner'
 
 /** Placement du widget sur la grille 12 colonnes : 8 (héros, tables) ou 4 (listes, mini-stats). */
 export type PanelLayout = { index?: number | 'auto'; icon?: IconName; span?: 4 | 8; hero?: boolean }
@@ -45,10 +46,8 @@ export function WidgetShell({
 export function WidgetSkeleton({ title, ...layout }: { title: string } & PanelLayout) {
   return (
     <Panel title={title} busy {...layoutProps(layout)}>
-      <span className="sr-only">Chargement…</span>
-      <div className="flex flex-col gap-3">
-        <div className="h-4 w-2/3 animate-pulse bg-hull-600" />
-        <div className="h-4 w-1/2 animate-pulse bg-hull-600" />
+      <div className="flex items-center justify-center gap-3 py-4 text-cyan-400">
+        <Spinner label="Chargement…" />
       </div>
     </Panel>
   )

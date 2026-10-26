@@ -59,6 +59,17 @@
 .hud-btn--danger-quiet:hover { color: var(--signal-danger); background: var(--danger-wash); }
 .hud-btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
 .hud-btn svg { width: 16px; height: 16px; flex: none; }
+.hud-btn[aria-busy="true"] { cursor: progress; }
+.hud-btn[aria-busy="true"]:disabled { opacity: .7; cursor: progress; }
+
+/* ── Spinner: arc over a faint track, follows currentColor ── */
+.hud-spinner { display: inline-flex; width: 16px; height: 16px; flex: none; color: inherit; }
+.hud-spinner--sm { width: 12px; height: 12px; }
+.hud-spinner svg { width: 100%; height: 100%; animation: hud-spin 800ms linear infinite; }
+.hud-btn .hud-spinner svg { width: 100%; height: 100%; }
+.hud-spinner__track { stroke: currentColor; stroke-width: 3; opacity: .25; }
+.hud-spinner__arc { stroke: currentColor; stroke-width: 3; stroke-linecap: butt; stroke-dasharray: 14 56.5; }
+@keyframes hud-spin { to { transform: rotate(360deg); } }
 
 /* ── Badge ── */
 .hud-badge { display: inline-flex; align-items: center; gap: var(--space-1); height: 20px; padding: 0 var(--space-2); border: 1px solid currentColor;
@@ -241,6 +252,7 @@ input, textarea { caret-color: var(--cyan-400); }
 /* ── Reduced motion: state changes stay, movement goes ── */
 @media (prefers-reduced-motion: reduce) {
   .hud-gauge__arc, .hud-btn, .hud-input, .hud-check__box, .hud-tab { transition: none; }
+  .hud-spinner svg { animation-duration: 2.4s; }
 }
 
 /* ── Contrôles natifs de l'app (formulaires, boutons de liste) ── */

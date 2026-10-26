@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { addIngredientsToShopping } from '@/app/actions/recipes'
+import { Spinner } from '@/components/ui/Spinner'
 
 function addedLabel(count: number) {
   return `${count} ingrédient${count > 1 ? 's' : ''} ajouté${count > 1 ? 's' : ''} aux courses.`
@@ -24,7 +25,14 @@ export function AddToShopping({ recipeId, className }: { recipeId: string; class
   return (
     <div className="flex flex-col gap-1">
       {/* Une fois ajoutés, pas de second clic par mégarde (doublons dans la liste). */}
-      <button type="button" onClick={add} disabled={pending || added} className={className}>
+      <button
+        type="button"
+        onClick={add}
+        disabled={pending || added}
+        aria-busy={pending || undefined}
+        className={`${className} inline-flex items-center justify-center gap-2`}
+      >
+        {pending && <Spinner size="sm" />}
         {pending ? 'Ajout…' : 'Ajouter les ingrédients aux courses'}
       </button>
       {message && (

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { setHabitDone } from '@/app/actions/mood'
+import { Spinner } from '@/components/ui/Spinner'
 
 /** Case « fait aujourd'hui » d'une habitude : cochée tout de suite, annulée si l'écriture échoue. */
 export function HabitCheck({ id, name, done }: { id: string; name: string; done: boolean }) {
@@ -32,6 +33,7 @@ export function HabitCheck({ id, name, done }: { id: string; name: string; done:
           className="h-4 w-4 shrink-0 accent-slate-900 dark:accent-slate-100"
         />
         <span className="truncate">{name}</span>
+        {pending && <Spinner size="sm" label="Enregistrement…" />}
       </label>
       {error && (
         <p role="alert" className="pl-6 text-xs text-red-600 dark:text-red-400">

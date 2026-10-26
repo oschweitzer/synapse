@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
 import { cashApi } from './api'
 
 /** Oublie le fichier des dépenses (le fichier lui-même n'est pas touché). */
@@ -12,9 +13,8 @@ export function UnlinkSheet() {
 
   return (
     <div className="flex flex-col gap-1">
-      <button
-        type="button"
-        disabled={pending}
+      <Button
+        loading={pending}
         onClick={() =>
           startTransition(async () => {
             const result = await cashApi('/sheet', 'DELETE')
@@ -22,10 +22,9 @@ export function UnlinkSheet() {
             router.refresh()
           })
         }
-        className="hud-btn hud-btn--ghost"
       >
         Oublier ce fichier
-      </button>
+      </Button>
       {error && (
         <p role="alert" className="text-xs text-red-600 dark:text-red-400">
           {error}

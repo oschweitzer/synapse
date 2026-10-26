@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatChf, formatDay, type CashEntry } from '@/lib/cash'
+import { Spinner } from '@/components/ui/Spinner'
 import { cashApi } from './api'
 import { EntryForm } from './EntryForm'
 
@@ -59,7 +60,7 @@ export function EntryRow({ entry, categories }: { entry: CashEntry; categories: 
   }
 
   return (
-    <li className={`flex flex-col gap-1 py-2 ${pending ? 'opacity-60' : ''}`}>
+    <li aria-busy={pending || undefined} className={`flex flex-col gap-1 py-2 ${pending ? 'opacity-60' : ''}`}>
       <div className="flex items-baseline gap-3 text-sm">
         <span className={`w-20 shrink-0 tabular-nums ${muted}`}>{formatDay(entry.date)}</span>
         <span className="min-w-0 flex-1 break-words">
@@ -68,7 +69,8 @@ export function EntryRow({ entry, categories }: { entry: CashEntry; categories: 
         </span>
         <span className="shrink-0 font-medium tabular-nums">{formatChf(entry.amount)}</span>
       </div>
-      <div className="flex justify-end gap-3 text-xs">
+      <div className="flex items-center justify-end gap-3 text-xs">
+        {pending && <Spinner size="sm" label="Enregistrement…" />}
         <button type="button" onClick={() => setEditing(true)} disabled={pending} className={`underline ${muted}`}>
           Modifier<span className="sr-only"> la dépense du {label}</span>
         </button>

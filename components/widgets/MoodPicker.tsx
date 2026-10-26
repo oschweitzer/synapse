@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { saveMoodNote, setMood } from '@/app/actions/mood'
+import { Button } from '@/components/ui/Button'
+import { Spinner } from '@/components/ui/Spinner'
 import { MOOD_LABELS } from '@/lib/mood'
 
 const muted = 'text-slate-500 dark:text-slate-400'
@@ -76,14 +78,15 @@ export function MoodPicker({ score, note }: { score: number | null; note: string
             placeholder="Un mot sur la journée (facultatif)"
             className="hud-input hud-input--sm min-w-0 flex-1"
           />
-          <button
-            type="submit"
-            disabled={pending}
-            className="hud-btn hud-btn--ghost hud-btn--sm"
-          >
+          <Button type="submit" size="sm" loading={pending}>
             OK
-          </button>
+          </Button>
         </form>
+      )}
+      {pending && (
+        <p className={`flex items-center gap-2 text-xs ${muted}`}>
+          <Spinner size="sm" label="Enregistrement…" />
+        </p>
       )}
       {current == null && <p className={`text-xs ${muted}`}>Comment ça va aujourd’hui ?</p>}
       {message && (

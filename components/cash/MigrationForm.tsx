@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { formatChf, formatDay, roundCents } from '@/lib/cash'
 import { isAnomaly, type Correction, type MigrationPlan, type SourceRow } from '@/lib/cash-migration'
 import type { MigrationReport } from '@/lib/connectors/cash'
+import { Button } from '@/components/ui/Button'
 import { cashApi } from './api'
 
 const muted = 'text-slate-500 dark:text-slate-400'
@@ -197,13 +198,9 @@ export function MigrationForm({ plan }: { plan: MigrationPlan }) {
         </ul>
       </details>
 
-      <button
-        type="submit"
-        disabled={pending || undecided > 0}
-        className="hud-btn hud-btn--primary"
-      >
+      <Button type="submit" variant="primary" loading={pending} disabled={undecided > 0}>
         {pending ? 'Migration en cours…' : 'Migrer le fichier'}
-      </button>
+      </Button>
       {undecided > 0 && (
         <p className={`text-xs ${muted}`}>
           Encore {undecided} ligne{undecided > 1 ? 's' : ''} à valider ou exclure.

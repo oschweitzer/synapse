@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
 import { cashApi } from './api'
 
 const SCOPE_DRIVE_FILE = 'https://www.googleapis.com/auth/drive.file'
@@ -150,18 +151,18 @@ export function SheetPicker({
 
   return (
     <div className="flex flex-col gap-1">
-      <button
-        type="button"
-        disabled={!ready || busy}
+      <Button
+        variant="primary"
+        loading={busy}
+        disabled={!ready}
         onClick={() => {
           setError(null)
           setBusy(true)
           tokenClient.current?.requestAccessToken()
         }}
-        className="hud-btn hud-btn--primary"
       >
         {busy ? 'Choix en cours…' : label}
-      </button>
+      </Button>
       {error && (
         <p role="alert" className="text-xs text-red-600 dark:text-red-400">
           {error}

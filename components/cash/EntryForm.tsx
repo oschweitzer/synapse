@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { CATEGORY_MAX, NOTE_MAX, type CashEntryInput } from '@/lib/cash'
+import { Button } from '@/components/ui/Button'
 import { cashApi } from './api'
 
 const NEW_CATEGORY = '__new__'
@@ -134,22 +135,13 @@ export function EntryForm({
         />
       </div>
       <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={pending}
-          className="hud-btn hud-btn--primary hud-btn--sm flex-1"
-        >
+        <Button type="submit" variant="primary" size="sm" loading={pending} className="flex-1">
           {pending ? 'Enregistrement…' : submitLabel}
-        </button>
+        </Button>
         {onCancel && (
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={pending}
-            className="hud-btn hud-btn--ghost hud-btn--sm"
-          >
+          <Button size="sm" onClick={onCancel} disabled={pending}>
             Annuler
-          </button>
+          </Button>
         )}
       </div>
       {message && (
