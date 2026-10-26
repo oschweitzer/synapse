@@ -280,9 +280,12 @@ async function findRow(token: string, sheetId: string, id: string) {
   return index + 2
 }
 
-function done(userId: string) {
+/** Invalide le cache de lecture des dépenses (après une écriture, ou à la demande). */
+export function invalidateCash(userId: string) {
   revalidateTag(cashTag(userId))
 }
+
+const done = invalidateCash
 
 export async function createEntry(raw: unknown) {
   return withSheet(async ({ token, sheetId, userId }) => {

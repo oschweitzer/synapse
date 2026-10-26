@@ -60,6 +60,7 @@ export default async function DashboardPage() {
       node: (
         <Suspense fallback={<WidgetSkeleton title="Activités" index="auto" icon="run" span={8} hero />}>
           <WidgetSlot
+            refreshId="activities"
             title="Activités"
             index="auto" icon="run" span={8} hero
             connector={activitiesConnector}
@@ -76,6 +77,7 @@ export default async function DashboardPage() {
       node: (
         <Suspense fallback={<WidgetSkeleton title="Mails" index="auto" icon="mail" span={4} />}>
           <WidgetSlot
+            refreshId="mail"
             title="Mails"
             index="auto" icon="mail" span={4}
             connector={mailConnector}
@@ -92,6 +94,7 @@ export default async function DashboardPage() {
       node: (
         <Suspense fallback={<WidgetSkeleton title="7 derniers jours" index="auto" icon="run" span={8} />}>
           <WidgetSlot
+            refreshId="trend"
             title="7 derniers jours"
             index="auto" icon="run" span={8}
             connector={trendConnector}
@@ -108,6 +111,7 @@ export default async function DashboardPage() {
       node: (
         <Suspense fallback={<WidgetSkeleton title="Sommeil" index="auto" icon="moon" span={4} />}>
           <WidgetSlot
+            refreshId="sleep"
             title="Sommeil"
             index="auto" icon="moon" span={4}
             connector={sleepConnector}
@@ -124,6 +128,7 @@ export default async function DashboardPage() {
       node: (
         <Suspense fallback={<WidgetSkeleton title="Dépenses cash" index="auto" icon="wallet" span={8} />}>
           <WidgetSlot
+            refreshId="cash"
             title="Dépenses cash"
             index="auto" icon="wallet" span={8}
             connector={cashConnector}
@@ -140,6 +145,7 @@ export default async function DashboardPage() {
       node: (
         <Suspense fallback={<WidgetSkeleton title="À faire" index="auto" icon="task" span={4} />}>
           <WidgetSlot
+            refreshId="todo"
             title="À faire"
             index="auto" icon="task" span={4}
             connector={todoConnector}
@@ -156,6 +162,7 @@ export default async function DashboardPage() {
       node: (
         <Suspense fallback={<WidgetSkeleton title="Courses" index="auto" icon="cart" span={4} />}>
           <WidgetSlot
+            refreshId="shopping"
             title="Courses"
             index="auto" icon="cart" span={4}
             connector={shoppingConnector}
@@ -172,6 +179,7 @@ export default async function DashboardPage() {
       node: (
         <Suspense fallback={<WidgetSkeleton title="Agenda" index="auto" icon="grid" span={4} />}>
           <WidgetSlot
+            refreshId="agenda"
             title="Agenda"
             index="auto" icon="grid" span={4}
             connector={agendaConnector}
@@ -188,6 +196,7 @@ export default async function DashboardPage() {
       node: (
         <Suspense fallback={<WidgetSkeleton title="Météo" index="auto" icon="grid" span={4} />}>
           <WidgetSlot
+            refreshId="weather"
             title="Météo"
             index="auto" icon="grid" span={4}
             connector={weatherConnector}
@@ -204,6 +213,7 @@ export default async function DashboardPage() {
       node: (
         <Suspense fallback={<WidgetSkeleton title="Humeur" index="auto" icon="heart" span={4} />}>
           <WidgetSlot
+            refreshId="mood"
             title="Humeur"
             index="auto" icon="heart" span={4}
             connector={moodConnector}
@@ -220,6 +230,7 @@ export default async function DashboardPage() {
       node: (
         <Suspense fallback={<WidgetSkeleton title="Habitudes" index="auto" icon="check" span={4} />}>
           <WidgetSlot
+            refreshId="habits"
             title="Habitudes"
             index="auto" icon="check" span={4}
             connector={habitsConnector}
@@ -236,6 +247,7 @@ export default async function DashboardPage() {
       node: (
         <Suspense fallback={<WidgetSkeleton title="Recette du jour" index="auto" icon="cart" span={4} />}>
           <WidgetSlot
+            refreshId="daily-recipe"
             title="Recette du jour"
             index="auto" icon="cart" span={4}
             connector={dailyRecipeConnector}

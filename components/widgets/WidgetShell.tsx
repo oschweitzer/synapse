@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { Panel } from '@/components/ui/Panel'
 import type { IconName } from '@/components/ui/Icon'
 import { Spinner } from '@/components/ui/Spinner'
+import type { WidgetId } from '@/lib/dashboard'
+import { WidgetRefresh } from './WidgetRefresh'
 
 /** Placement du widget sur la grille 12 colonnes : 8 (héros, tables) ou 4 (listes, mini-stats). */
 export type PanelLayout = { index?: number | 'auto'; icon?: IconName; span?: 4 | 8; hero?: boolean }
@@ -20,10 +22,13 @@ export function WidgetShell({
   title,
   syncedAt,
   error,
+  refreshId,
   children,
   ...layout
 }: {
   title: string
+  /** Widget rafraîchissable à la demande (bouton dans l'en-tête). */
+  refreshId?: WidgetId
   syncedAt?: Date | null
   error?: string
   children?: ReactNode
@@ -31,7 +36,18 @@ export function WidgetShell({
   const sync = formatSync(syncedAt ?? null)
 
   return (
-    <Panel title={title} meta={sync} {...layoutProps(layout, !!error)}>
+    <Panel
+      title={title}
+      meta={
+        (sync || refreshId) && (
+          <>
+            {sync}
+            {refreshId && <WidgetRefresh id={refreshId} title={title} />}
+          </>
+        )
+      }
+      {...layoutProps(layout, !!error)}
+    >
       {error ? (
         <p role="alert" className="text-sm text-danger">
           {error}
