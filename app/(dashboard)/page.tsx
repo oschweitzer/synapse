@@ -17,7 +17,9 @@ import {
   weatherConnector,
 } from '@/lib/connectors'
 import { SortableDashboard, type DashboardItem } from '@/components/dashboard/SortableDashboard'
-import { resolveWidgetOrder, type WidgetId } from '@/lib/dashboard'
+import type { WidgetId } from '@/lib/dashboard'
+import { listDashboards } from '@/lib/dashboards'
+import { readLockState } from '@/lib/lock/page'
 import { WidgetSkeleton } from '@/components/widgets/WidgetShell'
 import { WidgetSlot } from '@/components/widgets/WidgetSlot'
 import { WeatherWidget } from '@/components/widgets/Weather'
@@ -32,7 +34,6 @@ import { GoogleReauthBanner } from '@/components/widgets/GoogleBanner'
 import { CashWidget } from '@/components/widgets/Cash'
 import { buttonClass } from '@/components/ui/Button'
 import { AutoLock } from '@/components/lock/AutoLock'
-import { readLockConfig } from '@/lib/lock/config'
 import { pickerConfig } from '@/lib/google/oauth'
 import { TIME_ZONE, dayKey } from '@/lib/time'
 
@@ -42,22 +43,39 @@ function formatTopbar(now: Date) {
   return `${date} · ${time}`.toUpperCase()
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ d?: string }> }) {
   const supabase = await createClient()
   const { data } = await supabase.auth.getUser()
   if (!data.user) redirect('/login')
 
-  const { data: settings, error: settingsError } = await supabase
-    .schema('synapse')
-    .from('settings')
-    .select('widget_order')
-    .maybeSingle()
-  if (settingsError) console.error('[dashboard] lecture de l’ordre des widgets', settingsError)
+  const { d } = await searchParams
 
-  const lock = await readLockConfig(supabase).catch((e) => {
-    console.error('[dashboard] lecture du verrouillage', e)
-    return null
-  })
+  // Le middleware laisse passer cette page verrouillée : un dashboard privé n'est servi (ni rendu,
+  // ni ses données lues) qu'une fois déverrouillé. Toute erreur de lecture reste fermée.
+  const [dashboards, lock] = await Promise.all([
+    listDashboards(supabase).catch((e) => {
+      console.error('[dashboard] lecture des dashboards', e)
+      return null
+    }),
+    readLockState(supabase, data.user.id).catch((e) => {
+      console.error('[dashboard] lecture du verrouillage', e)
+      return null
+    }),
+  ])
+  if (!lock) redirect('/unlock')
+  if (!dashboards) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-4">
+        <p role="alert" className="border border-danger bg-danger-wash px-3 py-2 text-sm text-danger">
+          Impossible de lire les dashboards. Réessaie dans un instant.
+        </p>
+      </main>
+    )
+  }
+  const current = dashboards.find((x) => x.id === d) ?? dashboards.find((x) => x.isDefault) ?? dashboards[0]
+  if (current.visibility === 'private' && !lock.unlocked) {
+    redirect(`/unlock?next=${encodeURIComponent(current.isDefault && !d ? '/' : `/?d=${current.id}`)}`)
+  }
 
   const widgets: Record<WidgetId, DashboardItem> = {
     activities: {
@@ -265,11 +283,11 @@ export default async function DashboardPage() {
       ),
     },
   }
-  const items = resolveWidgetOrder(settings?.widget_order).map((id) => widgets[id])
+  const items = current.widgets.map((id) => widgets[id])
 
   return (
     <main>
-      {lock && <AutoLock idleMinutes={lock.idleMinutes} />}
+      {lock.config && lock.unlocked && <AutoLock idleMinutes={lock.config.idleMinutes} />}
       <header className="hud-topbar">
         <div>
           <h1 className="hud-topbar__title">Synapse</h1>
@@ -288,12 +306,17 @@ export default async function DashboardPage() {
           <Link href="/settings" className={buttonClass({ size: 'sm' })}>
             Réglages
           </Link>
-          {lock && (
+          {lock.config && lock.unlocked && (
             <form action="/api/lock/lock" method="post">
               <button type="submit" className={buttonClass({ variant: 'quiet', size: 'sm' })}>
                 Verrouiller
               </button>
             </form>
+          )}
+          {lock.config && !lock.unlocked && (
+            <Link href={`/unlock?next=${encodeURIComponent(`/?d=${current.id}`)}`} className={buttonClass({ size: 'sm' })}>
+              Déverrouiller
+            </Link>
           )}
           <form action="/auth/signout" method="post">
             <button type="submit" className={buttonClass({ variant: 'quiet', size: 'sm' })}>
@@ -302,12 +325,27 @@ export default async function DashboardPage() {
           </form>
         </nav>
       </header>
+      {dashboards.length > 1 && (
+        <nav aria-label="Dashboards" className="hud-row px-8 pt-4 max-[900px]:px-4">
+          {dashboards.map((x) => (
+            <Link
+              key={x.id}
+              href={x.isDefault ? '/' : `/?d=${x.id}`}
+              aria-current={x.id === current.id ? 'page' : undefined}
+              className={buttonClass({ size: 'sm', variant: x.id === current.id ? 'primary' : 'quiet' })}
+            >
+              {x.name}
+              {x.visibility === 'private' && <span className="sr-only"> (privé)</span>}
+            </Link>
+          ))}
+        </nav>
+      )}
       <div className="px-8 pt-4 max-[900px]:px-4">
       <Suspense fallback={null}>
         <GoogleReauthBanner />
       </Suspense>
       </div>
-      <SortableDashboard items={items} />
+      <SortableDashboard key={current.id} dashboardId={current.id} items={items} />
     </main>
   )
 }

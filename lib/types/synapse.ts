@@ -50,6 +50,68 @@ export type Database = {
         }
         Relationships: []
       }
+      dashboard_widgets: {
+        Row: {
+          dashboard_id: string
+          position: number
+          user_id: string
+          widget_id: string
+        }
+        Insert: {
+          dashboard_id: string
+          position: number
+          user_id?: string
+          widget_id: string
+        }
+        Update: {
+          dashboard_id?: string
+          position?: number
+          user_id?: string
+          widget_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_widgets_dashboard_id_fkey"
+            columns: ["dashboard_id"]
+            isOneToOne: false
+            referencedRelation: "dashboards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dashboards: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean
+          name: string
+          position: number
+          updated_at: string
+          user_id: string
+          visibility: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name: string
+          position?: number
+          updated_at?: string
+          user_id?: string
+          visibility?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          position?: number
+          updated_at?: string
+          user_id?: string
+          visibility?: string
+        }
+        Relationships: []
+      }
       garmin_activities: {
         Row: {
           activity_id: number
@@ -612,6 +674,7 @@ export type Database = {
     }
     Functions: {
       disconnect_google: { Args: never; Returns: undefined }
+      ensure_default_dashboard: { Args: { p_widgets: string[] }; Returns: undefined }
       flag_google_reauth: { Args: never; Returns: undefined }
       google_refresh_token: { Args: never; Returns: string }
       pick_daily_recipe: { Args: { p_day: string }; Returns: string }
@@ -623,6 +686,11 @@ export type Database = {
         Args: { p_events: Json; p_mails: Json; p_user_id: string }
         Returns: undefined
       }
+      set_dashboard_widgets: {
+        Args: { p_dashboard: string; p_widgets: string[] }
+        Returns: undefined
+      }
+      set_default_dashboard: { Args: { p_dashboard: string }; Returns: undefined }
       save_google_connection: {
         Args: {
           p_google_email: string

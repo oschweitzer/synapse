@@ -32,6 +32,7 @@ Scripts: `npm run build`, `npm run lint`, `npm run typecheck`.
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase project **shared with Cairn** (Settings > API) |
 | `ALLOWED_EMAILS` | Allowlist: authorised Google emails, comma-separated (empty: everyone denied) |
+| `ADMIN_EMAILS` | Optional: admins (dashboards area of the settings), a subset of `ALLOWED_EMAILS`. Empty: every allowed account |
 | `NEXT_PUBLIC_SITE_URL` | Public URL of Synapse (Google OAuth redirect: `<url>/api/google/callback`) |
 | `SYNAPSE_GOOGLE_CLIENT_ID` / `SYNAPSE_GOOGLE_CLIENT_SECRET` | Synapse's Google OAuth client (see "Calendar and mail") |
 | `SYNAPSE_GOOGLE_TOKEN_KEY` | Encryption key for the Google refresh token, 64 hex characters, the same as in the Edge Functions secrets |
@@ -190,7 +191,7 @@ Prerequisites: set `SYNAPSE_LOCK_SECRET` (Vercel and `.env.local`) **before** en
 - `tailwind.config.ts` exposes the tokens (`ink-*`, `hull-*`, `cyan-*`, `amber-*`…); the `slate`, `red`, `green`, `amber` and `sky` palettes are aliased to the tokens there so existing screens pick up the style without being rewritten. For a new screen, use the tokens and `components/ui/`.
 - Fonts (Chakra Petch, IBM Plex Sans, JetBrains Mono) are self-hosted (`app/fonts`, OFL licence, latin subset) and loaded by `next/font/local` in `app/layout.tsx`, so the build does not depend on Google Fonts.
 - A widget fits 4 or 8 columns of the `.hud-dash` grid (see `WidgetShell`).
-- Widget order is per user (`synapse.settings.widget_order`, `lib/dashboard.ts`): a new widget must be added to `WIDGET_IDS` and to the registry in `app/(dashboard)/page.tsx`.
+- Dashboards (name, public/private visibility, widgets and their order) are per user (`synapse.dashboards`, `synapse.dashboard_widgets`) and set in the admin area of *Settings*: a new widget must be added to the `WIDGETS` catalog in `lib/dashboard.ts` and to the registry in `app/(dashboard)/page.tsx`. A private dashboard is served only once the lock is lifted; a public one with the session alone, with no sensitive widget. Admin: `ADMIN_EMAILS`, otherwise every `ALLOWED_EMAILS` account.
 
 ### Deployment (Vercel Hobby)
 

@@ -188,11 +188,34 @@ expenses Google Sheet is itself the source of truth.
 ### Widget order — drag and drop
 - Each user reorders the dashboard widgets (handle at the top right: mouse, touch, or
   keyboard with space then arrows, via `@dnd-kit`). The order is a list of ids
-  (`lib/dashboard.ts`) stored in `synapse.settings.widget_order` (`saveWidgetOrder` Server
-  Action), so it is the same on every device.
-- Empty list = default order. Unknown ids are ignored and a widget added later is appended
-  to the end. **Settings** offers "Restore the default order".
+  per dashboard (`synapse.dashboard_widgets`, `saveWidgetOrder` Server Action), so it is the
+  same on every device.
+- Unknown ids, or ids absent from the dashboard, are ignored; choosing the widgets is
+  admin-only (see below). **Settings** offers "Restore the default order" per dashboard.
 - Sizes (4 or 8 columns) do not change; the `01…` numbering follows the position (CSS counter).
+
+### Multiple dashboards — chosen widgets, public or private
+- Each user has dashboards (`synapse.dashboards`: name, `visibility`, `is_default`) and, for
+  each, the ordered list of its widgets (`synapse.dashboard_widgets`, order = `position`).
+  The catalog (`WIDGETS` in `lib/dashboard.ts`) carries label, description, source and a
+  "sensitive" flag. Migration `0010` carries the existing setup over: a default "Principal"
+  dashboard, private (it used to be behind the lock), with every widget in the `widget_order`
+  order (that column is now unused, to be dropped by a later migration). A user with no
+  dashboard gets one on first access (`ensure_default_dashboard`).
+- Admin area in **Settings**: create, rename, delete a dashboard (10 at most, the default one
+  cannot be deleted), choose its visibility and widgets, set the default, restore the catalog
+  order. Admin = `ADMIN_EMAILS`, otherwise every `ALLOWED_EMAILS` account (single-user app).
+  The right is re-checked in every Server Action (`app/actions/dashboards.ts`), not just
+  hidden. Dashboards belong to each user (RLS); a dashboard's widgets are set by its owner
+  when they are an admin.
+- Navigation: tabs in the dashboard header (`/?d=<id>`), the default one on `/`.
+- Visibility: `private` = served only once the lock is lifted; `public` = Supabase session
+  alone (no shareable link: separate ticket). The middleware lets a locked `GET /` through and
+  the page refuses a private dashboard (`lib/lock/page.ts`, error = closed) before reading any
+  data; Server Actions and `/api/*` routes stay closed while locked (so a public dashboard's
+  widget actions too). A public dashboard rejects sensitive widgets (mails, Garmin, cash,
+  mood), checked server-side.
+- Without the lock enabled, private and public behave the same.
 
 ### Lock — local second factor
 - Optional, per user. A `synapse.lock` row (code hash, `idle_minutes`, `epoch`, failure

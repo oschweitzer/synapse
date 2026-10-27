@@ -32,6 +32,7 @@ Scripts : `npm run build`, `npm run lint`, `npm run typecheck`.
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Projet Supabase **partagé avec Cairn** (Settings > API) |
 | `ALLOWED_EMAILS` | Liste blanche : emails Google autorisés, séparés par des virgules (vide : accès refusé à tous) |
+| `ADMIN_EMAILS` | Optionnel : administrateurs (zone dashboards des réglages), sous-ensemble de `ALLOWED_EMAILS`. Vide : tout compte autorisé |
 | `NEXT_PUBLIC_SITE_URL` | URL publique de Synapse (redirection OAuth Google : `<url>/api/google/callback`) |
 | `SYNAPSE_GOOGLE_CLIENT_ID` / `SYNAPSE_GOOGLE_CLIENT_SECRET` | Client OAuth Google de Synapse (voir « Agenda et mails ») |
 | `SYNAPSE_GOOGLE_TOKEN_KEY` | Clé de chiffrement du refresh token Google, 64 caractères hexadécimaux, la même que dans les secrets des Edge Functions |
@@ -190,7 +191,7 @@ Interface « poste de pilotage » : sombre uniquement, accent cyan (données) et
 - `tailwind.config.ts` expose les tokens (`ink-*`, `hull-*`, `cyan-*`, `amber-*`…) ; les palettes `slate`, `red`, `green`, `amber` et `sky` y sont aliasées sur les tokens pour que les écrans existants prennent le style sans être réécrits. Pour un nouvel écran, utiliser les tokens et `components/ui/`.
 - Polices (Chakra Petch, IBM Plex Sans, JetBrains Mono) auto-hébergées (`app/fonts`, licence OFL, sous-ensemble latin) et chargées par `next/font/local` dans `app/layout.tsx`, pour que le build ne dépende pas de Google Fonts.
 - Un widget tient sur 4 ou 8 colonnes de la grille `.hud-dash` (voir `WidgetShell`).
-- L'ordre des widgets est propre à chaque utilisateur (`synapse.settings.widget_order`, `lib/dashboard.ts`) : un nouveau widget doit être ajouté à `WIDGET_IDS` et au registre de `app/(dashboard)/page.tsx`.
+- Les dashboards (nom, visibilité publique/privée, widgets et leur ordre) sont propres à chaque utilisateur (`synapse.dashboards`, `synapse.dashboard_widgets`) et se règlent dans la zone admin de *Réglages* : un nouveau widget doit être ajouté au catalogue `WIDGETS` de `lib/dashboard.ts` et au registre de `app/(dashboard)/page.tsx`. Un dashboard privé n'est servi qu'une fois le verrouillage levé ; un public, avec la session seule, sans widget sensible. Administrateur : `ADMIN_EMAILS`, sinon tout compte de `ALLOWED_EMAILS`.
 
 ### Déploiement (Vercel Hobby)
 

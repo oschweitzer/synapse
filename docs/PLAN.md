@@ -193,12 +193,35 @@ Sheet des dépenses est lui-même la source de vérité.
 ### Ordre des widgets — glisser-déposer
 - Chaque utilisateur réordonne les widgets du dashboard (poignée en haut à droite : souris,
   tactile, ou clavier avec espace puis flèches, via `@dnd-kit`). L'ordre est une liste d'ids
-  (`lib/dashboard.ts`) enregistrée dans `synapse.settings.widget_order` (Server Action
-  `saveWidgetOrder`), donc la même sur tous les appareils.
-- Liste vide = ordre par défaut. Les ids inconnus sont ignorés et un widget ajouté plus tard
-  est placé en fin de liste. **Réglages** propose « Rétablir l'ordre par défaut ».
+  par dashboard (`synapse.dashboard_widgets`, Server Action `saveWidgetOrder`), donc la même sur
+  tous les appareils.
+- Les ids inconnus ou absents du dashboard sont ignorés ; le choix des widgets est réservé à
+  l'admin (voir plus bas). **Réglages** propose « Rétablir l'ordre par défaut » par dashboard.
 - Les tailles (4 ou 8 colonnes) ne changent pas ; la numérotation `01…` suit la position
   (compteur CSS).
+
+### Dashboards multiples — widgets au choix, publics ou privés
+- Chaque utilisateur a des dashboards (`synapse.dashboards` : nom, `visibility`, `is_default`) et,
+  pour chacun, la liste ordonnée de ses widgets (`synapse.dashboard_widgets`, ordre = `position`).
+  Le catalogue (`WIDGETS` dans `lib/dashboard.ts`) porte libellé, description, source et drapeau
+  « sensible ». La migration `0010` reprend l'existant : un dashboard « Principal » par défaut,
+  privé (il était derrière le verrou), avec tous les widgets dans l'ordre de `widget_order`
+  (colonne devenue inutilisée, à supprimer par une migration ultérieure). Un utilisateur sans
+  dashboard reçoit le sien au premier accès (`ensure_default_dashboard`).
+- Zone admin dans **Réglages** : créer, renommer, supprimer un dashboard (10 au plus, le dashboard
+  par défaut ne se supprime pas), choisir sa visibilité et ses widgets, désigner le défaut,
+  rétablir l'ordre du catalogue. Administrateur = `ADMIN_EMAILS`, sinon tout compte de
+  `ALLOWED_EMAILS` (application mono-utilisateur). Le droit est revérifié dans chaque Server
+  Action (`app/actions/dashboards.ts`), pas seulement masqué. Les dashboards sont propres à
+  chaque utilisateur (RLS) ; les widgets d'un dashboard sont réglés par son propriétaire admin.
+- Navigation : onglets dans l'en-tête du dashboard (`/?d=<id>`), le défaut sur `/`.
+- Visibilité : `private` = servi seulement une fois le verrouillage levé ; `public` = session
+  Supabase seule (pas de lien partageable : ticket à part). Le middleware laisse passer `GET /`
+  verrouillé et la page refuse un dashboard privé (`lib/lock/page.ts`, erreur = fermé) avant de
+  lire la moindre donnée ; Server Actions et routes `/api/*` restent fermées verrouillé (donc
+  les actions des widgets d'un dashboard public aussi). Un dashboard public refuse les widgets
+  sensibles (mails, Garmin, cash, humeur), contrôle côté serveur.
+- Sans verrouillage activé, privé et public se comportent pareil.
 
 ### Verrouillage — second facteur local
 - Optionnel, par utilisateur. Une ligne `synapse.lock` (hash du code, `idle_minutes`, `epoch`,

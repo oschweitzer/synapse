@@ -5,7 +5,10 @@ import { listShoppingCandidates } from '@/lib/connectors/cairn'
 import { saveShoppingChecklist } from '@/app/actions/cairn'
 import { disconnectGoogle, syncGoogleNow } from '@/app/actions/google'
 import { readGoogleAccount } from '@/lib/connectors/google'
-import { resetWidgetOrder } from '@/app/actions/dashboard'
+import { isAdminUser } from '@/lib/admin'
+import { listDashboards } from '@/lib/dashboards'
+import { DASHBOARDS_MAX, DASHBOARD_NAME_MAX, WIDGETS } from '@/lib/dashboard'
+import { createDashboard, deleteDashboard, resetDashboardOrder, saveDashboard, setDefaultDashboard } from '@/app/actions/dashboards'
 import { addCity, moveCity, removeCity } from '@/app/actions/weather'
 import { listLocations, searchCities, WEATHER_LOCATIONS_MAX, type CityResult } from '@/lib/connectors/weather'
 import { addHabit, archiveHabit } from '@/app/actions/mood'
@@ -60,6 +63,22 @@ const WEATHER_MESSAGES: Record<string, [string, boolean]> = {
   save: ['Enregistrement impossible, réessaie.', true],
 }
 
+/** Retours de la zone admin des dashboards (`?dashboards=…`) : [message, est une erreur]. */
+const DASHBOARD_MESSAGES: Record<string, [string, boolean]> = {
+  created: ['Dashboard créé. Choisis ses widgets ci-dessous.', false],
+  saved: ['Dashboard enregistré.', false],
+  'order-reset': ['Ordre par défaut rétabli.', false],
+  default: ['Dashboard par défaut modifié.', false],
+  deleted: ['Dashboard supprimé.', false],
+  forbidden: ['Réservé aux administrateurs.', true],
+  name: [`Donne un nom de ${DASHBOARD_NAME_MAX} caractères au plus.`, true],
+  max: [`${DASHBOARDS_MAX} dashboards au plus : supprime-en un d’abord.`, true],
+  sensitive: ['Un dashboard public ne peut pas afficher de widget sensible (marqués ci-dessous).', true],
+  'default-delete': ['Le dashboard par défaut ne se supprime pas : désigne-en un autre d’abord.', true],
+  invalid: ['Dashboard introuvable.', true],
+  save: ['Enregistrement impossible, réessaie.', true],
+}
+
 /** Retours du verrouillage (`?lock=…`) : [message, est une erreur]. */
 function lockMessage(code: string | undefined): [string, boolean] | null {
   if (!code) return null
@@ -88,13 +107,21 @@ const secondaryButton =
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; order?: string; error?: string; google?: string; habits?: string; weather?: string; city?: string; lock?: string }>
+  searchParams: Promise<{ saved?: string; dashboards?: string; error?: string; google?: string; habits?: string; weather?: string; city?: string; lock?: string }>
 }) {
   const supabase = await createClient()
   const { data } = await supabase.auth.getUser()
   if (!data.user) redirect('/login')
 
   const params = await searchParams
+  const isAdmin = isAdminUser(data.user)
+  const dashboards = isAdmin
+    ? await listDashboards(supabase).catch((e) => {
+        console.error('[settings] lecture des dashboards', e)
+        return null
+      })
+    : undefined
+  const dashboardMessage = params.dashboards ? (DASHBOARD_MESSAGES[params.dashboards] ?? DASHBOARD_MESSAGES.save) : null
   const cityQuery = params.city?.trim().slice(0, 80) ?? ''
   const [candidates, settings, google, habits, cities, found, lock, passkeys] = await Promise.all([
     listShoppingCandidates(),
@@ -190,23 +217,112 @@ export default async function SettingsPage({
         )}
       </section>
 
-      <section className={`${card} mt-4`}>
-        <h2 className="font-semibold">Ordre des widgets</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Réordonne les widgets du dashboard avec la poignée en haut à droite de chacun (souris, doigt, ou clavier :
-          espace puis flèches). L’ordre est enregistré pour ton compte.
-        </p>
-        <form action={resetWidgetOrder}>
-          <button type="submit" className={secondaryButton}>
-            Rétablir l’ordre par défaut
-          </button>
-        </form>
-        {params.order === 'reset' && (
-          <p role="status" className="text-sm text-green-700 dark:text-green-400">
-            Ordre par défaut rétabli.
+      {isAdmin && (
+        <section id="dashboards" className={`${card} mt-4`}>
+          <h2 className="font-semibold">Dashboards (admin)</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Choisis les widgets de chaque dashboard. Un dashboard <strong>privé</strong> n’est servi qu’une fois le
+            verrouillage levé ; un dashboard <strong>public</strong> ne demande que la connexion, et ne peut pas
+            afficher de widget sensible. L’ordre se change par glisser-déposer sur le dashboard.
           </p>
-        )}
-      </section>
+          {dashboardMessage && (
+            <p
+              role={dashboardMessage[1] ? 'alert' : 'status'}
+              className={`text-sm ${dashboardMessage[1] ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}
+            >
+              {dashboardMessage[0]}
+            </p>
+          )}
+          {dashboards === null && (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              Lecture des dashboards impossible.
+            </p>
+          )}
+          {dashboards?.map((dashboard) => (
+            <form key={dashboard.id} action={saveDashboard} className="flex flex-col gap-3 border border-slate-200 p-3 dark:border-slate-700">
+              <input type="hidden" name="id" value={dashboard.id} />
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <label className="flex flex-1 flex-col gap-1 text-sm">
+                  Nom
+                  <input
+                    name="name"
+                    required
+                    maxLength={DASHBOARD_NAME_MAX}
+                    defaultValue={dashboard.name}
+                    className="hud-input"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  Visibilité
+                  <select name="visibility" defaultValue={dashboard.visibility} className="hud-input">
+                    <option value="private">Privé (verrouillage)</option>
+                    <option value="public">Public (connexion seule)</option>
+                  </select>
+                </label>
+              </div>
+              <fieldset className="flex flex-col gap-2">
+                <legend className="text-sm">Widgets</legend>
+                {WIDGETS.map((widget) => (
+                  <label key={widget.id} className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      name="widgets"
+                      value={widget.id}
+                      defaultChecked={dashboard.widgets.includes(widget.id)}
+                      className="mt-1"
+                    />
+                    <span>
+                      {widget.label}
+                      {widget.sensitive && <span className="text-amber-600 dark:text-amber-400"> · sensible</span>}
+                      <span className="block text-slate-500 dark:text-slate-400">
+                        {widget.description} Source : {widget.source}.
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+              <div className="flex flex-wrap items-center gap-3">
+                <button type="submit" className={primaryButton}>
+                  Enregistrer
+                </button>
+                <button type="submit" formAction={resetDashboardOrder} formNoValidate className={secondaryButton}>
+                  Rétablir l’ordre par défaut
+                </button>
+                {dashboard.isDefault ? (
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Dashboard par défaut</span>
+                ) : (
+                  <>
+                    <button type="submit" formAction={setDefaultDashboard} formNoValidate className={secondaryButton}>
+                      Définir par défaut
+                    </button>
+                    <button type="submit" formAction={deleteDashboard} formNoValidate className={secondaryButton}>
+                      Supprimer<span className="sr-only"> « {dashboard.name} »</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            </form>
+          ))}
+          {dashboards && dashboards.length < DASHBOARDS_MAX && (
+            <form action={createDashboard} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <label className="flex flex-1 flex-col gap-1 text-sm">
+                Nouveau dashboard
+                <input name="name" required maxLength={DASHBOARD_NAME_MAX} className="hud-input" />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                Visibilité
+                <select name="visibility" defaultValue="private" className="hud-input">
+                  <option value="private">Privé (verrouillage)</option>
+                  <option value="public">Public (connexion seule)</option>
+                </select>
+              </label>
+              <button type="submit" className={primaryButton}>
+                Créer
+              </button>
+            </form>
+          )}
+        </section>
+      )}
 
       <section className={`${card} mt-4`}>
         <h2 className="font-semibold">Météo</h2>

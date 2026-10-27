@@ -45,8 +45,8 @@ function SortableItem({ item }: { item: DashboardItem }) {
   )
 }
 
-/** Grille de widgets réordonnable (souris, tactile, clavier) ; l'ordre est enregistré par utilisateur. */
-export function SortableDashboard({ items }: { items: DashboardItem[] }) {
+/** Grille de widgets réordonnable (souris, tactile, clavier) ; l'ordre est enregistré par dashboard. */
+export function SortableDashboard({ dashboardId, items }: { dashboardId: string; items: DashboardItem[] }) {
   const [order, setOrder] = useState(() => items.map((i) => i.id))
   const [error, setError] = useState<string | null>(null)
   const [, startTransition] = useTransition()
@@ -77,7 +77,7 @@ export function SortableDashboard({ items }: { items: DashboardItem[] }) {
     setOrder(next)
     setError(null)
     startTransition(async () => {
-      const result = await saveWidgetOrder(next).catch(() => ({ error: 'Impossible d’enregistrer l’ordre.' }))
+      const result = await saveWidgetOrder(dashboardId, next).catch(() => ({ error: 'Impossible d’enregistrer l’ordre.' }))
       if (result.error) {
         setOrder(previous)
         setError(result.error)

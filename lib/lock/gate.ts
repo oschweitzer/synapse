@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { UNLOCK_COOKIE, isUnlocked, issueUnlockCookie } from '@/lib/lock/token'
 import { readLockConfig } from '@/lib/lock/config'
 
-/** Chemins accessibles verrouillé : la page de déverrouillage et ses routes, la déconnexion. */
+/** Chemins accessibles verrouillé : la page de déverrouillage et ses routes, la page d'accueil (gardée par la page). */
 const LOCK_EXEMPT_ROUTES = [
   '/api/lock/verify',
   '/api/lock/lock',
@@ -16,6 +16,9 @@ function isExempt(request: NextRequest): boolean {
   // Une Server Action peut être appelée depuis n'importe quelle URL : jamais exemptée.
   if (request.headers.has('next-action')) return false
   if (pathname === '/unlock') return request.method === 'GET'
+  // La page d'accueil se charge verrouillée : un dashboard public s'affiche avec la session seule,
+  // et la page elle-même refuse un dashboard privé (lib/lock/page.ts). Actions et API restent fermées.
+  if (pathname === '/') return request.method === 'GET'
   return LOCK_EXEMPT_ROUTES.includes(pathname)
 }
 

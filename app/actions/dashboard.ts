@@ -1,48 +1,44 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { WIDGET_IDS, resolveWidgetOrder, type WidgetId } from '@/lib/dashboard'
+import { WIDGET_IDS, normalizeWidgets, type WidgetId } from '@/lib/dashboard'
 import { invalidateCash } from '@/lib/connectors/cash'
 
-/** Enregistre l'ordre des widgets de l'utilisateur (`synapse.settings.widget_order`). */
-export async function saveWidgetOrder(order: string[]): Promise<{ error?: string }> {
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Enregistre l'ordre des widgets d'un dashboard de l'utilisateur. Ne change pas l'ensemble
+ * des widgets (réservé à l'admin) : ids absents du dashboard ignorés, ceux omis restent en fin.
+ */
+export async function saveWidgetOrder(dashboardId: string, order: string[]): Promise<{ error?: string }> {
+  if (typeof dashboardId !== 'string' || !UUID.test(dashboardId)) return { error: 'Dashboard invalide.' }
   if (!Array.isArray(order) || order.some((id) => typeof id !== 'string')) return { error: 'Ordre invalide.' }
 
   const supabase = await createClient()
   const { data: auth } = await supabase.auth.getUser()
   if (!auth.user) return { error: 'Session expirée.' }
 
-  // Upsert limité à cette colonne : les autres réglages restent intacts.
-  const { error } = await supabase
-    .schema('synapse')
-    .from('settings')
-    .upsert({ user_id: auth.user.id, widget_order: resolveWidgetOrder(order) }, { onConflict: 'user_id' })
+  const db = supabase.schema('synapse')
+  const { data: current, error: readError } = await db
+    .from('dashboard_widgets')
+    .select('widget_id')
+    .eq('dashboard_id', dashboardId)
+    .order('position')
+  if (readError || current.length === 0) {
+    if (readError) console.error('[dashboard] lecture des widgets', readError)
+    return { error: 'Impossible d’enregistrer l’ordre.' }
+  }
+  const present = normalizeWidgets(current.map((w) => w.widget_id))
+  const requested = normalizeWidgets(order).filter((id) => present.includes(id))
+  const widgets = [...requested, ...present.filter((id) => !requested.includes(id))]
+
+  const { error } = await db.rpc('set_dashboard_widgets', { p_dashboard: dashboardId, p_widgets: widgets })
   if (error) {
     console.error('[dashboard] enregistrement de l’ordre des widgets', error)
     return { error: 'Impossible d’enregistrer l’ordre.' }
   }
   return {}
-}
-
-/** Revient à l'ordre par défaut (liste vide = ordre par défaut). */
-export async function resetWidgetOrder() {
-  const supabase = await createClient()
-  const { data: auth } = await supabase.auth.getUser()
-  if (!auth.user) redirect('/login')
-
-  const { error } = await supabase
-    .schema('synapse')
-    .from('settings')
-    .upsert({ user_id: auth.user.id, widget_order: [] }, { onConflict: 'user_id' })
-  if (error) {
-    console.error('[dashboard] réinitialisation de l’ordre des widgets', error)
-    redirect('/settings?error=save')
-  }
-
-  revalidatePath('/')
-  redirect('/settings?order=reset')
 }
 
 /**
