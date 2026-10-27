@@ -1,0 +1,6 @@
+{
+  "enabledPlugins": {
+    "ticket-flow@ai-automatic-flow": true,
+    "superpowers@claude-plugins-official": true
+  }
+}
