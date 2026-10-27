@@ -6,6 +6,11 @@
 - The app itself stays in French: UI text, code comments, README and `docs/PLAN.md`. Match the surrounding code.
 - `README.md` and `docs/PLAN.md` (French, the reference) have English versions, `README.en.md` and `docs/PLAN.en.md`: update both in the same change.
 
+## Commits and changelog
+
+- Commit messages follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/): `type(scope): description`, e.g. `feat(lock): add auto-lock delay`, `fix(cash): ...`, `docs: ...`, `test: ...`, `chore: ...`. Breaking changes use `!` or a `BREAKING CHANGE:` footer.
+- `CHANGELOG.md` follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/): an `Unreleased` section on top, entries grouped under `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`. Update it in the same change as any user-visible modification.
+
 ## Project
 
 - Plan and roadmap: `docs/PLAN.md`; setup and conventions: `README.md`.
