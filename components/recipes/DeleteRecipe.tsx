@@ -1,6 +1,7 @@
 'use client'
 
 import { deleteRecipe } from '@/app/actions/recipes'
+import { SubmitButton } from '@/components/ui/SubmitButton'
 
 /** Suppression après confirmation : la recette disparaît aussi de l'historique des repas. */
 export function DeleteRecipe({ id, title }: { id: string; title: string }) {
@@ -12,12 +13,7 @@ export function DeleteRecipe({ id, title }: { id: string; title: string }) {
       }}
     >
       <input type="hidden" name="id" value={id} />
-      <button
-        type="submit"
-        className="hud-btn hud-btn--danger"
-      >
-        Supprimer
-      </button>
+      <SubmitButton className="hud-btn hud-btn--danger">Supprimer</SubmitButton>
     </form>
   )
 }

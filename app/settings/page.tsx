@@ -21,6 +21,7 @@ import { CODE_MIN } from '@/lib/lock/code'
 import { disableLock, removePasskey, saveLockCode, saveLockIdle } from '@/app/actions/lock'
 import { AutoLock } from '@/components/lock/AutoLock'
 import { PasskeyEnroll } from '@/components/lock/PasskeyEnroll'
+import { SubmitButton } from '@/components/ui/SubmitButton'
 
 const MESSAGES: Record<string, string> = {
   invalid: 'Cette checklist n’est pas utilisable (introuvable ou dans le coffre).',
@@ -195,12 +196,9 @@ export default async function SettingsPage({
               </option>
             ))}
           </select>
-          <button
-            type="submit"
-            className={primaryButton}
-          >
+          <SubmitButton className={primaryButton}>
             Enregistrer
-          </button>
+          </SubmitButton>
         </form>
         {candidates.length === 0 && (
           <p className="text-sm text-slate-500 dark:text-slate-400">Aucune checklist non chiffrée dans Cairn.</p>
@@ -282,22 +280,22 @@ export default async function SettingsPage({
                 ))}
               </fieldset>
               <div className="flex flex-wrap items-center gap-3">
-                <button type="submit" className={primaryButton}>
+                <SubmitButton className={primaryButton}>
                   Enregistrer
-                </button>
-                <button type="submit" formAction={resetDashboardOrder} formNoValidate className={secondaryButton}>
+                </SubmitButton>
+                <SubmitButton formAction={resetDashboardOrder} formNoValidate className={secondaryButton}>
                   Rétablir l’ordre par défaut
-                </button>
+                </SubmitButton>
                 {dashboard.isDefault ? (
                   <span className="text-sm text-slate-500 dark:text-slate-400">Dashboard par défaut</span>
                 ) : (
                   <>
-                    <button type="submit" formAction={setDefaultDashboard} formNoValidate className={secondaryButton}>
+                    <SubmitButton formAction={setDefaultDashboard} formNoValidate className={secondaryButton}>
                       Définir par défaut
-                    </button>
-                    <button type="submit" formAction={deleteDashboard} formNoValidate className={secondaryButton}>
+                    </SubmitButton>
+                    <SubmitButton formAction={deleteDashboard} formNoValidate className={secondaryButton}>
                       Supprimer<span className="sr-only"> « {dashboard.name} »</span>
-                    </button>
+                    </SubmitButton>
                   </>
                 )}
               </div>
@@ -316,9 +314,9 @@ export default async function SettingsPage({
                   <option value="public">Public (connexion seule)</option>
                 </select>
               </label>
-              <button type="submit" className={primaryButton}>
+              <SubmitButton className={primaryButton}>
                 Créer
-              </button>
+              </SubmitButton>
             </form>
           )}
         </section>
@@ -346,22 +344,21 @@ export default async function SettingsPage({
                         <form key={direction} action={moveCity}>
                           <input type="hidden" name="id" value={city.id} />
                           <input type="hidden" name="direction" value={direction} />
-                          <button
-                            type="submit"
+                          <SubmitButton
                             disabled={disabled}
                             className="text-sm text-slate-500 underline disabled:no-underline disabled:opacity-40 dark:text-slate-400"
                           >
                             {direction === -1 ? 'Monter' : 'Descendre'}
                             <span className="sr-only"> « {city.label} »</span>
-                          </button>
+                          </SubmitButton>
                         </form>
                       )
                     })}
                     <form action={removeCity}>
                       <input type="hidden" name="id" value={city.id} />
-                      <button type="submit" className="text-sm text-slate-500 underline dark:text-slate-400">
+                      <SubmitButton className="text-sm text-slate-500 underline dark:text-slate-400">
                         Retirer<span className="sr-only"> « {city.label} »</span>
-                      </button>
+                      </SubmitButton>
                     </form>
                   </span>
                 )}
@@ -404,9 +401,9 @@ export default async function SettingsPage({
                   <input type="hidden" name="label" value={city.label} />
                   <input type="hidden" name="latitude" value={city.latitude} />
                   <input type="hidden" name="longitude" value={city.longitude} />
-                  <button type="submit" className="text-sm underline">
+                  <SubmitButton className="text-sm underline">
                     Ajouter<span className="sr-only"> « {city.label} »</span>
-                  </button>
+                  </SubmitButton>
                 </form>
               </li>
             ))}
@@ -435,9 +432,9 @@ export default async function SettingsPage({
           <input name="code" type="password" autoComplete="new-password" required minLength={CODE_MIN} placeholder={lock ? 'Nouveau code' : 'Choisis un code'} aria-label={lock ? 'Nouveau code' : 'Code'} className="hud-input" />
           <input name="confirm" type="password" autoComplete="new-password" required minLength={CODE_MIN} placeholder="Confirme le code" aria-label="Confirmer le code" className="hud-input" />
           <p className="text-sm text-slate-500 dark:text-slate-400">{CODE_MIN} caractères au moins (chiffres ou phrase de passe).</p>
-          <button type="submit" className={`${primaryButton} sm:self-start`}>
+          <SubmitButton className={`${primaryButton} sm:self-start`}>
             {lock ? 'Changer le code' : 'Activer le verrouillage'}
-          </button>
+          </SubmitButton>
         </form>
         {lock && (
           <>
@@ -452,9 +449,9 @@ export default async function SettingsPage({
                   </option>
                 ))}
               </select>
-              <button type="submit" className={secondaryButton}>
+              <SubmitButton className={secondaryButton}>
                 Enregistrer le délai
-              </button>
+              </SubmitButton>
             </form>
             <form action="/api/lock/lock" method="post">
               <button type="submit" className={secondaryButton}>
@@ -482,9 +479,9 @@ export default async function SettingsPage({
                     </span>
                     <form action={removePasskey}>
                       <input type="hidden" name="id" value={p.id as string} />
-                      <button type="submit" className="text-sm text-slate-500 underline dark:text-slate-400">
+                      <SubmitButton className="text-sm text-slate-500 underline dark:text-slate-400">
                         Retirer<span className="sr-only"> « {p.label as string} »</span>
-                      </button>
+                      </SubmitButton>
                     </form>
                   </li>
                 ))}
@@ -494,9 +491,9 @@ export default async function SettingsPage({
 
             <form action={disableLock} className="flex flex-col gap-3 sm:flex-row">
               <input name="current" type="password" autoComplete="off" required placeholder="Code actuel" aria-label="Code actuel pour désactiver" className="hud-input flex-1" />
-              <button type="submit" className={secondaryButton}>
+              <SubmitButton className={secondaryButton}>
                 Désactiver le verrouillage
-              </button>
+              </SubmitButton>
             </form>
           </>
         )}
@@ -526,9 +523,9 @@ export default async function SettingsPage({
                 <span className="min-w-0 break-words">{habit.name}</span>
                 <form action={archiveHabit}>
                   <input type="hidden" name="id" value={habit.id} />
-                  <button type="submit" className="text-sm text-slate-500 underline dark:text-slate-400">
+                  <SubmitButton className="text-sm text-slate-500 underline dark:text-slate-400">
                     Retirer<span className="sr-only"> « {habit.name} »</span>
-                  </button>
+                  </SubmitButton>
                 </form>
               </li>
             ))}
@@ -547,9 +544,9 @@ export default async function SettingsPage({
               placeholder="Méditer, lire 20 min…"
               className="hud-input flex-1"
             />
-            <button type="submit" className={primaryButton}>
+            <SubmitButton className={primaryButton}>
               Ajouter
-            </button>
+            </SubmitButton>
           </form>
         )}
         {habitMessage && (
@@ -588,16 +585,16 @@ export default async function SettingsPage({
           </a>
           {google && !google.needsReauth && (
             <form action={syncGoogleNow}>
-              <button type="submit" className={`${secondaryButton} w-full`}>
+              <SubmitButton className={`${secondaryButton} w-full`}>
                 Synchroniser maintenant
-              </button>
+              </SubmitButton>
             </form>
           )}
           {google && (
             <form action={disconnectGoogle}>
-              <button type="submit" className={`${secondaryButton} w-full`}>
+              <SubmitButton className={`${secondaryButton} w-full`}>
                 Déconnecter
-              </button>
+              </SubmitButton>
             </form>
           )}
         </div>

@@ -65,11 +65,16 @@
 /* ── Spinner: arc over a faint track, follows currentColor ── */
 .hud-spinner { display: inline-flex; width: 16px; height: 16px; flex: none; color: inherit; }
 .hud-spinner--sm { width: 12px; height: 12px; }
+.hud-spinner--lg { width: 32px; height: 32px; }
 .hud-spinner svg { width: 100%; height: 100%; animation: hud-spin 800ms linear infinite; }
 .hud-btn .hud-spinner svg { width: 100%; height: 100%; }
 .hud-spinner__track { stroke: currentColor; stroke-width: 3; opacity: .25; }
 .hud-spinner__arc { stroke: currentColor; stroke-width: 3; stroke-linecap: butt; stroke-dasharray: 14 56.5; }
 @keyframes hud-spin { to { transform: rotate(360deg); } }
+
+/* ── Écran de chargement d'une route (loading.tsx) ── */
+.hud-page-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); color: var(--cyan-400); }
+.hud-page-loading__text { margin: 0; font-family: var(--font-mono); font-size: 12px; color: var(--ink-500); }
 
 /* ── Badge ── */
 .hud-badge { display: inline-flex; align-items: center; gap: var(--space-1); height: 20px; padding: 0 var(--space-2); border: 1px solid currentColor;

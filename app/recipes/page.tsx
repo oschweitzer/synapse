@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { importFromMealDb } from '@/app/actions/recipes'
 import { MEALDB_IMPORT_MAX } from '@/lib/mealdb'
 import { card, input, muted, primaryButton, secondaryButton } from '@/components/recipes/ui'
+import { SubmitButton } from '@/components/ui/SubmitButton'
 
 const ERRORS: Record<string, string> = {
   mealdb: 'TheMealDB ne répond pas, réessaie plus tard.',
@@ -117,9 +118,7 @@ export default async function RecipesPage({
               className={`${input} w-24 font-normal`}
             />
           </label>
-          <button type="submit" className={secondaryButton}>
-            Importer
-          </button>
+          <SubmitButton className={secondaryButton}>Importer</SubmitButton>
         </form>
       </section>
     </main>

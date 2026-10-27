@@ -5,6 +5,7 @@ import { createMindmap } from '@/app/actions/mindmaps'
 import { TIME_ZONE } from '@/lib/time'
 import { DeleteMindmap } from '@/components/mindmap/DeleteMindmap'
 import { card, input, muted, primaryButton } from '@/components/recipes/ui'
+import { SubmitButton } from '@/components/ui/SubmitButton'
 
 const ERRORS: Record<string, string> = {
   title: 'Titre trop long (120 caractères au plus).',
@@ -44,9 +45,7 @@ export default async function MindmapsPage({ searchParams }: { searchParams: Pro
         <h2 className="font-semibold">Nouvelle carte</h2>
         <form action={createMindmap} className="flex gap-2">
           <input name="title" aria-label="Titre de la carte" placeholder="Titre" maxLength={120} className={input} />
-          <button type="submit" className={primaryButton}>
-            Créer
-          </button>
+          <SubmitButton className={primaryButton}>Créer</SubmitButton>
         </form>
       </section>
 

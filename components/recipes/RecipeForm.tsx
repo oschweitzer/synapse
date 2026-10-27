@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { saveRecipe } from '@/app/actions/recipes'
 import type { RecipeRow } from '@/lib/connectors/meals'
 import { card, input, muted, primaryButton } from './ui'
+import { SubmitButton } from '@/components/ui/SubmitButton'
 
 const ERRORS: Record<string, string> = {
   title: 'Le titre est obligatoire (200 caractères au plus).',
@@ -60,9 +61,7 @@ export function RecipeForm({
         </p>
       )}
       <div className="flex items-center gap-4">
-        <button type="submit" className={primaryButton}>
-          Enregistrer
-        </button>
+        <SubmitButton className={primaryButton}>Enregistrer</SubmitButton>
         <Link href={recipe ? `/recipes/${recipe.id}` : '/recipes'} className={`text-sm underline ${muted}`}>
           Annuler
         </Link>
