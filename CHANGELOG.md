@@ -1,0 +1,30 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). No version has been released yet, so everything below is listed under `Unreleased`.
+
+## [Unreleased]
+
+### Added
+
+- Next.js and Supabase foundation, installable as a PWA (#11).
+- `synapse` database schema and a migration script limited to that schema (#12).
+- Weather widget backed by Open-Meteo (#13), with cities chosen in the settings and several shown in the widget (#36).
+- To-do and shopping list widgets reading Cairn data (#14).
+- Google integration: calendar agenda and the 20 latest emails (#15).
+- Garmin sync job and widgets (#16).
+- Recipes and a recipe of the day (#17).
+- Mood and habits tracking (#18).
+- Cash expenses widget backed by a Google Sheet (#21).
+- Drag-and-drop reordering of dashboard widgets, saved per user (#30).
+- Per-widget refresh button (#35).
+- Loading spinners on buttons and widgets (#29).
+- Mind map workspace (#37).
+- Dashboard lock: unlock code, WebAuthn fingerprint and auto-lock (#38).
+- Multiple dashboards, with admin widget selection and public/private visibility (#39).
+
+### Changed
+
+- Sign-in is Google-only and restricted to an email allowlist (#22).
+- Applied the Synapse design system (HUD theme) to the whole interface (#25).
