@@ -198,3 +198,13 @@ Interface « poste de pilotage » : sombre uniquement, accent cyan (données) et
 Importer le dépôt dans Vercel (preset Next.js), renseigner les variables ci-dessus, puis déployer. Installer ensuite l'appli depuis le navigateur du téléphone (« Ajouter à l'écran d'accueil »).
 
 Les icônes PWA sont régénérables avec `node scripts/generate-icons.mjs`.
+
+## Tests
+
+Tests unitaires avec [Vitest](https://vitest.dev), rangés à côté du code qu'ils couvrent (`lib/lock/token.test.ts` pour `lib/lock/token.ts`).
+
+- `npm test` : une passe sur tous les fichiers `*.test.ts`.
+- `npm run test:watch` : relance les tests à chaque modification.
+- `npm run test:coverage` : rapport de couverture de `lib/` dans `coverage/`, sans seuil.
+
+Supabase, `fetch` et l'horloge sont simulés : aucun accès réseau ni base de données n'est nécessaire. Le workflow `.github/workflows/ci.yml` lance le typecheck, le lint et les tests à chaque pull request et à chaque push sur `main`.

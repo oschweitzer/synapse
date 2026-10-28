@@ -23,8 +23,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Mind map workspace (#37).
 - Dashboard lock: unlock code, WebAuthn fingerprint and auto-lock (#38).
 - Multiple dashboards, with admin widget selection and public/private visibility (#39).
+- Unit test suite (Vitest) for the auth, admin, time, lock and Google helpers of `lib/`, and a CI workflow running typecheck, lint and tests (#56).
 
 ### Changed
 
 - Sign-in is Google-only and restricted to an email allowlist (#22).
 - Applied the Synapse design system (HUD theme) to the whole interface (#25).
+- Upgraded Next.js to 16 and the minimum Node.js version to 24 (#56).
+
+### Security
+
+- Cleared the `postcss` advisories reported by `npm audit` by upgrading Next.js (#56).

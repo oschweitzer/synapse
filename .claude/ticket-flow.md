@@ -10,7 +10,7 @@ commands:
   install: npm ci
   lint: npm run lint
   typecheck: npm run typecheck
-  test: ""
+  test: npm test
   build: npm run build
 run_app: npm run dev
 app_url: http://localhost:3000
@@ -43,7 +43,7 @@ team_language: en
 
 - Pull requests (title, description) and GitHub issues are written in English. The app itself stays in French: UI text, code comments, README and docs/PLAN.md. Match the surrounding code.
 - README.md and docs/PLAN.md are the French reference and have English versions, README.en.md and docs/PLAN.en.md: update both in the same change.
-- There is no test suite: the checks are lint, type check and build. Run `npm run typecheck`, `npm run lint` and `npm run build` before pushing.
+- Unit tests: Vitest, `*.test.ts` files next to the code. Run `npm test`, `npm run typecheck`, `npm run lint` and `npm run build` before pushing.
 - The database is the Supabase project shared with Cairn. Migrations live in `db/migrations/NNNN_name.sql`, applied by `npm run db:migrate`, limited to the `synapse` schema. Never run `supabase db push`. Never change the schema of Cairn tables (`public.*`); writing Cairn data is fine where Cairn's RLS allows it.
 - An applied migration is never edited: write a new one, and update `lib/types/synapse.ts` to match.
 - A new widget goes in the `WIDGETS` catalogue of `lib/dashboard.ts` and in the registry of `app/(dashboard)/page.tsx`.

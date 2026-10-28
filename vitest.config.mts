@@ -1,0 +1,25 @@
+import { fileURLToPath } from 'node:url'
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  resolve: {
+    // Même alias que `paths` de tsconfig.json : `@/lib/...` pointe vers la racine du dépôt.
+    alias: { '@': fileURLToPath(new URL('.', import.meta.url)) },
+  },
+  test: {
+    environment: 'node',
+    include: ['**/*.test.ts', '**/*.test.tsx'],
+    exclude: ['e2e/**', 'node_modules/**', '.next/**', 'supabase/**'],
+    // Chaque test repart d'un environnement propre : variables, globales et mocks sont restaurés.
+    unstubEnvs: true,
+    unstubGlobals: true,
+    restoreMocks: true,
+    coverage: {
+      provider: 'v8',
+      include: ['lib/**/*.ts'],
+      exclude: ['lib/**/*.test.ts', 'lib/types/**'],
+      reporter: ['text', 'html'],
+      reportsDirectory: 'coverage',
+    },
+  },
+})

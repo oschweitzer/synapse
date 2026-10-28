@@ -13,3 +13,6 @@ supabase/.temp/
 
 # Job Garmin (Python)
 __pycache__/
+
+# Rapport de couverture des tests
+coverage/

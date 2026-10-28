@@ -1,10 +1,18 @@
-import { FlatCompat } from '@eslint/eslintrc'
-
-const compat = new FlatCompat({ baseDirectory: import.meta.dirname })
+import coreWebVitals from 'eslint-config-next/core-web-vitals'
+import typescript from 'eslint-config-next/typescript'
 
 const config = [
-  { ignores: ['.next/**', 'node_modules/**', 'next-env.d.ts'] },
-  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  { ignores: ['.next/**', 'node_modules/**', 'coverage/**', 'next-env.d.ts'] },
+  ...coreWebVitals,
+  ...typescript,
+  {
+    // Règles ajoutées par eslint-config-next 16 : le code existant les enfreint,
+    // on les garde en avertissement le temps de le reprendre.
+    rules: {
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/error-boundaries': 'warn',
+    },
+  },
 ]
 
 export default config

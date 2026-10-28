@@ -282,7 +282,8 @@ async function findRow(token: string, sheetId: string, id: string) {
 
 /** Invalide le cache de lecture des dépenses (après une écriture, ou à la demande). */
 export function invalidateCash(userId: string) {
-  revalidateTag(cashTag(userId))
+  // Expiration immédiate (Next 16 exige un profil) : la lecture suivante doit voir l'écriture.
+  revalidateTag(cashTag(userId), { expire: 0 })
 }
 
 const done = invalidateCash

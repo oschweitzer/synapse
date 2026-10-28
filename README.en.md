@@ -198,3 +198,13 @@ Prerequisites: set `SYNAPSE_LOCK_SECRET` (Vercel and `.env.local`) **before** en
 Import the repository into Vercel (Next.js preset), set the variables above, then deploy. Then install the app from the phone's browser ("Add to Home Screen").
 
 The PWA icons can be regenerated with `node scripts/generate-icons.mjs`.
+
+## Tests
+
+Unit tests with [Vitest](https://vitest.dev), placed next to the code they cover (`lib/lock/token.test.ts` for `lib/lock/token.ts`).
+
+- `npm test`: a single run of every `*.test.ts` file.
+- `npm run test:watch`: reruns the tests on every change.
+- `npm run test:coverage`: coverage report for `lib/` in `coverage/`, with no threshold.
+
+Supabase, `fetch` and the clock are mocked: no network access or database is needed. The `.github/workflows/ci.yml` workflow runs typecheck, lint and tests on every pull request and every push to `main`.
