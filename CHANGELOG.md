@@ -30,6 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Component tests (Testing Library, jsdom) for the UI kit, the recipe, cash and lock forms and the mood, habit and checklist widgets (#59).
 - End-to-end flows for the dashboard (widgets, reorder), dashboards admin and public/private visibility, lock (code, auto-lock, passkey through a virtual authenticator), settings and weather (#61).
 - End-to-end flows for recipes (create, edit, add to shopping, delete, TheMealDB import, daily recipe) and for checking shopping and to-do items, with Cairn seed helpers (#69).
+- End-to-end flows for mood and habits (pick, check, persisted after reload) and mind maps (create, edit a node, undo/redo, autosave, delete) (#70).
 
 ### Changed
 
