@@ -12,8 +12,13 @@ export const serviceRoleKey = () => required('SUPABASE_SERVICE_ROLE_KEY')
 export const databaseUrl = () => required('DATABASE_URL')
 export const baseURL = () => process.env.E2E_BASE_URL || 'http://localhost:3000'
 
+/**
+ * `allowed` : autorisé et administrateur (ADMIN_EMAILS). `member` : autorisé mais pas administrateur.
+ * `denied` : hors de la liste blanche.
+ */
 export const TEST_USERS = {
   allowed: { email: process.env.E2E_ALLOWED_EMAIL || 'e2e-allowed@example.test' },
+  member: { email: process.env.E2E_MEMBER_EMAIL || 'e2e-member@example.test' },
   denied: { email: process.env.E2E_DENIED_EMAIL || 'e2e-denied@example.test' },
 }
 
@@ -22,5 +27,6 @@ export const TEST_PASSWORD = process.env.E2E_PASSWORD || 'e2e-password-123'
 /** Sessions enregistrées par la réinitialisation, réutilisées par les specs via `storageState`. */
 export const STORAGE_STATE = {
   allowed: 'e2e/.auth/allowed.json',
+  member: 'e2e/.auth/member.json',
   denied: 'e2e/.auth/denied.json',
 }

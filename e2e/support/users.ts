@@ -13,7 +13,7 @@ function admin() {
   })
 }
 
-/** Supprime les deux utilisateurs de test s'ils existent (comparaison d'email insensible à la casse). */
+/** Supprime les utilisateurs de test s'ils existent (comparaison d'email insensible à la casse). */
 export async function deleteTestUsers() {
   assertLocalTarget(process.env)
   const { auth } = admin()
@@ -27,7 +27,7 @@ export async function deleteTestUsers() {
   }
 }
 
-/** Recrée l'utilisateur autorisé et l'utilisateur refusé, tous deux avec un email confirmé. */
+/** Recrée les utilisateurs de test (administrateur, membre, refusé), tous avec un email confirmé. */
 export async function recreateTestUsers() {
   assertLocalTarget(process.env)
   await deleteTestUsers()
@@ -36,6 +36,17 @@ export async function recreateTestUsers() {
     const { error } = await auth.admin.createUser({ email, password: TEST_PASSWORD, email_confirm: true })
     if (error) throw error
   }
+}
+
+/** Identifiant (uuid) d'un utilisateur de test, pour insérer des lignes qui lui appartiennent. */
+export async function testUserId(key: Key): Promise<string> {
+  assertLocalTarget(process.env)
+  const { data, error } = await admin().auth.admin.listUsers({ perPage: 1000 })
+  if (error) throw error
+  const email = TEST_USERS[key].email.toLowerCase()
+  const user = data.users.find((u) => u.email?.toLowerCase() === email)
+  if (!user) throw new Error(`Utilisateur de test introuvable : ${email} (resetDatabase a-t-il été appelé ?).`)
+  return user.id
 }
 
 type Cookie = { name: string; value: string }

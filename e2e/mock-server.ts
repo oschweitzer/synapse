@@ -75,7 +75,7 @@ function route(method: string, path: string): { status: number; body: Json } | n
       status: 200,
       body: {
         results: [
-          { name: 'Paris', admin1: 'Île-de-France', country: 'France', latitude: 48.8566, longitude: 2.3522 },
+          { name: 'Strasbourg', admin1: 'Grand Est', country: 'France', latitude: 48.5734, longitude: 7.7521 },
         ],
       },
     }

@@ -47,5 +47,48 @@ export async function resetDatabase() {
   })
   await recreateTestUsers()
   await writeStorageState('allowed')
+  await writeStorageState('member')
   await writeStorageState('denied')
+}
+
+/** Insère une checklist dans la doublure de `public.notes` pour `userId` ; renvoie son id. */
+export async function seedCairnChecklist(userId: string, title: string): Promise<string> {
+  assertLocalTarget(process.env)
+  return withSql(async (sql) => {
+    const [row] = await sql<{ id: string }[]>`
+      insert into public.notes (user_id, title, kind) values (${userId}, ${title}, 'checklist')
+      returning id
+    `
+    return row.id
+  })
+}
+
+/** Insère un dashboard (hors défaut) et ses widgets pour `userId` ; renvoie l'id du dashboard. */
+export async function seedDashboard(
+  userId: string,
+  d: { name: string; visibility: 'public' | 'private'; widgets: string[] },
+): Promise<string> {
+  assertLocalTarget(process.env)
+  return withSql(async (sql) => {
+    const [row] = await sql<{ id: string }[]>`
+      insert into synapse.dashboards (user_id, name, visibility, is_default, position)
+      values (${userId}, ${d.name}, ${d.visibility}, false, 1)
+      returning id
+    `
+    for (const [position, widgetId] of d.widgets.entries()) {
+      await sql`
+        insert into synapse.dashboard_widgets (dashboard_id, user_id, widget_id, position)
+        values (${row.id}, ${userId}, ${widgetId}, ${position})
+      `
+    }
+    return row.id
+  })
+}
+
+/** Remet le délai d'inactivité du verrouillage de `userId` (5 min par défaut, voir db/migrations/0009_lock.sql). */
+export async function setLockIdleMinutes(userId: string, minutes: 0 | 1 | 5 | 15): Promise<void> {
+  assertLocalTarget(process.env)
+  await withSql(async (sql) => {
+    await sql`update synapse.lock set idle_minutes = ${minutes} where user_id = ${userId}`
+  })
 }

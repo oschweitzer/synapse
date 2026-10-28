@@ -221,13 +221,13 @@ Les tests e2e (`e2e/*.spec.ts`) tournent dans Chromium contre une Supabase **loc
 Prérequis : Docker.
 
 1. `npx supabase start` démarre la pile locale (configurée par `supabase/config.toml`, qui active la connexion par mot de passe pour les tests uniquement). Ne jamais lancer `supabase db push` ni `supabase config push`.
-2. `cp e2e/.env.test.example e2e/.env.test`, puis renseigner `NEXT_PUBLIC_SUPABASE_ANON_KEY` et `SUPABASE_SERVICE_ROLE_KEY` avec `ANON_KEY` et `SERVICE_ROLE_KEY` de `npx supabase status -o env`. `e2e/.env.test` est ignoré par git ; les variables déjà définies dans le shell l'emportent.
+2. `cp e2e/.env.test.example e2e/.env.test`, puis renseigner `NEXT_PUBLIC_SUPABASE_ANON_KEY` et `SUPABASE_SERVICE_ROLE_KEY` avec `ANON_KEY` et `SERVICE_ROLE_KEY` de `npx supabase status -o env`. `e2e/.env.test` est ignoré par git ; les variables déjà définies dans le shell l'emportent. Si vous aviez déjà un `e2e/.env.test`, rafraîchissez-le depuis `e2e/.env.test.example` (notamment `E2E_MEMBER_EMAIL`, `ALLOWED_EMAILS` et `ADMIN_EMAILS`, dont les valeurs ont changé) : sinon les tests de dashboards échouent par délai dépassé.
 3. `npx playwright install chromium` (une fois), puis `npm run test:e2e`.
 
 Fonctionnement :
 
 - **Garde-fou** (`e2e/guard.ts`) : `playwright.config.ts`, le setup global et chaque aide de base de données refusent de tourner si `NEXT_PUBLIC_SUPABASE_URL` ou `DATABASE_URL` ne pointe pas vers `localhost` ou `127.0.0.1`.
-- **Base** : le setup global applique les migrations (`npm run db:migrate`), puis la doublure de Cairn `e2e/fixtures/cairn-stubs.sql` (tables `public.notes`, `checklist_items` et `reminders`, réservées au local, jamais passées par `db:migrate`). Chaque fichier de spec appelle `resetDatabase()` dans `test.beforeAll` : tables vidées, utilisateurs de test recréés, sessions réécrites dans `e2e/.auth/`.
+- **Base** : le setup global applique les migrations (`npm run db:migrate`), puis la doublure de Cairn `e2e/fixtures/cairn-stubs.sql` (tables `public.notes`, `checklist_items` et `reminders`, réservées au local, jamais passées par `db:migrate`). Chaque fichier de spec appelle `resetDatabase()` dans `test.beforeAll` : tables vidées, trois utilisateurs de test recréés (autorisé et admin, autorisé non admin, refusé), sessions réécrites dans `e2e/.auth/`. `e2e/support/db.ts` fournit aussi `seedCairnChecklist` et `seedDashboard` pour préparer des lignes avant un test.
 - **API externes** : `e2e/mock-server.ts` (port 4010) simule Google (jeton, Sheets), Open-Meteo et TheMealDB, via les variables d'URL de remplacement ci-dessus.
 - **Application** : Playwright lance `next build` puis `next start` (mode production, comme Vercel), avec les valeurs de test figées au build. Attention : `next build` **écrase le dossier `.next`** de votre environnement de développement.
 - **CI** : le job `e2e` de `.github/workflows/ci.yml` démarre la Supabase locale, lance les tests et dépose le rapport Playwright en artefact en cas d'échec. Il n'utilise aucun secret.
