@@ -207,4 +207,4 @@ Tests unitaires avec [Vitest](https://vitest.dev), rangés à côté du code qu'
 - `npm run test:watch` : relance les tests à chaque modification.
 - `npm run test:coverage` : rapport de couverture de `lib/` dans `coverage/`, sans seuil.
 
-Supabase, `fetch` et l'horloge sont simulés : aucun accès réseau ni base de données n'est nécessaire. Le workflow `.github/workflows/ci.yml` lance le typecheck, le lint et les tests à chaque pull request et à chaque push sur `main`.
+Supabase, `fetch` et l'horloge sont simulés : aucun accès réseau ni base de données n'est nécessaire. Le query builder Supabase est simulé par l'aide partagée `test/supabase-mock.ts` (`mockSupabase`), à réutiliser dans tout nouveau test qui lit la base. Le workflow `.github/workflows/ci.yml` lance le typecheck, le lint et les tests à chaque pull request et à chaque push sur `main`.
