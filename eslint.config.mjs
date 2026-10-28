@@ -2,7 +2,18 @@ import coreWebVitals from 'eslint-config-next/core-web-vitals'
 import typescript from 'eslint-config-next/typescript'
 
 const config = [
-  { ignores: ['.next/**', 'node_modules/**', 'coverage/**', 'next-env.d.ts'] },
+  {
+    ignores: [
+      '.next/**',
+      'node_modules/**',
+      'coverage/**',
+      'next-env.d.ts',
+      'playwright-report/**',
+      'test-results/**',
+      'blob-report/**',
+      'e2e/.auth/**',
+    ],
+  },
   ...coreWebVitals,
   ...typescript,
   {

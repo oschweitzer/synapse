@@ -5,14 +5,22 @@ next-env.d.ts
 .env
 .env.*
 !.env.example
+!e2e/.env.test.example
 .vercel/
 
 # IDE et état local du CLI Supabase
 .idea/
 supabase/.temp/
+supabase/.branches/
 
 # Job Garmin (Python)
 __pycache__/
 
 # Rapport de couverture des tests
 coverage/
+
+# Tests end-to-end (Playwright)
+playwright-report/
+blob-report/
+test-results/
+e2e/.auth/

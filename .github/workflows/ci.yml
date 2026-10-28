@@ -1,5 +1,6 @@
 # Vérifications de chaque pull request et de chaque push sur main :
-# typecheck, lint et tests unitaires (Vitest). Aucun secret n'est nécessaire.
+# typecheck, lint et tests unitaires (Vitest) dans le job `unit`, puis tests e2e
+# (Playwright, Supabase locale lancée par le CLI) dans le job `e2e`. Aucun secret n'est nécessaire.
 
 name: CI
 
@@ -31,3 +32,44 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Pile Supabase locale (Docker est présent sur ubuntu-latest).
+      - run: npx supabase start
+
+      # Les clés locales sont exportées pour les étapes suivantes ; elles passent avant e2e/.env.test.
+      - name: Exporter l'environnement Supabase local
+        shell: bash
+        run: |
+          eval "$(npx supabase status -o env)"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "DATABASE_URL=$DB_URL"
+          } >> "$GITHUB_ENV"
+
+      - run: cp e2e/.env.test.example e2e/.env.test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

@@ -4,7 +4,9 @@
  * (`lib/connectors/cash.ts`).
  */
 
-const API = 'https://sheets.googleapis.com/v4/spreadsheets'
+import { envUrl } from '@/lib/env'
+
+const DEFAULT_API = 'https://sheets.googleapis.com/v4/spreadsheets'
 
 /** Réponse d'erreur de Google : 401 jeton refusé, 403 fichier non accordé, 404 fichier introuvable. */
 export class SheetsError extends Error {
@@ -24,7 +26,7 @@ export function range(sheet: string, cells: string) {
 }
 
 async function call<T>(token: string, path: string, init?: { method?: string; body?: unknown }): Promise<T> {
-  const res = await fetch(`${API}/${path}`, {
+  const res = await fetch(`${envUrl('GOOGLE_SHEETS_API_URL', DEFAULT_API)}/${path}`, {
     method: init?.method ?? 'GET',
     headers: {
       authorization: `Bearer ${token}`,

@@ -131,6 +131,15 @@ describe('weatherConnector', () => {
     expect(Object.fromEntries(params)).toMatchObject({ latitude: '48.8566', longitude: '2.3522', timezone: 'auto', forecast_days: '2' })
   })
 
+  it('utilise OPEN_METEO_FORECAST_URL quand elle est définie', async () => {
+    vi.stubEnv('OPEN_METEO_FORECAST_URL', 'http://127.0.0.1:4010/open-meteo/v1/forecast')
+    setup({ data: [PARIS] })
+    routeFetch({ '48.8566': () => json(forecast()) })
+    await weatherConnector.read('u1')
+    const url = new URL(fetchMock.mock.calls[0][0])
+    expect(url.origin + url.pathname).toBe('http://127.0.0.1:4010/open-meteo/v1/forecast')
+  })
+
   it('tient compte d’un décalage négatif', async () => {
     setup({ data: [PARIS] })
     routeFetch({ '48.8566': () => json(forecast({ utc_offset_seconds: -18000, current: { time: '2026-01-15T14:15', temperature_2m: 1, weather_code: 0 } })) })
@@ -191,6 +200,14 @@ describe('weatherConnector', () => {
 })
 
 describe('searchCities', () => {
+  it('utilise OPEN_METEO_GEOCODING_URL quand elle est définie', async () => {
+    vi.stubEnv('OPEN_METEO_GEOCODING_URL', 'http://127.0.0.1:4010/geocoding/v1/search')
+    fetchMock.mockResolvedValue(json({ results: [] }))
+    await searchCities('Paris')
+    const url = new URL(fetchMock.mock.calls[0][0])
+    expect(url.origin + url.pathname).toBe('http://127.0.0.1:4010/geocoding/v1/search')
+  })
+
   it('interroge le géocodage avec le nom, 5 résultats, en français', async () => {
     fetchMock.mockResolvedValue(json({ results: [] }))
     await searchCities('Lausanne & co')

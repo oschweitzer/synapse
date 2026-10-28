@@ -41,6 +41,7 @@ Scripts : `npm run build`, `npm run lint`, `npm run typecheck`.
 | `NEXT_PUBLIC_CAIRN_URL` | URL web de Cairn, liens « Ouvrir dans Cairn » (utilisée dès la phase 2) |
 | `DATABASE_URL` | Local uniquement : connexion Postgres pour les migrations (Supabase > Connect > *Session pooler*) |
 | `SUPABASE_PROJECT_REF` | Local uniquement : id du projet, pour générer les types |
+| `GOOGLE_OAUTH_TOKEN_URL`, `GOOGLE_SHEETS_API_URL`, `OPEN_METEO_FORECAST_URL`, `OPEN_METEO_GEOCODING_URL`, `MEALDB_API_URL` | Tests e2e uniquement : URL de remplacement des API externes (vide : la vraie API). À laisser vides en production |
 
 ### Base de données (schéma `synapse`)
 
@@ -212,3 +213,21 @@ Les server actions (`app/actions/*.test.ts`) et les route handlers (`app/api/**/
 Les composants de `components/` sont testés aussi, à côté du composant (`components/cash/EntryForm.test.tsx` pour `EntryForm.tsx`), avec [Testing Library](https://testing-library.com/docs/react-testing-library/intro/) dans jsdom : chaque fichier de test de composant commence par la ligne `// @vitest-environment jsdom` (les tests de `lib/` restent en environnement node). `test/setup-dom.ts` enregistre les matchers jest-dom et démonte les composants entre deux tests. Les server actions, `next/navigation`, `next/link` et `fetch` sont simulés.
 
 Supabase, `fetch` et l'horloge sont simulés : aucun accès réseau ni base de données n'est nécessaire. Le query builder Supabase est simulé par l'aide partagée `test/supabase-mock.ts` (`mockSupabase`), à réutiliser dans tout nouveau test qui lit la base. Le workflow `.github/workflows/ci.yml` lance le typecheck, le lint et les tests à chaque pull request et à chaque push sur `main`.
+
+### Tests end-to-end (Playwright)
+
+Les tests e2e (`e2e/*.spec.ts`) tournent dans Chromium contre une Supabase **locale**, jamais contre le projet partagé avec Cairn.
+
+Prérequis : Docker.
+
+1. `npx supabase start` démarre la pile locale (configurée par `supabase/config.toml`, qui active la connexion par mot de passe pour les tests uniquement). Ne jamais lancer `supabase db push` ni `supabase config push`.
+2. `cp e2e/.env.test.example e2e/.env.test`, puis renseigner `NEXT_PUBLIC_SUPABASE_ANON_KEY` et `SUPABASE_SERVICE_ROLE_KEY` avec `ANON_KEY` et `SERVICE_ROLE_KEY` de `npx supabase status -o env`. `e2e/.env.test` est ignoré par git ; les variables déjà définies dans le shell l'emportent.
+3. `npx playwright install chromium` (une fois), puis `npm run test:e2e`.
+
+Fonctionnement :
+
+- **Garde-fou** (`e2e/guard.ts`) : `playwright.config.ts`, le setup global et chaque aide de base de données refusent de tourner si `NEXT_PUBLIC_SUPABASE_URL` ou `DATABASE_URL` ne pointe pas vers `localhost` ou `127.0.0.1`.
+- **Base** : le setup global applique les migrations (`npm run db:migrate`), puis la doublure de Cairn `e2e/fixtures/cairn-stubs.sql` (tables `public.notes`, `checklist_items` et `reminders`, réservées au local, jamais passées par `db:migrate`). Chaque fichier de spec appelle `resetDatabase()` dans `test.beforeAll` : tables vidées, utilisateurs de test recréés, sessions réécrites dans `e2e/.auth/`.
+- **API externes** : `e2e/mock-server.ts` (port 4010) simule Google (jeton, Sheets), Open-Meteo et TheMealDB, via les variables d'URL de remplacement ci-dessus.
+- **Application** : Playwright lance `next build` puis `next start` (mode production, comme Vercel), avec les valeurs de test figées au build. Attention : `next build` **écrase le dossier `.next`** de votre environnement de développement.
+- **CI** : le job `e2e` de `.github/workflows/ci.yml` démarre la Supabase locale, lance les tests et dépose le rapport Playwright en artefact en cas d'échec. Il n'utilise aucun secret.

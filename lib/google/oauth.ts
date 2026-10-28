@@ -9,13 +9,15 @@
  * l'expiration des refresh tokens après 7 jours du mode Test.
  */
 
+import { envUrl } from '@/lib/env'
+
 export const SCOPE_CALENDAR = 'https://www.googleapis.com/auth/calendar.readonly'
 export const SCOPE_GMAIL = 'https://www.googleapis.com/auth/gmail.readonly'
 export const SCOPE_DRIVE_FILE = 'https://www.googleapis.com/auth/drive.file'
 export const SCOPES = ['openid', 'email', SCOPE_CALENDAR, SCOPE_GMAIL, SCOPE_DRIVE_FILE]
 
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth'
-const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
+const DEFAULT_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
 
 /** Cookies du flux en cours (state + PKCE), limités aux routes /api/google. */
 export const STATE_COOKIE = 'synapse_google_state'
@@ -76,7 +78,7 @@ export type GoogleTokens = {
 
 export async function exchangeCode(code: string, redirectUri: string, verifier: string): Promise<GoogleTokens> {
   const { id, secret } = credentials()
-  const res = await fetch(TOKEN_ENDPOINT, {
+  const res = await fetch(envUrl('GOOGLE_OAUTH_TOKEN_URL', DEFAULT_TOKEN_ENDPOINT), {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -105,7 +107,7 @@ export class GoogleReauthError extends Error {}
  */
 export async function refreshAccessToken(refreshToken: string): Promise<string> {
   const { id, secret } = credentials()
-  const res = await fetch(TOKEN_ENDPOINT, {
+  const res = await fetch(envUrl('GOOGLE_OAUTH_TOKEN_URL', DEFAULT_TOKEN_ENDPOINT), {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({

@@ -11,7 +11,7 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./test/setup-dom.ts'],
     include: ['**/*.test.ts', '**/*.test.tsx'],
-    exclude: ['e2e/**', 'node_modules/**', '.next/**', 'supabase/**'],
+    exclude: ['e2e/**/*.spec.ts', 'node_modules/**', '.next/**', 'supabase/**'],
     // Chaque test repart d'un environnement propre : variables, globales et mocks sont restaurés.
     unstubEnvs: true,
     unstubGlobals: true,

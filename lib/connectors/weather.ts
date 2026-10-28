@@ -1,3 +1,4 @@
+import { envUrl } from '@/lib/env'
 import { createClient } from '@/lib/supabase/server'
 import type { Connector } from './types'
 import type { CityWeather, Weather, WeatherHour } from '@/lib/weather'
@@ -14,6 +15,9 @@ export const WEATHER_LOCATIONS_MAX = 5
 /** Durée du cache Next sur l'appel Open-Meteo (30 min). */
 const REVALIDATE_SECONDS = 30 * 60
 const HOURS_AHEAD = 6
+
+const DEFAULT_FORECAST_URL = 'https://api.open-meteo.com/v1/forecast'
+const DEFAULT_GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search'
 
 type OpenMeteoResponse = {
   utc_offset_seconds: number
@@ -56,7 +60,7 @@ async function fetchForecast(latitude: number, longitude: number): Promise<OpenM
     timezone: 'auto',
     forecast_days: '2',
   })
-  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, {
+  const res = await fetch(`${envUrl('OPEN_METEO_FORECAST_URL', DEFAULT_FORECAST_URL)}?${params}`, {
     next: { revalidate: REVALIDATE_SECONDS },
     signal: AbortSignal.timeout(5000),
   })
@@ -142,7 +146,7 @@ type GeocodingResponse = {
 /** Recherche de villes par nom (géocodage Open-Meteo, gratuit, sans clé). */
 export async function searchCities(query: string): Promise<CityResult[]> {
   const params = new URLSearchParams({ name: query, count: '5', language: 'fr', format: 'json' })
-  const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params}`, {
+  const res = await fetch(`${envUrl('OPEN_METEO_GEOCODING_URL', DEFAULT_GEOCODING_URL)}?${params}`, {
     signal: AbortSignal.timeout(5000),
   })
   if (!res.ok) throw new Error(`Open-Meteo geocoding HTTP ${res.status}`)

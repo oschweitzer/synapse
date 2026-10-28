@@ -141,6 +141,15 @@ describe('GET', () => {
   })
 })
 
+describe('GOOGLE_SHEETS_API_URL (tests e2e uniquement)', () => {
+  it('appelle GOOGLE_SHEETS_API_URL/<id> quand la variable est définie', async () => {
+    vi.stubEnv('GOOGLE_SHEETS_API_URL', 'http://127.0.0.1:4010/sheets/v4/spreadsheets')
+    fetchMock.mockResolvedValue(json({ valueRanges: [] }))
+    await batchGetValues('tok', 'abc', ['A1'])
+    expect(lastCall().raw.startsWith('http://127.0.0.1:4010/sheets/v4/spreadsheets/abc')).toBe(true)
+  })
+})
+
 describe('erreurs', () => {
   it('lève SheetsError avec le statut et le message de Google', async () => {
     fetchMock.mockResolvedValue(json({ error: { message: 'The caller does not have permission' } }, 403))

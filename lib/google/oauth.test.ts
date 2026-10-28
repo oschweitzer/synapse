@@ -189,3 +189,28 @@ describe('emailFromIdToken', () => {
     expect(emailFromIdToken(token(JSON.stringify({ sub: '1' })))).toBeNull()
   })
 })
+
+describe('GOOGLE_OAUTH_TOKEN_URL (tests e2e uniquement)', () => {
+  const MOCK = 'http://127.0.0.1:4010/google/token'
+
+  it('exchangeCode POSTe vers GOOGLE_OAUTH_TOKEN_URL quand elle est définie', async () => {
+    vi.stubEnv('GOOGLE_OAUTH_TOKEN_URL', MOCK)
+    fetchMock.mockResolvedValue(json({ access_token: 'at', expires_in: 3600 }))
+    await exchangeCode('c', 'https://app/cb', 'v')
+    expect(fetchMock.mock.calls[0][0]).toBe(MOCK)
+  })
+
+  it('refreshAccessToken POSTe vers GOOGLE_OAUTH_TOKEN_URL quand elle est définie', async () => {
+    vi.stubEnv('GOOGLE_OAUTH_TOKEN_URL', MOCK)
+    fetchMock.mockResolvedValue(json({ access_token: 'fresh' }))
+    await refreshAccessToken('rt')
+    expect(fetchMock.mock.calls[0][0]).toBe(MOCK)
+  })
+
+  it('une GOOGLE_OAUTH_TOKEN_URL vide retombe sur Google', async () => {
+    vi.stubEnv('GOOGLE_OAUTH_TOKEN_URL', '')
+    fetchMock.mockResolvedValue(json({ access_token: 'fresh' }))
+    await refreshAccessToken('rt')
+    expect(fetchMock.mock.calls[0][0]).toBe('https://oauth2.googleapis.com/token')
+  })
+})

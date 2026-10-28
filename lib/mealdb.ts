@@ -3,7 +3,9 @@
  * la base de recettes. Les recettes y sont en anglais.
  */
 
-const API = 'https://www.themealdb.com/api/json/v1/1'
+import { envUrl } from '@/lib/env'
+
+const DEFAULT_API = 'https://www.themealdb.com/api/json/v1/1'
 
 /** Recettes importées au plus par passage. */
 export const MEALDB_IMPORT_MAX = 10
@@ -51,7 +53,7 @@ export function toRecipe(meal: MealDbMeal): ImportedRecipe {
 }
 
 async function fetchMeals(path: string): Promise<MealDbMeal[]> {
-  const res = await fetch(`${API}/${path}`, { cache: 'no-store', signal: AbortSignal.timeout(10_000) })
+  const res = await fetch(`${envUrl('MEALDB_API_URL', DEFAULT_API)}/${path}`, { cache: 'no-store', signal: AbortSignal.timeout(10_000) })
   if (!res.ok) throw new Error(`TheMealDB ${res.status}`)
   const body = (await res.json()) as { meals: MealDbMeal[] | null }
   return (body.meals ?? []).filter((meal) => meal?.idMeal && meal.strMeal?.trim())

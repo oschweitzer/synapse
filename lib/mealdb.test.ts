@@ -58,6 +58,13 @@ describe('toRecipe', () => {
 })
 
 describe('fetchMealDb', () => {
+  it('interroge MEALDB_API_URL quand elle est définie', async () => {
+    vi.stubEnv('MEALDB_API_URL', 'http://127.0.0.1:4010/mealdb/api/json/v1/1')
+    fetchMock.mockResolvedValue(json({ meals: [meal()] }))
+    await fetchMealDb('', 1)
+    expect(fetchMock.mock.calls[0][0]).toBe('http://127.0.0.1:4010/mealdb/api/json/v1/1/random.php')
+  })
+
   it('cherche par nom avec un seul appel, la requête encodée', async () => {
     fetchMock.mockResolvedValue(json({ meals: [meal({ idMeal: '1', strMeal: 'Chicken Soup' })] }))
     const result = await fetchMealDb('chicken & rice', 3)

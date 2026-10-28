@@ -1,7 +1,59 @@
-# Uniquement pour `supabase functions deploy synapse-google-sync`.
-# Le projet est partagé avec Cairn, dont le repo gère les migrations :
-# ne JAMAIS lancer `supabase db push` depuis Synapse (voir README).
+# Sert à deux choses :
+# 1. `supabase functions deploy synapse-google-sync` ;
+# 2. la pile Supabase LOCALE des tests e2e (`npx supabase start`, voir README).
+# Le projet distant est partagé avec Cairn, dont le repo gère les migrations :
+# ne JAMAIS lancer `supabase db push` ni `supabase config push` depuis Synapse (voir README).
 project_id = "synapse"
+
+[api]
+enabled = true
+port = 54321
+# `synapse` est exposé pour que l'application lise son schéma comme sur le projet distant.
+schemas = ["public", "graphql_public", "synapse"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+# Seed minimal : crée seulement le schéma synapse, que PostgREST doit trouver
+# au démarrage. Les tests e2e créent leurs propres données.
+[db.seed]
+enabled = true
+sql_paths = ["../e2e/fixtures/local-schema.sql"]
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+enable_signup = true
+
+# Connexion par email et mot de passe, uniquement sur la pile locale : les tests e2e
+# ouvrent une session sans passer par Google.
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+# Services inutiles aux tests e2e, désactivés pour un démarrage plus léger.
+[studio]
+enabled = false
+
+[local_smtp]
+enabled = false
+
+[storage]
+enabled = false
+
+[realtime]
+enabled = false
+
+[edge_runtime]
+enabled = false
+
+[analytics]
+enabled = false
 
 # Appelée par pg_cron (sans session) : la fonction vérifie elle-même le secret
 # `x-synapse-cron` ou la session de l'utilisateur.
