@@ -29,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - End-to-end tests (Playwright) against a local Supabase, with a guard refusing non-local databases, a mock server for Google, Open-Meteo and TheMealDB, a first sign-in flow and an e2e CI job (#60).
 - Component tests (Testing Library, jsdom) for the UI kit, the recipe, cash and lock forms and the mood, habit and checklist widgets (#59).
 - End-to-end flows for the dashboard (widgets, reorder), dashboards admin and public/private visibility, lock (code, auto-lock, passkey through a virtual authenticator), settings and weather (#61).
+- End-to-end flows for recipes (create, edit, add to shopping, delete, TheMealDB import, daily recipe) and for checking shopping and to-do items, with Cairn seed helpers (#69).
 
 ### Changed
 

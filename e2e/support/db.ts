@@ -5,7 +5,7 @@ import { databaseUrl } from './env'
 import { recreateTestUsers, writeStorageState } from './users'
 
 /** Ouvre une connexion, exécute `fn`, puis la ferme quoi qu'il arrive. */
-async function withSql<T>(fn: (sql: postgres.Sql) => Promise<T>): Promise<T> {
+export async function withSql<T>(fn: (sql: postgres.Sql) => Promise<T>): Promise<T> {
   assertLocalTarget(process.env)
   const sql = postgres(databaseUrl(), { max: 1, onnotice: () => {} })
   try {
