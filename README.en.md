@@ -203,10 +203,12 @@ The PWA icons can be regenerated with `node scripts/generate-icons.mjs`.
 
 Unit tests with [Vitest](https://vitest.dev), placed next to the code they cover (`lib/lock/token.test.ts` for `lib/lock/token.ts`).
 
-- `npm test`: a single run of every `*.test.ts` file.
+- `npm test`: a single run of every `*.test.ts` and `*.test.tsx` file.
 - `npm run test:watch`: reruns the tests on every change.
-- `npm run test:coverage`: coverage report for `lib/`, `app/actions` and `app/api` in `coverage/`, with no threshold.
+- `npm run test:coverage`: coverage report for `lib/`, `app/actions`, `app/api` and `components/` in `coverage/`, with no threshold.
 
-Server actions (`app/actions/*.test.ts`) and route handlers (`app/api/**/route.test.ts`) are tested too, with `next/headers`, `next/navigation` and `next/cache` mocked (helpers in `test/next-mock.ts`). Test files are named `*.test.ts` so Next never takes them for routes.
+Server actions (`app/actions/*.test.ts`) and route handlers (`app/api/**/route.test.ts`) are tested too, with `next/headers`, `next/navigation` and `next/cache` mocked (helpers in `test/next-mock.ts`). Test files are named `*.test.ts` or `*.test.tsx` so Next never takes them for routes.
+
+Components in `components/` are tested too, next to the component (`components/cash/EntryForm.test.tsx` for `EntryForm.tsx`), with [Testing Library](https://testing-library.com/docs/react-testing-library/intro/) in jsdom: every component test file starts with the `// @vitest-environment jsdom` line (`lib/` tests stay in the node environment). `test/setup-dom.ts` registers the jest-dom matchers and unmounts components between tests. Server actions, `next/navigation`, `next/link` and `fetch` are mocked.
 
 Supabase, `fetch` and the clock are mocked: no network access or database is needed. The Supabase query builder is mocked by the shared helper `test/supabase-mock.ts` (`mockSupabase`), to reuse in any new test that reads the database. The `.github/workflows/ci.yml` workflow runs typecheck, lint and tests on every pull request and every push to `main`.

@@ -203,10 +203,12 @@ Les icônes PWA sont régénérables avec `node scripts/generate-icons.mjs`.
 
 Tests unitaires avec [Vitest](https://vitest.dev), rangés à côté du code qu'ils couvrent (`lib/lock/token.test.ts` pour `lib/lock/token.ts`).
 
-- `npm test` : une passe sur tous les fichiers `*.test.ts`.
+- `npm test` : une passe sur tous les fichiers `*.test.ts` et `*.test.tsx`.
 - `npm run test:watch` : relance les tests à chaque modification.
-- `npm run test:coverage` : rapport de couverture de `lib/`, `app/actions` et `app/api` dans `coverage/`, sans seuil.
+- `npm run test:coverage` : rapport de couverture de `lib/`, `app/actions`, `app/api` et `components/` dans `coverage/`, sans seuil.
 
-Les server actions (`app/actions/*.test.ts`) et les route handlers (`app/api/**/route.test.ts`) sont testés aussi, avec `next/headers`, `next/navigation` et `next/cache` simulés (aides dans `test/next-mock.ts`). Les fichiers de test se nomment `*.test.ts` pour que Next ne les prenne jamais pour des routes.
+Les server actions (`app/actions/*.test.ts`) et les route handlers (`app/api/**/route.test.ts`) sont testés aussi, avec `next/headers`, `next/navigation` et `next/cache` simulés (aides dans `test/next-mock.ts`). Les fichiers de test se nomment `*.test.ts` ou `*.test.tsx` pour que Next ne les prenne jamais pour des routes.
+
+Les composants de `components/` sont testés aussi, à côté du composant (`components/cash/EntryForm.test.tsx` pour `EntryForm.tsx`), avec [Testing Library](https://testing-library.com/docs/react-testing-library/intro/) dans jsdom : chaque fichier de test de composant commence par la ligne `// @vitest-environment jsdom` (les tests de `lib/` restent en environnement node). `test/setup-dom.ts` enregistre les matchers jest-dom et démonte les composants entre deux tests. Les server actions, `next/navigation`, `next/link` et `fetch` sont simulés.
 
 Supabase, `fetch` et l'horloge sont simulés : aucun accès réseau ni base de données n'est nécessaire. Le query builder Supabase est simulé par l'aide partagée `test/supabase-mock.ts` (`mockSupabase`), à réutiliser dans tout nouveau test qui lit la base. Le workflow `.github/workflows/ci.yml` lance le typecheck, le lint et les tests à chaque pull request et à chaque push sur `main`.

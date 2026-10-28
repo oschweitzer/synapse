@@ -26,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Unit test suite (Vitest) for the auth, admin, time, lock and Google helpers of `lib/`, and a CI workflow running typecheck, lint and tests (#56).
 - Unit tests for the cash, dashboard, weather, recipe and mood modules of `lib/` and for every dashboard connector, with a shared Supabase mock (#57).
 - Unit tests for the server actions and the cash, Google and lock route handlers, covering sessions, admin rights, invalid input and Supabase errors (#58).
+- Component tests (Testing Library, jsdom) for the UI kit, the recipe, cash and lock forms and the mood, habit and checklist widgets (#59).
 
 ### Changed
 
