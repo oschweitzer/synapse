@@ -205,6 +205,8 @@ Tests unitaires avec [Vitest](https://vitest.dev), rangés à côté du code qu'
 
 - `npm test` : une passe sur tous les fichiers `*.test.ts`.
 - `npm run test:watch` : relance les tests à chaque modification.
-- `npm run test:coverage` : rapport de couverture de `lib/` dans `coverage/`, sans seuil.
+- `npm run test:coverage` : rapport de couverture de `lib/`, `app/actions` et `app/api` dans `coverage/`, sans seuil.
+
+Les server actions (`app/actions/*.test.ts`) et les route handlers (`app/api/**/route.test.ts`) sont testés aussi, avec `next/headers`, `next/navigation` et `next/cache` simulés (aides dans `test/next-mock.ts`). Les fichiers de test se nomment `*.test.ts` pour que Next ne les prenne jamais pour des routes.
 
 Supabase, `fetch` et l'horloge sont simulés : aucun accès réseau ni base de données n'est nécessaire. Le query builder Supabase est simulé par l'aide partagée `test/supabase-mock.ts` (`mockSupabase`), à réutiliser dans tout nouveau test qui lit la base. Le workflow `.github/workflows/ci.yml` lance le typecheck, le lint et les tests à chaque pull request et à chaque push sur `main`.

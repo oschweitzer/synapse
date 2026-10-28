@@ -16,8 +16,8 @@ export default defineConfig({
     restoreMocks: true,
     coverage: {
       provider: 'v8',
-      include: ['lib/**/*.ts'],
-      exclude: ['lib/**/*.test.ts', 'lib/types/**'],
+      include: ['lib/**/*.ts', 'app/actions/**/*.ts', 'app/api/**/*.ts'],
+      exclude: ['**/*.test.ts', 'lib/types/**'],
       reporter: ['text', 'html'],
       reportsDirectory: 'coverage',
     },

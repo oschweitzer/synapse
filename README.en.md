@@ -205,6 +205,8 @@ Unit tests with [Vitest](https://vitest.dev), placed next to the code they cover
 
 - `npm test`: a single run of every `*.test.ts` file.
 - `npm run test:watch`: reruns the tests on every change.
-- `npm run test:coverage`: coverage report for `lib/` in `coverage/`, with no threshold.
+- `npm run test:coverage`: coverage report for `lib/`, `app/actions` and `app/api` in `coverage/`, with no threshold.
+
+Server actions (`app/actions/*.test.ts`) and route handlers (`app/api/**/route.test.ts`) are tested too, with `next/headers`, `next/navigation` and `next/cache` mocked (helpers in `test/next-mock.ts`). Test files are named `*.test.ts` so Next never takes them for routes.
 
 Supabase, `fetch` and the clock are mocked: no network access or database is needed. The Supabase query builder is mocked by the shared helper `test/supabase-mock.ts` (`mockSupabase`), to reuse in any new test that reads the database. The `.github/workflows/ci.yml` workflow runs typecheck, lint and tests on every pull request and every push to `main`.
