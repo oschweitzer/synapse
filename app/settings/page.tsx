@@ -17,7 +17,7 @@ import { CashSection } from './sections/CashSection'
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ dashboards?: string; google?: string; weather?: string; lock?: string }>
+  searchParams: Promise<{ dashboards?: string; google?: string; lock?: string }>
 }) {
   const supabase = await createClient()
   const { data } = await supabase.auth.getUser()
@@ -53,7 +53,7 @@ export default async function SettingsPage({
       )}
 
       <Suspense fallback={<SectionFallback title="Météo" className="mt-4" />}>
-        <WeatherSection code={params.weather} />
+        <WeatherSection />
       </Suspense>
 
       <Suspense fallback={<SectionFallback title="Verrouillage" className="mt-4" />}>

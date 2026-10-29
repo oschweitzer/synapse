@@ -19,7 +19,6 @@ const A = '11111111-1111-4111-8111-111111111111'
 const B = '22222222-2222-4222-8222-222222222222'
 const C = '33333333-3333-4333-8333-333333333333'
 const boom = { message: 'boom' }
-const to = (code: string) => `/settings?weather=${code}`
 
 function setup(opts: Parameters<typeof mockServerClient>[0] = {}) {
   return mockServerClient({ user: testUser(), ...opts })
@@ -35,76 +34,73 @@ beforeEach(() => {
 })
 
 describe('addCity', () => {
-  const city = { label: 'Paris', latitude: 48.85, longitude: 2.35 }
-  const saveError = { error: 'Enregistrement impossible, réessaie.' }
+  const city = { label: 'Paris', latitude: '48.85', longitude: '2.35' }
+  const saveCode = { code: 'save' }
+  const maxCode = { code: 'max' }
 
   it.each([
     ['nom vide', { label: '' }],
     ['nom de 81 caractères', { label: 'x'.repeat(81) }],
-    ['latitude 91', { latitude: 91 }],
-    ['latitude texte', { latitude: '48' }],
-    ['latitude NaN', { latitude: NaN }],
-    ['longitude 181', { longitude: 181 }],
-    ['longitude NaN', { longitude: NaN }],
+    ['latitude 91', { latitude: '91' }],
+    ['latitude texte', { latitude: 'abc' }],
+    ['longitude 181', { longitude: '181' }],
+    ['longitude texte', { longitude: 'abc' }],
+    ['latitude vide', { latitude: '' }],
+    ['longitude vide', { longitude: ' ' }],
   ])('refuse %s, avant tout appel', async (_label, override) => {
-    expect(await addCity({ ...city, ...override } as typeof city)).toEqual({ error: 'Ville invalide.' })
+    expect(await addCity(null, form({ ...city, ...override }))).toMatchObject({ code: 'invalid' })
     expect(createClient).not.toHaveBeenCalled()
   })
 
-  it.each([
-    ['null', null],
-    ['une chaîne', 'Paris'],
-  ])('refuse %s comme argument, avant tout appel', async (_label, value) => {
-    expect(await addCity(value as unknown as typeof city)).toEqual({ error: 'Ville invalide.' })
+  it('refuse des coordonnées absentes, avant tout appel', async () => {
+    expect(await addCity(null, form({ label: 'Paris' }))).toMatchObject({ code: 'invalid' })
     expect(createClient).not.toHaveBeenCalled()
   })
 
-  it('sans session : erreur, sans insertion ni redirection', async () => {
+  it('redirige vers /login sans session', async () => {
     const { calls } = setup({ user: null })
-    expect(await addCity(city)).toEqual({ error: 'Session expirée, reconnecte-toi.' })
+    await expectRedirect(addCity(null, form(city)), '/login')
     expect(calls.some((c) => c.method === 'insert')).toBe(false)
-    expect(redirect).not.toHaveBeenCalled()
   })
 
-  it('erreur de lecture : erreur d’enregistrement', async () => {
+  it('erreur de lecture : code save', async () => {
     setup(table({ error: boom }))
-    expect(await addCity(city)).toEqual(saveError)
+    expect(await addCity(null, form(city))).toMatchObject(saveCode)
   })
 
-  it('refuse au-delà du nombre maximal de villes', async () => {
+  it('refuse au-delà du nombre maximal de villes, sans insertion', async () => {
     const { calls } = setup(table({ data: Array.from({ length: WEATHER_LOCATIONS_MAX }, (_, i) => ({ position: i })) }))
-    expect(await addCity(city)).toEqual({ error: `${WEATHER_LOCATIONS_MAX} villes au plus : retires-en une d’abord.` })
+    expect(await addCity(null, form(city))).toMatchObject(maxCode)
     expect(calls.some((c) => c.method === 'insert')).toBe(false)
   })
 
-  it('erreur d’insertion : erreur d’enregistrement', async () => {
+  it('erreur d’insertion : code save', async () => {
     setup(table({ data: [] }, { error: boom }))
-    expect(await addCity(city)).toEqual(saveError)
+    expect(await addCity(null, form(city))).toMatchObject(saveCode)
   })
 
-  it('limite refusée par la base (ajouts simultanés) : message du nombre maximal, sans revalidation', async () => {
+  it('limite refusée par la base (ajouts simultanés) : code max', async () => {
     setup(table({ data: [{ position: 3 }] }, { error: { message: 'weather_locations_max' } }))
-    expect(await addCity(city)).toEqual({ error: `${WEATHER_LOCATIONS_MAX} villes au plus : retires-en une d’abord.` })
-    expect(revalidatePath).not.toHaveBeenCalled()
+    expect(await addCity(null, form(city))).toMatchObject(maxCode)
   })
 
-  it('ajoute la ville en dernière position, ne revalide que /settings et ne redirige pas', async () => {
+  it('ajoute la ville nettoyée en dernière position, revalide / et /settings et ne redirige pas', async () => {
     const { calls } = setup(table({ data: [{ position: 4 }] }, { data: null }))
-    expect(await addCity({ ...city, label: ' Paris ' })).toEqual({})
+    expect(await addCity(null, form({ ...city, label: ' Paris ' }))).toMatchObject({ code: 'added' })
     expect(calls.find((c) => c.method === 'insert')?.args[0]).toEqual({
       label: 'Paris',
       latitude: 48.85,
       longitude: 2.35,
       position: 5,
     })
+    expect(revalidatePath).toHaveBeenCalledWith('/')
     expect(revalidatePath).toHaveBeenCalledWith('/settings')
-    expect(revalidatePath).not.toHaveBeenCalledWith('/')
     expect(redirect).not.toHaveBeenCalled()
   })
 
   it('première ville : position 0', async () => {
     const { calls } = setup(table({ data: [] }, { data: null }))
-    expect(await addCity(city)).toEqual({})
+    expect(await addCity(null, form(city))).toMatchObject({ code: 'added' })
     expect(calls.find((c) => c.method === 'insert')?.args[0]).toMatchObject({ position: 0 })
   })
 })
@@ -156,24 +152,27 @@ describe('findCities', () => {
 
 describe('removeCity', () => {
   it('refuse un id invalide, avant tout appel', async () => {
-    await expectRedirect(removeCity(form({ id: 'nope' })), to('invalid'))
+    expect(await removeCity(null, form({ id: 'nope' }))).toMatchObject({ code: 'invalid' })
     expect(createClient).not.toHaveBeenCalled()
   })
 
   it('redirige vers /login sans session', async () => {
     setup({ user: null })
-    await expectRedirect(removeCity(form({ id: A })), '/login')
+    await expectRedirect(removeCity(null, form({ id: A })), '/login')
   })
 
-  it('erreur Supabase : ?weather=save', async () => {
+  it('erreur Supabase : code save', async () => {
     setup(table({ error: boom }))
-    await expectRedirect(removeCity(form({ id: A })), to('save'))
+    expect(await removeCity(null, form({ id: A }))).toMatchObject({ code: 'save' })
   })
 
-  it('retire la ville', async () => {
+  it('retire la ville et revalide / et /settings', async () => {
     const { calls } = setup(table({ data: null }))
-    await expectRedirect(removeCity(form({ id: A })), to('removed'))
+    expect(await removeCity(null, form({ id: A }))).toMatchObject({ code: 'removed' })
     expect(calls).toContainEqual(expect.objectContaining({ method: 'eq', args: ['id', A] }))
+    expect(revalidatePath).toHaveBeenCalledWith('/')
+    expect(revalidatePath).toHaveBeenCalledWith('/settings')
+    expect(redirect).not.toHaveBeenCalled()
   })
 })
 
@@ -189,13 +188,13 @@ describe('moveCity', () => {
     ['direction 2', { id: A, direction: '2' }],
     ['id invalide', { id: 'nope', direction: '1' }],
   ])('refuse %s, avant tout appel', async (_label, fields) => {
-    await expectRedirect(moveCity(form(fields)), to('invalid'))
+    expect(await moveCity(null, form(fields))).toMatchObject({ code: 'invalid' })
     expect(createClient).not.toHaveBeenCalled()
   })
 
-  it('erreur de lecture : ?weather=save', async () => {
+  it('erreur de lecture : code save', async () => {
     setup(table({ error: boom }))
-    await expectRedirect(moveCity(form({ id: A, direction: '1' })), to('save'))
+    expect(await moveCity(null, form({ id: A, direction: '1' }))).toMatchObject({ code: 'save' })
   })
 
   it.each([
@@ -204,25 +203,25 @@ describe('moveCity', () => {
     ['descendre la dernière', { id: C, direction: '1' }],
   ])('%s : rien à faire, aucune mise à jour', async (_label, fields) => {
     const { calls } = setup(table({ data: ids }))
-    await expectRedirect(moveCity(form(fields)), to('moved'))
+    expect(await moveCity(null, form(fields))).toMatchObject({ code: 'moved' })
     expect(positions(calls)).toEqual([])
   })
 
   it('descend une ville : renumérote tout avec les ids échangés', async () => {
     const { calls } = setup(table({ data: ids }, { data: null }))
-    await expectRedirect(moveCity(form({ id: A, direction: '1' })), to('moved'))
+    expect(await moveCity(null, form({ id: A, direction: '1' }))).toMatchObject({ code: 'moved' })
     expect(positions(calls)).toEqual([{ position: 0 }, { position: 1 }, { position: 2 }])
     expect(targets(calls)).toEqual([B, A, C])
   })
 
   it('monte une ville', async () => {
     const { calls } = setup(table({ data: ids }, { data: null }))
-    await expectRedirect(moveCity(form({ id: C, direction: '-1' })), to('moved'))
+    expect(await moveCity(null, form({ id: C, direction: '-1' }))).toMatchObject({ code: 'moved' })
     expect(targets(calls)).toEqual([A, C, B])
   })
 
-  it('une mise à jour en erreur : ?weather=save', async () => {
+  it('une mise à jour en erreur : code save', async () => {
     setup(table({ data: ids }, { data: null }, { error: boom }, { data: null }))
-    await expectRedirect(moveCity(form({ id: A, direction: '1' })), to('save'))
+    expect(await moveCity(null, form({ id: A, direction: '1' }))).toMatchObject({ code: 'save' })
   })
 })

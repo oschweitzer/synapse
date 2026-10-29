@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
-import { resetDatabase } from './support/db'
+import { resetDatabase, withSql } from './support/db'
 import { STORAGE_STATE } from './support/env'
+import { userId } from './support/seed'
 
 test.beforeAll(async () => {
   await resetDatabase()
@@ -31,4 +32,32 @@ test('une ville trouvée par l’autocomplétion est ajoutée sur place et affic
   await expect(widget).toContainText('19°')
   await expect(widget).toContainText('Peu nuageux · Strasbourg')
   await expect(widget).toContainText('Min 12° · Max 22° · Pluie 20 %')
+})
+
+test('monter et retirer une ville mettent la liste à jour sur place', async ({ page }) => {
+  const uid = await userId()
+  await withSql(async (sql) => {
+    await sql`delete from synapse.weather_locations where user_id = ${uid}`
+    await sql`
+      insert into synapse.weather_locations (user_id, label, latitude, longitude, position)
+      values (${uid}, 'Strasbourg', 48.5734, 7.7521, 0), (${uid}, 'Lyon', 45.76, 4.83, 1)
+    `
+  })
+
+  await page.goto('/settings')
+  const meteo = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Météo', exact: true }) })
+  // Saisie d'une autre section, jamais envoyée : elle ne doit pas être perdue.
+  const habits = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Habitudes', exact: true }) })
+  await habits.getByLabel('Nouvelle habitude').fill('Lire')
+
+  await meteo.getByRole('button', { name: 'Monter « Lyon »' }).click()
+  await expect(meteo.getByRole('status').filter({ hasText: 'Ordre enregistré.' })).toBeVisible()
+  await expect(meteo.getByRole('listitem')).toHaveText([/^Lyon/, /^Strasbourg/])
+  await expect(page).toHaveURL(/\/settings$/)
+
+  await meteo.getByRole('button', { name: 'Retirer « Strasbourg »' }).click()
+  await expect(meteo.getByRole('status').filter({ hasText: 'Ville retirée.' })).toBeVisible()
+  await expect(meteo.getByRole('button', { name: 'Retirer « Strasbourg »' })).toHaveCount(0)
+  await expect(page).toHaveURL(/\/settings$/)
+  await expect(habits.getByLabel('Nouvelle habitude')).toHaveValue('Lire')
 })

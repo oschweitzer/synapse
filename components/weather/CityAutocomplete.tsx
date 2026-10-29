@@ -1,16 +1,36 @@
 'use client'
 
-import { useEffect, useId, useState, useTransition } from 'react'
-import { addCity, findCities } from '@/app/actions/weather'
+import { useEffect, useId, useState } from 'react'
+import { findCities } from '@/app/actions/weather'
 // Import de type seulement : un import de valeur embarquerait le code serveur dans le bundle client.
 import type { CityResult } from '@/lib/connectors/weather'
+import type { SectionState } from '@/lib/settings/section-state'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 
 const DEBOUNCE_MS = 300
 
-/** Recherche de ville avec suggestions à la saisie (combobox ARIA), puis ajout sans rechargement de la page. */
-export function CityAutocomplete({ full, max }: { full: boolean; max: number }) {
+/**
+ * Recherche de ville avec suggestions à la saisie (combobox ARIA), puis ajout sans rechargement de la page.
+ * L'ajout est l'action serveur `addCity` branchée par `WeatherForms` (`useActionState`) : `action`, `state` et `pending`
+ * viennent de là, le message de retour s'affiche aussi là-bas. Le champ se vide quand `state` passe à « added ».
+ */
+export function CityAutocomplete({
+  full,
+  max,
+  action,
+  onSubmit,
+  state,
+  pending,
+}: {
+  full: boolean
+  max: number
+  action: (formData: FormData) => void
+  /** Appelé à chaque envoi réel (une ville est choisie), pour que `WeatherForms` sache quel formulaire est le dernier. */
+  onSubmit: () => void
+  state: SectionState
+  pending: boolean
+}) {
   const inputId = useId()
   const listId = useId()
   const [query, setQuery] = useState('')
@@ -20,8 +40,20 @@ export function CityAutocomplete({ full, max }: { full: boolean; max: number }) 
   const [searchError, setSearchError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
-  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
-  const [pending, startTransition] = useTransition()
+
+  // Ajout réussi : on vide le champ pendant le rendu (comme `HabitsForms`). Sur une erreur, la ville choisie reste.
+  const [seen, setSeen] = useState(state)
+  if (state !== seen) {
+    setSeen(state)
+    if (state?.code === 'added') {
+      setQuery('')
+      setSelected(null)
+      setResults([])
+      setStatus('idle')
+      setOpen(false)
+      setActive(-1)
+    }
+  }
 
   useEffect(() => {
     const q = query.trim()
@@ -89,32 +121,23 @@ export function CityAutocomplete({ full, max }: { full: boolean; max: number }) 
     }
   }
 
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!selected) return
-    const city = selected
-    setMessage(null)
-    startTransition(async () => {
-      let result: Awaited<ReturnType<typeof addCity>>
-      try {
-        result = await addCity({ label: city.label, latitude: city.latitude, longitude: city.longitude })
-      } catch {
-        result = { error: 'Enregistrement impossible, réessaie.' }
-      }
-      if (result.error) {
-        setMessage({ text: result.error, error: true })
-      } else {
-        setQuery('')
-        setSelected(null)
-        resetSearch()
-        setMessage({ text: 'Ville ajoutée.', error: false })
-      }
-    })
-  }
-
   return (
     <div className="flex flex-col gap-3">
-      <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:flex-row">
+      <form
+        action={action}
+        onSubmit={(e) => {
+          if (!selected) e.preventDefault()
+          else onSubmit()
+        }}
+        className="flex flex-col gap-3 sm:flex-row"
+      >
+        {selected && (
+          <>
+            <input type="hidden" name="label" value={selected.label} />
+            <input type="hidden" name="latitude" value={String(selected.latitude)} />
+            <input type="hidden" name="longitude" value={String(selected.longitude)} />
+          </>
+        )}
         <div className="relative flex-1">
           <label htmlFor={inputId} className="sr-only">
             Rechercher une ville
@@ -136,7 +159,6 @@ export function CityAutocomplete({ full, max }: { full: boolean; max: number }) 
             onChange={(e) => {
               setQuery(e.target.value)
               setSelected(null)
-              setMessage(null)
               // Les suggestions de l'ancienne saisie ne doivent pas rester cliquables pendant le délai.
               resetSearch()
             }}
@@ -185,14 +207,6 @@ export function CityAutocomplete({ full, max }: { full: boolean; max: number }) 
       {full && (
         <p className="text-sm text-slate-500 dark:text-slate-400">
           {max} villes au plus : retires-en une pour en ajouter une autre.
-        </p>
-      )}
-      {message && (
-        <p
-          role={message.error ? 'alert' : 'status'}
-          className={`text-sm ${message.error ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}
-        >
-          {message.text}
         </p>
       )}
     </div>
