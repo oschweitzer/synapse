@@ -1,4 +1,6 @@
 import { assertLocalTarget } from '../guard'
+import { encryptToken } from '../../lib/google/crypto'
+import { SCOPE_DRIVE_FILE } from '../../lib/google/oauth'
 import { seedCairnChecklist, withSql } from './db'
 import { TEST_USERS } from './env'
 
@@ -50,4 +52,37 @@ export async function seedTodoItems(items: string[]): Promise<{ noteId: string; 
   const noteId = await seedCairnChecklist(uid, 'À faire')
   const itemIds = await insertItems(uid, noteId, items, true)
   return { noteId, itemIds }
+}
+
+/** Connecte Google pour l'utilisateur autorisé : compte avec `drive.file`, refresh token chiffré (le serveur factice accepte tout jeton). */
+export async function seedGoogleConnection(): Promise<void> {
+  assertLocalTarget(process.env)
+  const uid = await userId()
+  const cipher = await encryptToken('e2e-refresh-token')
+  await withSql(async (sql) => {
+    await sql`
+      insert into synapse.google_accounts (user_id, google_email, scopes, needs_reauth)
+      values (${uid}, ${TEST_USERS.allowed.email}, ${sql.array(['openid', 'email', SCOPE_DRIVE_FILE], 1009)}, false)
+      on conflict (user_id) do update
+        set google_email = excluded.google_email, scopes = excluded.scopes, needs_reauth = false
+    `
+    await sql`
+      insert into synapse.google_credentials (user_id, refresh_token_encrypted)
+      values (${uid}, ${cipher})
+      on conflict (user_id) do update set refresh_token_encrypted = excluded.refresh_token_encrypted
+    `
+  })
+}
+
+/** Choisit `sheetId` comme fichier des dépenses cash de l'utilisateur autorisé (même format que la contrainte de la base). */
+export async function seedCashSheet(sheetId: string): Promise<void> {
+  assertLocalTarget(process.env)
+  if (!/^[A-Za-z0-9_-]{20,100}$/.test(sheetId)) throw new Error(`Identifiant de fichier invalide : ${sheetId}`)
+  const uid = await userId()
+  await withSql(async (sql) => {
+    await sql`
+      insert into synapse.settings (user_id, cash_sheet_id) values (${uid}, ${sheetId})
+      on conflict (user_id) do update set cash_sheet_id = excluded.cash_sheet_id
+    `
+  })
 }

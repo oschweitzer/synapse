@@ -29,7 +29,7 @@ const quote = (name: string) => `"${name.replaceAll('"', '""')}"`
 
 /**
  * Vide les tables de Synapse et les doublures de Cairn, recrée les utilisateurs de
- * test et réécrit leurs sessions. Chaque spec l'appelle dans `test.beforeAll`.
+ * test et réécrit leurs sessions, puis vide les classeurs Sheets du serveur factice. Chaque spec l'appelle dans `test.beforeAll`.
  */
 export async function resetDatabase() {
   assertLocalTarget(process.env)
@@ -45,6 +45,9 @@ export async function resetDatabase() {
     // Doublures de test de Cairn (voir e2e/fixtures/cairn-stubs.sql).
     await sql.unsafe('truncate table public.reminders, public.checklist_items, public.notes cascade')
   })
+  // Classeurs Google Sheets en mémoire du serveur factice (réutilisé d'une exécution à l'autre).
+  const reset = await fetch(`http://127.0.0.1:${process.env.MOCK_PORT || 4010}/__reset`, { method: 'POST' })
+  if (!reset.ok) throw new Error(`Réinitialisation du serveur factice impossible : ${reset.status}`)
   await recreateTestUsers()
   await writeStorageState('allowed')
   await writeStorageState('member')

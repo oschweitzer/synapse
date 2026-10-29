@@ -31,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - End-to-end flows for the dashboard (widgets, reorder), dashboards admin and public/private visibility, lock (code, auto-lock, passkey through a virtual authenticator), settings and weather (#61).
 - End-to-end flows for recipes (create, edit, add to shopping, delete, TheMealDB import, daily recipe) and for checking shopping and to-do items, with Cairn seed helpers (#69).
 - End-to-end flows for mood and habits (pick, check, persisted after reload) and mind maps (create, edit a node, undo/redo, autosave, delete) (#70).
+- End-to-end flow for cash expenses (add, edit, delete, forget and re-link the sheet through a faked Google Picker), with a seeded Google connection and a stateful in-memory Sheets mock (#71).
 
 ### Changed
 
