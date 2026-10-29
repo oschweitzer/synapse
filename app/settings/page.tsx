@@ -9,11 +9,12 @@ import { isAdminUser } from '@/lib/admin'
 import { listDashboards } from '@/lib/dashboards'
 import { DASHBOARDS_MAX, DASHBOARD_NAME_MAX, WIDGETS } from '@/lib/dashboard'
 import { createDashboard, deleteDashboard, resetDashboardOrder, saveDashboard, setDefaultDashboard } from '@/app/actions/dashboards'
-import { addCity, moveCity, removeCity } from '@/app/actions/weather'
-import { listLocations, searchCities, WEATHER_LOCATIONS_MAX, type CityResult } from '@/lib/connectors/weather'
+import { moveCity, removeCity } from '@/app/actions/weather'
+import { listLocations, WEATHER_LOCATIONS_MAX } from '@/lib/connectors/weather'
 import { addHabit, archiveHabit } from '@/app/actions/mood'
 import { HABITS_MAX, listHabits } from '@/lib/connectors/mood'
 import { pickerConfig, SCOPE_DRIVE_FILE } from '@/lib/google/oauth'
+import { CityAutocomplete } from '@/components/weather/CityAutocomplete'
 import { SheetPicker } from '@/components/cash/SheetPicker'
 import { UnlinkSheet } from '@/components/cash/UnlinkSheet'
 import { IDLE_CHOICES, readLockConfig } from '@/lib/lock/config'
@@ -56,11 +57,9 @@ const HABIT_MESSAGES: Record<string, [string, boolean]> = {
 
 /** Retours de la météo (`?weather=…`) : [message, est une erreur]. */
 const WEATHER_MESSAGES: Record<string, [string, boolean]> = {
-  added: ['Ville ajoutée.', false],
   removed: ['Ville retirée.', false],
   moved: ['Ordre enregistré.', false],
   invalid: ['Ville invalide.', true],
-  max: [`${WEATHER_LOCATIONS_MAX} villes au plus : retires-en une d’abord.`, true],
   save: ['Enregistrement impossible, réessaie.', true],
 }
 
@@ -108,7 +107,7 @@ const secondaryButton =
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; dashboards?: string; error?: string; google?: string; habits?: string; weather?: string; city?: string; lock?: string }>
+  searchParams: Promise<{ saved?: string; dashboards?: string; error?: string; google?: string; habits?: string; weather?: string; lock?: string }>
 }) {
   const supabase = await createClient()
   const { data } = await supabase.auth.getUser()
@@ -123,8 +122,7 @@ export default async function SettingsPage({
       })
     : undefined
   const dashboardMessage = params.dashboards ? (DASHBOARD_MESSAGES[params.dashboards] ?? DASHBOARD_MESSAGES.save) : null
-  const cityQuery = params.city?.trim().slice(0, 80) ?? ''
-  const [candidates, settings, google, habits, cities, found, lock, passkeys] = await Promise.all([
+  const [candidates, settings, google, habits, cities, lock, passkeys] = await Promise.all([
     listShoppingCandidates(),
     supabase.schema('synapse').from('settings').select('cairn_shopping_checklist_id, cash_sheet_id').maybeSingle(),
     readGoogleAccount().catch((e) => {
@@ -139,12 +137,6 @@ export default async function SettingsPage({
       console.error('[settings] lecture des villes', e)
       return null
     }),
-    cityQuery
-      ? searchCities(cityQuery).catch((e) => {
-          console.error('[settings] recherche de ville', e)
-          return null
-        })
-      : Promise.resolve<CityResult[]>([]),
     readLockConfig(supabase).catch((e) => {
       console.error('[settings] lecture du verrouillage', e)
       return null
@@ -366,49 +358,10 @@ export default async function SettingsPage({
             ))}
           </ul>
         )}
-        <form method="get" action="/settings" className="flex flex-col gap-3 sm:flex-row">
-          <label htmlFor="city-search" className="sr-only">
-            Rechercher une ville
-          </label>
-          <input
-            id="city-search"
-            name="city"
-            required
-            maxLength={80}
-            defaultValue={cityQuery}
-            placeholder="Strasbourg, Lyon…"
-            className="hud-input flex-1"
-          />
-          <button type="submit" className={secondaryButton}>
-            Rechercher
-          </button>
-        </form>
-        {found === null && (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            Recherche impossible : Open-Meteo ne répond pas.
-          </p>
-        )}
-        {found && cityQuery && found.length === 0 && <p className="text-sm">Aucune ville trouvée pour « {cityQuery} ».</p>}
-        {found && found.length > 0 && (
-          <ul className="flex flex-col gap-2">
-            {found.map((city) => (
-              <li key={`${city.latitude},${city.longitude}`} className="flex items-center justify-between gap-3 text-sm">
-                <span className="min-w-0 break-words">
-                  {city.label}
-                  {city.detail && <span className="text-slate-500 dark:text-slate-400"> · {city.detail}</span>}
-                </span>
-                <form action={addCity}>
-                  <input type="hidden" name="label" value={city.label} />
-                  <input type="hidden" name="latitude" value={city.latitude} />
-                  <input type="hidden" name="longitude" value={city.longitude} />
-                  <SubmitButton className="text-sm underline">
-                    Ajouter<span className="sr-only"> « {city.label} »</span>
-                  </SubmitButton>
-                </form>
-              </li>
-            ))}
-          </ul>
-        )}
+        <CityAutocomplete
+          full={cities !== null && cities.filter((c) => c.id !== 'default').length >= WEATHER_LOCATIONS_MAX}
+          max={WEATHER_LOCATIONS_MAX}
+        />
         {weatherMessage && (
           <p
             role={weatherMessage[1] ? 'alert' : 'status'}

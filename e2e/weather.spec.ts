@@ -8,17 +8,20 @@ test.beforeAll(async () => {
 
 test.use({ storageState: STORAGE_STATE.allowed })
 
-test('une ville ajoutée par géocodage simulé affiche la prévision simulée', async ({ page }) => {
+test('une ville trouvée par l’autocomplétion est ajoutée sur place et affiche la prévision simulée', async ({ page }) => {
   await page.goto('/settings')
   const meteo = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Météo', exact: true }) })
 
   // Le serveur interroge le géocodage simulé (e2e/mock-server.ts) : Strasbourg, Grand Est, France.
   await meteo.getByLabel('Rechercher une ville').fill('Strasbourg')
-  await meteo.getByRole('button', { name: 'Rechercher' }).click()
-  await expect(meteo.getByText('Grand Est, France')).toBeVisible()
+  const suggestion = meteo.getByRole('option', { name: /Strasbourg/ })
+  await expect(suggestion).toContainText('Grand Est, France')
+  await suggestion.click()
 
-  await meteo.getByRole('button', { name: 'Ajouter « Strasbourg »' }).click()
+  await meteo.getByRole('button', { name: 'Ajouter', exact: true }).click()
   await expect(meteo.getByRole('status').filter({ hasText: 'Ville ajoutée.' })).toBeVisible()
+  // Ajout sur place : ni ?city= ni ?weather= dans l'URL.
+  await expect(page).toHaveURL(/\/settings$/)
   // Paris, la ville par défaut, n'a pas de bouton « Retirer » : celui-ci prouve que la ville est enregistrée.
   await expect(meteo.getByRole('button', { name: 'Retirer « Strasbourg »' })).toBeVisible()
 

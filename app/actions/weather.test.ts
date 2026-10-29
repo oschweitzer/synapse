@@ -2,14 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { WEATHER_LOCATIONS_MAX } from '@/lib/connectors/weather'
+import { searchCities, WEATHER_LOCATIONS_MAX } from '@/lib/connectors/weather'
 import { mockServerClient, testUser, type MockResult } from '@/test/supabase-mock'
 import { expectRedirect, form, throwRedirect } from '@/test/next-mock'
-import { addCity, moveCity, removeCity } from './weather'
+import { addCity, findCities, moveCity, removeCity } from './weather'
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }))
 vi.mock('next/navigation', () => ({ redirect: vi.fn() }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
+vi.mock('@/lib/connectors/weather', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/connectors/weather')>()),
+  searchCities: vi.fn(),
+}))
 
 const A = '11111111-1111-4111-8111-111111111111'
 const B = '22222222-2222-4222-8222-222222222222'
@@ -31,57 +35,122 @@ beforeEach(() => {
 })
 
 describe('addCity', () => {
-  const city = { label: 'Paris', latitude: '48.85', longitude: '2.35' }
+  const city = { label: 'Paris', latitude: 48.85, longitude: 2.35 }
+  const saveError = { error: 'Enregistrement impossible, réessaie.' }
 
   it.each([
     ['nom vide', { label: '' }],
     ['nom de 81 caractères', { label: 'x'.repeat(81) }],
-    ['latitude 91', { latitude: '91' }],
-    ['latitude non numérique', { latitude: 'abc' }],
-    ['longitude 181', { longitude: '181' }],
-    ['longitude non numérique', { longitude: 'abc' }],
+    ['latitude 91', { latitude: 91 }],
+    ['latitude texte', { latitude: '48' }],
+    ['latitude NaN', { latitude: NaN }],
+    ['longitude 181', { longitude: 181 }],
+    ['longitude NaN', { longitude: NaN }],
   ])('refuse %s, avant tout appel', async (_label, override) => {
-    await expectRedirect(addCity(form({ ...city, ...override })), to('invalid'))
+    expect(await addCity({ ...city, ...override } as typeof city)).toEqual({ error: 'Ville invalide.' })
     expect(createClient).not.toHaveBeenCalled()
   })
 
-  it('redirige vers /login sans session', async () => {
-    setup({ user: null })
-    await expectRedirect(addCity(form(city)), '/login')
+  it.each([
+    ['null', null],
+    ['une chaîne', 'Paris'],
+  ])('refuse %s comme argument, avant tout appel', async (_label, value) => {
+    expect(await addCity(value as unknown as typeof city)).toEqual({ error: 'Ville invalide.' })
+    expect(createClient).not.toHaveBeenCalled()
   })
 
-  it('erreur de lecture : ?weather=save', async () => {
+  it('sans session : erreur, sans insertion ni redirection', async () => {
+    const { calls } = setup({ user: null })
+    expect(await addCity(city)).toEqual({ error: 'Session expirée, reconnecte-toi.' })
+    expect(calls.some((c) => c.method === 'insert')).toBe(false)
+    expect(redirect).not.toHaveBeenCalled()
+  })
+
+  it('erreur de lecture : erreur d’enregistrement', async () => {
     setup(table({ error: boom }))
-    await expectRedirect(addCity(form(city)), to('save'))
+    expect(await addCity(city)).toEqual(saveError)
   })
 
   it('refuse au-delà du nombre maximal de villes', async () => {
     const { calls } = setup(table({ data: Array.from({ length: WEATHER_LOCATIONS_MAX }, (_, i) => ({ position: i })) }))
-    await expectRedirect(addCity(form(city)), to('max'))
+    expect(await addCity(city)).toEqual({ error: `${WEATHER_LOCATIONS_MAX} villes au plus : retires-en une d’abord.` })
     expect(calls.some((c) => c.method === 'insert')).toBe(false)
   })
 
-  it('erreur d’insertion : ?weather=save', async () => {
+  it('erreur d’insertion : erreur d’enregistrement', async () => {
     setup(table({ data: [] }, { error: boom }))
-    await expectRedirect(addCity(form(city)), to('save'))
+    expect(await addCity(city)).toEqual(saveError)
   })
 
-  it('ajoute la ville en dernière position et revalide', async () => {
+  it('limite refusée par la base (ajouts simultanés) : message du nombre maximal, sans revalidation', async () => {
+    setup(table({ data: [{ position: 3 }] }, { error: { message: 'weather_locations_max' } }))
+    expect(await addCity(city)).toEqual({ error: `${WEATHER_LOCATIONS_MAX} villes au plus : retires-en une d’abord.` })
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
+  it('ajoute la ville en dernière position, ne revalide que /settings et ne redirige pas', async () => {
     const { calls } = setup(table({ data: [{ position: 4 }] }, { data: null }))
-    await expectRedirect(addCity(form(city)), to('added'))
+    expect(await addCity({ ...city, label: ' Paris ' })).toEqual({})
     expect(calls.find((c) => c.method === 'insert')?.args[0]).toEqual({
       label: 'Paris',
       latitude: 48.85,
       longitude: 2.35,
       position: 5,
     })
-    expect(revalidatePath).toHaveBeenCalledWith('/')
+    expect(revalidatePath).toHaveBeenCalledWith('/settings')
+    expect(revalidatePath).not.toHaveBeenCalledWith('/')
+    expect(redirect).not.toHaveBeenCalled()
   })
 
   it('première ville : position 0', async () => {
     const { calls } = setup(table({ data: [] }, { data: null }))
-    await expectRedirect(addCity(form(city)), to('added'))
+    expect(await addCity(city)).toEqual({})
     expect(calls.find((c) => c.method === 'insert')?.args[0]).toMatchObject({ position: 0 })
+  })
+})
+
+describe('findCities', () => {
+  const found = [{ label: 'Strasbourg', detail: 'Grand Est, France', latitude: 48.58, longitude: 7.75 }]
+
+  it.each([
+    ['vide', ''],
+    ['1 caractère', ' a '],
+    ['81 caractères', 'x'.repeat(81)],
+    ['pas une chaîne', 42 as unknown as string],
+  ])('requête %s : aucun résultat, avant tout appel', async (_label, query) => {
+    expect(await findCities(query)).toEqual({ results: [] })
+    expect(createClient).not.toHaveBeenCalled()
+    expect(searchCities).not.toHaveBeenCalled()
+  })
+
+  it('sans session : erreur, sans appel au géocodage', async () => {
+    setup({ user: null })
+    expect(await findCities('Stras')).toEqual({ error: 'Session expirée, reconnecte-toi.' })
+    expect(searchCities).not.toHaveBeenCalled()
+    expect(redirect).not.toHaveBeenCalled()
+  })
+
+  it('trop de recherches : erreur, sans appel au géocodage au-delà de la limite', async () => {
+    setup({ user: testUser('limite@x.fr', 'u-limite') })
+    vi.mocked(searchCities).mockResolvedValue(found)
+    const answers = []
+    for (let i = 0; i < 61; i++) answers.push(await findCities('Stras'))
+    expect(answers.slice(0, 60).every((a) => a.results)).toBe(true)
+    expect(answers[60]).toEqual({ error: 'Trop de recherches, réessaie dans un instant.' })
+    expect(searchCities).toHaveBeenCalledTimes(60)
+  })
+
+  it('géocodage en échec : erreur affichable', async () => {
+    setup()
+    vi.mocked(searchCities).mockRejectedValue(new Error('HTTP 500'))
+    expect(await findCities('Stras')).toEqual({ error: 'Recherche impossible : Open-Meteo ne répond pas.' })
+  })
+
+  it('renvoie les résultats, requête nettoyée', async () => {
+    setup()
+    vi.mocked(searchCities).mockResolvedValue(found)
+    expect(await findCities('  Stras ')).toEqual({ results: found })
+    expect(searchCities).toHaveBeenCalledWith('Stras')
   })
 })
 

@@ -36,6 +36,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Weather settings: the city search suggests cities as you type and adds the chosen one without reloading the page (#41).
 - Sign-in is Google-only and restricted to an email allowlist (#22).
 - Applied the Synapse design system (HUD theme) to the whole interface (#25).
 - Upgraded Next.js to 16 and the minimum Node.js version to 24 (#56).
@@ -43,4 +44,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
+- Weather settings: city suggestions are limited to 60 searches per minute and per user, and the 5-city cap is now enforced by the database (migration `0011_weather_locations_cap.sql`), so simultaneous additions cannot exceed it (#41).
 - Cleared the `postcss` advisories reported by `npm audit` by upgrading Next.js (#56).
