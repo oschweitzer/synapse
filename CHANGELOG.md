@@ -36,6 +36,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Settings page sections load independently, so a slow source no longer delays the others (#78).
 - Weather settings: the city search suggests cities as you type and adds the chosen one without reloading the page (#41).
 - Sign-in is Google-only and restricted to an email allowlist (#22).
 - Applied the Synapse design system (HUD theme) to the whole interface (#25).
