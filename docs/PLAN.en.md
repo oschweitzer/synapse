@@ -17,7 +17,7 @@ to-dos and shopping, recipe of the day, weather, mood and habits. Constraints:
 | Scheduled jobs | Supabase `pg_cron` + Edge Functions (TypeScript/Deno); GitHub Actions for Garmin (Python) | Same tools as Cairn; Garmin only has a reliable library in Python |
 | Front-end hosting | Vercel Hobby (or Netlify, like Cairn) | Free for non-commercial use |
 | Mobile | **PWA** first; Capacitor later if needed | App stores cost money (Apple $99/year, Google $25); a PWA installs for free on the home screen |
-| Tests | Vitest, `*.test.ts` files next to the code; Supabase, `fetch` and the clock mocked; GitHub Actions CI (typecheck, lint, tests) | Change the app and know right away if existing behaviour breaks |
+| Tests | Vitest, `*.test.ts` files next to the code; Supabase, `fetch` and the clock mocked; Playwright e2e (`e2e/*.spec.ts`) against a local Supabase with the external APIs (Google, Open-Meteo, TheMealDB) mocked: sign-in, recipes, shopping, to-dos, mood, habits, cash, mind maps, dashboards, lock, settings and weather each have a browser flow; GitHub Actions CI (typecheck, lint, tests, e2e) | Change the app and know right away if existing behaviour breaks |
 
 ## 2. Architecture
 

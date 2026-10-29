@@ -17,7 +17,7 @@ utilisable dans le navigateur, puis sur mobile.
 | Jobs planifiés | Supabase `pg_cron` + Edge Functions (TypeScript/Deno) ; GitHub Actions pour Garmin (Python) | Mêmes outils que Cairn ; Garmin n'a de lib fiable qu'en Python |
 | Hébergement front | Vercel Hobby (ou Netlify, comme Cairn) | Gratuit pour un usage non commercial |
 | Mobile | **PWA** d'abord ; Capacitor plus tard si besoin | Les stores sont payants (Apple 99 $/an, Google 25 $) ; une PWA s'installe gratuitement sur l'écran d'accueil |
-| Tests | Vitest, fichiers `*.test.ts` à côté du code ; Supabase, `fetch` et l'horloge simulés ; CI GitHub Actions (typecheck, lint, tests) | Modifier l'app en sachant tout de suite si un comportement existant casse |
+| Tests | Vitest, fichiers `*.test.ts` à côté du code ; Supabase, `fetch` et l'horloge simulés ; e2e Playwright (`e2e/*.spec.ts`) contre une Supabase locale, API externes (Google, Open-Meteo, TheMealDB) simulées : la connexion, les recettes, les courses, les to-do, l'humeur, les habitudes, Cash, les cartes mentales, les dashboards, le verrouillage, les réglages et la météo ont chacun un parcours navigateur ; CI GitHub Actions (typecheck, lint, tests, e2e) | Modifier l'app en sachant tout de suite si un comportement existant casse |
 
 ## 2. Architecture
 
