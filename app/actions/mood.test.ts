@@ -137,65 +137,76 @@ describe('setHabitDone', () => {
 
 describe('addHabit', () => {
   const active = (n: number) => Array.from({ length: n }, (_, i) => ({ position: n - 1 - i }))
+  const AT = NOW.getTime()
 
   it.each([
-    ['vide', ''],
-    ['trop long', 'x'.repeat(81)],
-  ])('refuse un nom %s, avant tout appel', async (_label, name) => {
-    await expectRedirect(addHabit(form({ name })), '/settings?habits=name')
+    ['vide', '', ''],
+    ['d’espaces', '   ', ''],
+    ['trop long', 'x'.repeat(81), 'x'.repeat(81)],
+    ['trop long, entouré d’espaces', ` ${'x'.repeat(81)} `, 'x'.repeat(81)],
+  ])('refuse un nom %s, avant tout appel, en le renvoyant sans espaces autour', async (_label, input, name) => {
+    expect(await addHabit(null, form({ name: input }))).toEqual({ code: 'name', at: AT, name })
     expect(createClient).not.toHaveBeenCalled()
   })
 
   it('redirige vers /login sans session', async () => {
     setup({ user: null })
-    await expectRedirect(addHabit(form({ name: 'Lire' })), '/login')
+    await expectRedirect(addHabit(null, form({ name: 'Lire' })), '/login')
   })
 
-  it('erreur de lecture : ?habits=save', async () => {
+  it('erreur de lecture : « save » avec le nom saisi', async () => {
     setup({ tables: { 'synapse.habits': { error: boom } } })
-    await expectRedirect(addHabit(form({ name: 'Lire' })), '/settings?habits=save')
+    expect(await addHabit(null, form({ name: 'Lire' }))).toEqual({ code: 'save', at: AT, name: 'Lire' })
   })
 
-  it('refuse au-delà du maximum d’habitudes actives', async () => {
+  it('refuse au-delà du maximum d’habitudes actives, avec le nom saisi', async () => {
     const { calls } = setup({ tables: { 'synapse.habits': { data: active(HABITS_MAX) } } })
-    await expectRedirect(addHabit(form({ name: 'Lire' })), '/settings?habits=max')
+    expect(await addHabit(null, form({ name: 'Lire' }))).toEqual({ code: 'max', at: AT, name: 'Lire' })
     expect(calls.some((c) => c.method === 'insert')).toBe(false)
   })
 
-  it('erreur d’insertion : ?habits=save', async () => {
+  it('erreur d’insertion : « save » avec le nom saisi', async () => {
     setup({ tables: { 'synapse.habits': [{ data: active(2) }, { error: boom }] } })
-    await expectRedirect(addHabit(form({ name: 'Lire' })), '/settings?habits=save')
+    expect(await addHabit(null, form({ name: 'Lire' }))).toEqual({ code: 'save', at: AT, name: 'Lire' })
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
-  it('ajoute en fin de liste (dernière position + 1)', async () => {
+  it('ajoute en fin de liste (dernière position + 1), revalide et ne renvoie pas le nom', async () => {
     const { calls } = setup({ tables: { 'synapse.habits': [{ data: active(3) }, { data: null }] } })
-    await expectRedirect(addHabit(form({ name: ' Lire ' })), '/settings?habits=added')
+    expect(await addHabit(null, form({ name: ' Lire ' }))).toEqual({ code: 'added', at: AT })
     expect(calls.find((c) => c.method === 'insert')?.args[0]).toEqual({ user_id: 'u1', name: 'Lire', position: 3 })
+    expect(revalidatePath).toHaveBeenCalledWith('/')
+    expect(revalidatePath).toHaveBeenCalledWith('/settings')
   })
 
   it('première habitude : position 0', async () => {
     const { calls } = setup({ tables: { 'synapse.habits': [{ data: [] }, { data: null }] } })
-    await expectRedirect(addHabit(form({ name: 'Lire' })), '/settings?habits=added')
+    expect(await addHabit(null, form({ name: 'Lire' }))).toEqual({ code: 'added', at: AT })
     expect(calls.find((c) => c.method === 'insert')?.args[0]).toMatchObject({ position: 0 })
   })
 })
 
 describe('archiveHabit', () => {
+  const AT = NOW.getTime()
+
   it('refuse un id invalide, avant tout appel', async () => {
-    await expectRedirect(archiveHabit(form({ id: 'nope' })), '/settings?habits=save')
+    expect(await archiveHabit(null, form({ id: 'nope' }))).toEqual({ code: 'save', at: AT })
     expect(createClient).not.toHaveBeenCalled()
   })
 
-  it('erreur Supabase : ?habits=save', async () => {
+  it('erreur Supabase : « save » sans revalider', async () => {
     setup({ tables: { 'synapse.habits': { error: boom } } })
-    await expectRedirect(archiveHabit(form({ id: ID })), '/settings?habits=save')
+    expect(await archiveHabit(null, form({ id: ID }))).toEqual({ code: 'save', at: AT })
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
   // Pas de lecture de session : la RLS limite l'écriture aux habitudes de l'utilisateur connecté.
-  it('archive l’habitude sans effacer ses jours cochés', async () => {
+  it('archive l’habitude sans effacer ses jours cochés, puis revalide', async () => {
     const { calls } = setup({ tables: { 'synapse.habits': { data: null } } })
-    await expectRedirect(archiveHabit(form({ id: ID })), '/settings?habits=archived')
+    expect(await archiveHabit(null, form({ id: ID }))).toEqual({ code: 'archived', at: AT })
     expect(calls.find((c) => c.method === 'update')?.args[0]).toEqual({ archived_at: NOW.toISOString() })
     expect(calls.some((c) => c.method === 'delete')).toBe(false)
+    expect(revalidatePath).toHaveBeenCalledWith('/')
+    expect(revalidatePath).toHaveBeenCalledWith('/settings')
   })
 })

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
@@ -11,6 +11,7 @@ vi.mock('next/navigation', () => ({ redirect: vi.fn() }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
 const ID = '11111111-1111-4111-8111-111111111111'
+const NOW = new Date('2026-01-15T10:00:00Z')
 
 function setup(opts: Parameters<typeof mockServerClient>[0] = {}) {
   return mockServerClient({ user: testUser(), ...opts })
@@ -18,8 +19,14 @@ function setup(opts: Parameters<typeof mockServerClient>[0] = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(NOW)
   vi.mocked(redirect).mockImplementation(throwRedirect)
   vi.spyOn(console, 'error').mockImplementation(() => {})
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('setChecklistItemDone', () => {
@@ -56,40 +63,52 @@ describe('setChecklistItemDone', () => {
 describe('saveShoppingChecklist', () => {
   const upsertOk: MockResult = { data: null }
 
-  it('redirige vers /settings?error=invalid avant tout appel si note_id n’est pas un UUID', async () => {
-    await expectRedirect(saveShoppingChecklist(form({ note_id: 'nope' })), '/settings?error=invalid')
+  it('renvoie « invalid » avant tout appel si note_id n’est pas un UUID', async () => {
+    expect(await saveShoppingChecklist(null, form({ note_id: 'nope' }))).toEqual({
+      code: 'invalid',
+      at: NOW.getTime(),
+      noteId: 'nope',
+    })
     expect(createClient).not.toHaveBeenCalled()
   })
 
   it('redirige vers /login sans session', async () => {
     setup({ user: null })
-    await expectRedirect(saveShoppingChecklist(form({ note_id: ID })), '/login')
+    await expectRedirect(saveShoppingChecklist(null, form({ note_id: ID })), '/login')
   })
 
   it('refuse une note introuvable (ou chiffrée, ou d’un autre compte)', async () => {
     const { calls } = setup({ tables: { notes: { data: null }, 'synapse.settings': upsertOk } })
-    await expectRedirect(saveShoppingChecklist(form({ note_id: ID })), '/settings?error=invalid')
+    expect(await saveShoppingChecklist(null, form({ note_id: ID }))).toEqual({ code: 'invalid', at: NOW.getTime(), noteId: ID })
     expect(calls.some((c) => c.method === 'upsert')).toBe(false)
   })
 
-  it('redirige vers ?error=save si l’enregistrement échoue', async () => {
+  it('renvoie « save » sans revalider si l’enregistrement échoue', async () => {
     setup({ tables: { notes: { data: { id: ID } }, 'synapse.settings': { error: { message: 'boom' } } } })
-    await expectRedirect(saveShoppingChecklist(form({ note_id: ID })), '/settings?error=save')
+    expect(await saveShoppingChecklist(null, form({ note_id: ID }))).toEqual({ code: 'save', at: NOW.getTime(), noteId: ID })
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
-  it('enregistre la checklist dans le schéma synapse puis confirme', async () => {
+  it('enregistre la checklist dans le schéma synapse, revalide puis confirme', async () => {
     const { calls } = setup({ tables: { notes: { data: { id: ID } }, 'synapse.settings': upsertOk } })
-    await expectRedirect(saveShoppingChecklist(form({ note_id: ID })), '/settings?saved=1')
+    expect(await saveShoppingChecklist(null, form({ note_id: ID }))).toEqual({ code: 'saved', at: NOW.getTime(), noteId: ID })
     const upsert = calls.find((c) => c.method === 'upsert')
     expect(upsert).toMatchObject({ schema: 'synapse', table: 'settings' })
     expect(upsert?.args[0]).toEqual({ user_id: 'u1', cairn_shopping_checklist_id: ID })
     expect(revalidatePath).toHaveBeenCalledWith('/')
+    expect(revalidatePath).toHaveBeenCalledWith('/settings')
   })
 
   it('un note_id vide retire la checklist sans interroger les notes', async () => {
     const { calls } = setup({ tables: { 'synapse.settings': upsertOk } })
-    await expectRedirect(saveShoppingChecklist(form({ note_id: '' })), '/settings?saved=1')
+    expect(await saveShoppingChecklist(null, form({ note_id: '' }))).toEqual({ code: 'saved', at: NOW.getTime(), noteId: '' })
     expect(calls.find((c) => c.method === 'upsert')?.args[0]).toEqual({ user_id: 'u1', cairn_shopping_checklist_id: null })
     expect(calls.some((c) => c.table === 'notes')).toBe(false)
+  })
+
+  it('chaque état renvoyé porte un horodatage numérique', async () => {
+    setup({ tables: { 'synapse.settings': upsertOk } })
+    const state = await saveShoppingChecklist(null, form({ note_id: '' }))
+    expect(state?.at).toEqual(expect.any(Number))
   })
 })

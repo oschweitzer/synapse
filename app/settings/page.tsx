@@ -17,7 +17,7 @@ import { CashSection } from './sections/CashSection'
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; dashboards?: string; error?: string; google?: string; habits?: string; weather?: string; lock?: string }>
+  searchParams: Promise<{ dashboards?: string; google?: string; weather?: string; lock?: string }>
 }) {
   const supabase = await createClient()
   const { data } = await supabase.auth.getUser()
@@ -43,7 +43,7 @@ export default async function SettingsPage({
       </header>
 
       <Suspense fallback={<SectionFallback title="Liste de courses" />}>
-        <ShoppingSection saved={params.saved} error={params.error} />
+        <ShoppingSection />
       </Suspense>
 
       {isAdmin && (
@@ -61,7 +61,7 @@ export default async function SettingsPage({
       </Suspense>
 
       <Suspense fallback={<SectionFallback title="Habitudes" className="mt-4" />}>
-        <HabitsSection code={params.habits} />
+        <HabitsSection />
       </Suspense>
 
       <Suspense fallback={<SectionFallback title="Google (agenda et mails)" className="mt-4" />}>

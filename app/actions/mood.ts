@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { HABITS_MAX } from '@/lib/connectors/mood'
 import { dayKey } from '@/lib/time'
+import { sectionState, type HabitState, type SectionState } from '@/lib/settings/section-state'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -81,11 +82,14 @@ export async function setHabitDone(habitId: string, done: boolean): Promise<{ er
   return {}
 }
 
-/** Nouvelle habitude, en fin de liste. */
-export async function addHabit(formData: FormData) {
+/**
+ * Nouvelle habitude, en fin de liste. Action de `useActionState` : sur une erreur, le nom saisi est
+ * renvoyé pour rester dans le champ.
+ */
+export async function addHabit(_prev: HabitState, formData: FormData): Promise<HabitState> {
   const raw = formData.get('name')
   const name = typeof raw === 'string' ? raw.trim() : ''
-  if (!name || name.length > HABIT_NAME_MAX) redirect('/settings?habits=name')
+  if (!name || name.length > HABIT_NAME_MAX) return { ...sectionState('name'), name }
 
   const supabase = await createClient()
   const { data: auth } = await supabase.auth.getUser()
@@ -99,9 +103,9 @@ export async function addHabit(formData: FormData) {
     .order('position', { ascending: false })
   if (readError) {
     console.error('[habits] lecture', readError)
-    redirect('/settings?habits=save')
+    return { ...sectionState('save'), name }
   }
-  if (active.length >= HABITS_MAX) redirect('/settings?habits=max')
+  if (active.length >= HABITS_MAX) return { ...sectionState('max'), name }
 
   const position = ((active[0]?.position as number | undefined) ?? -1) + 1
   const { error } = await supabase
@@ -110,18 +114,19 @@ export async function addHabit(formData: FormData) {
     .insert({ user_id: auth.user.id, name, position })
   if (error) {
     console.error('[habits] création', error)
-    redirect('/settings?habits=save')
+    return { ...sectionState('save'), name }
   }
 
   revalidatePath('/')
-  redirect('/settings?habits=added')
+  revalidatePath('/settings')
+  return sectionState('added')
 }
 
-/** Retire une habitude du dashboard, sans effacer ses jours cochés. */
-export async function archiveHabit(formData: FormData) {
+/** Retire une habitude du dashboard, sans effacer ses jours cochés. Action de `useActionState`. */
+export async function archiveHabit(_prev: SectionState, formData: FormData): Promise<SectionState> {
   const raw = formData.get('id')
   const id = typeof raw === 'string' ? raw : ''
-  if (!UUID.test(id)) redirect('/settings?habits=save')
+  if (!UUID.test(id)) return sectionState('save')
 
   const supabase = await createClient()
   const { error } = await supabase
@@ -131,9 +136,10 @@ export async function archiveHabit(formData: FormData) {
     .eq('id', id)
   if (error) {
     console.error('[habits] archivage', error)
-    redirect('/settings?habits=save')
+    return sectionState('save')
   }
 
   revalidatePath('/')
-  redirect('/settings?habits=archived')
+  revalidatePath('/settings')
+  return sectionState('archived')
 }
