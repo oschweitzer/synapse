@@ -39,6 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Settings page sections load independently, so a slow source no longer delays the others (#78).
 - Settings: saving the shopping checklist or adding/removing a habit updates the section in place, without reloading the page or losing what is typed in other sections (#79).
 - Settings: adding, moving or removing a weather city updates the Météo section in place, with its message inside the section and no `?weather=` in the URL (#80).
+- Settings: creating, saving, resetting the order of, setting the default or deleting a dashboard in the admin section updates the list in place, without reloading the page or jumping to the section (#81).
 - Weather settings: the city search suggests cities as you type and adds the chosen one without reloading the page (#41).
 - Sign-in is Google-only and restricted to an email allowlist (#22).
 - Applied the Synapse design system (HUD theme) to the whole interface (#25).
@@ -48,4 +49,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Security
 
 - Weather settings: city suggestions are limited to 60 searches per minute and per user, and the 5-city cap is now enforced by the database (migration `0011_weather_locations_cap.sql`), so simultaneous additions cannot exceed it (#41).
+- Dashboards: the 10-dashboard cap is now enforced by the database, which also gives a new dashboard the next free position (migration `0012_dashboards_cap.sql`), so simultaneous creations cannot exceed the cap or share a position (#81).
 - Cleared the `postcss` advisories reported by `npm audit` by upgrading Next.js (#56).

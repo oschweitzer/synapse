@@ -20,24 +20,28 @@ test('un admin choisit les widgets d’un dashboard public', async ({ browser })
   await page.goto('/settings')
   await expect(page.getByRole('heading', { name: 'Dashboards (admin)' })).toBeVisible()
 
+  const admin = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Dashboards (admin)' }) })
   const create = page.locator('form').filter({ has: page.getByLabel('Nouveau dashboard') })
   await create.getByRole('textbox', { name: 'Nouveau dashboard' }).fill('Salon')
   await create.getByLabel('Visibilité').selectOption({ label: 'Public (connexion seule)' })
   await create.getByRole('button', { name: 'Créer' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Dashboard créé. Choisis ses widgets ci-dessous.' })).toBeVisible()
+  await expect(admin.getByRole('status').filter({ hasText: 'Dashboard créé. Choisis ses widgets ci-dessous.' })).toBeVisible()
+  await expect(page).toHaveURL(/\/settings$/)
 
   // Un widget sensible est refusé sur un dashboard public.
   const salon = () => page.locator('form').filter({ has: page.locator('input[name="name"][value="Salon"]') })
   await salon().getByRole('checkbox', { name: /^Mails/ }).check()
   await salon().getByRole('button', { name: 'Enregistrer' }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'ne peut pas afficher de widget sensible' })).toBeVisible()
+  await expect(admin.getByRole('alert').filter({ hasText: 'ne peut pas afficher de widget sensible' })).toBeVisible()
+  await expect(page).toHaveURL(/\/settings$/)
 
-  // La page est rechargée par l'action : Mails n'est pas enregistré, on choisit deux widgets non sensibles.
+  // Le formulaire revient aux valeurs enregistrées après l'action : Mails n'est pas coché, on choisit deux widgets non sensibles.
   await salon().getByRole('checkbox', { name: /^Météo/ }).check()
   await salon().getByRole('checkbox', { name: /^À faire/ }).check()
   await expect(salon().getByRole('checkbox', { name: /^Mails/ })).not.toBeChecked()
   await salon().getByRole('button', { name: 'Enregistrer' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Dashboard enregistré.' })).toBeVisible()
+  await expect(admin.getByRole('status').filter({ hasText: 'Dashboard enregistré.' })).toBeVisible()
+  await expect(page).toHaveURL(/\/settings$/)
 
   await page.goto('/')
   await page.getByRole('navigation', { name: 'Dashboards' }).getByRole('link', { name: 'Salon' }).click()

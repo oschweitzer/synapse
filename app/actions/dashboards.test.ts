@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { DASHBOARDS_MAX, DASHBOARD_NAME_MAX, WIDGET_IDS } from '@/lib/dashboard'
 import { mockServerClient, testUser } from '@/test/supabase-mock'
 import { expectRedirect, form, throwRedirect } from '@/test/next-mock'
@@ -10,10 +11,16 @@ vi.mock('next/navigation', () => ({ redirect: vi.fn() }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
 const ID = '11111111-1111-4111-8111-111111111111'
-const to = (code: string) => `/settings?dashboards=${code}#dashboards`
+const NOW = new Date('2026-01-15T10:00:00Z')
+const AT = NOW.getTime()
+const state = (code: string) => ({ code, at: AT })
 const rows = (...ids: string[]) => ids.map((widget_id) => ({ widget_id }))
 const valid = () => form({ id: ID, name: 'Perso', visibility: 'private', widgets: ['todo'] })
 const boom = { message: 'boom' }
+const expectRevalidated = () => {
+  expect(revalidatePath).toHaveBeenCalledWith('/')
+  expect(revalidatePath).toHaveBeenCalledWith('/settings')
+}
 
 function setup(opts: Parameters<typeof mockServerClient>[0] = {}) {
   return mockServerClient({ user: testUser('admin@x.fr'), ...opts })
@@ -21,10 +28,16 @@ function setup(opts: Parameters<typeof mockServerClient>[0] = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(NOW)
   vi.stubEnv('ALLOWED_EMAILS', 'admin@x.fr,user@x.fr')
   vi.stubEnv('ADMIN_EMAILS', 'admin@x.fr')
   vi.mocked(redirect).mockImplementation(throwRedirect)
   vi.spyOn(console, 'error').mockImplementation(() => {})
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 // Seules actions réservées à l'admin : droits vérifiés côté serveur, et aucune table ni rpc touchée avant.
@@ -35,16 +48,24 @@ describe.each([
   ['setDefaultDashboard', setDefaultDashboard],
   ['deleteDashboard', deleteDashboard],
 ])('%s : accès', (_name, action) => {
-  it.each([
-    ['sans session', null, '/login'],
-    ['compte hors liste blanche', testUser('intrus@x.fr'), to('forbidden')],
-    ['compte autorisé mais non admin', testUser('user@x.fr'), to('forbidden')],
-  ])('%s : refusé sans toucher à la base', async (_label, user, url) => {
-    const { calls, rpc, invoke } = setup({ user })
-    await expectRedirect(action(valid()), url)
+  it('sans session : redirige vers /login sans toucher à la base', async () => {
+    const { calls, rpc, invoke } = setup({ user: null })
+    await expectRedirect(action(null, valid()), '/login')
     expect(calls).toEqual([])
     expect(rpc).not.toHaveBeenCalled()
     expect(invoke).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['compte hors liste blanche', testUser('intrus@x.fr')],
+    ['compte autorisé mais non admin', testUser('user@x.fr')],
+  ])('%s : refusé sans toucher à la base', async (_label, user) => {
+    const { calls, rpc, invoke } = setup({ user })
+    expect(await action(null, valid())).toEqual(state('forbidden'))
+    expect(calls).toEqual([])
+    expect(rpc).not.toHaveBeenCalled()
+    expect(invoke).not.toHaveBeenCalled()
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 })
 
@@ -54,34 +75,66 @@ describe('createDashboard', () => {
     ['nom trop long', 'x'.repeat(DASHBOARD_NAME_MAX + 1)],
   ])('refuse un %s', async (_label, name) => {
     setup()
-    await expectRedirect(createDashboard(form({ name, visibility: 'private' })), to('name'))
+    expect(await createDashboard(null, form({ name, visibility: 'private' }))).toEqual({
+      ...state('name'),
+      name: name.trim(),
+      visibility: 'private',
+    })
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
-  it('refuse une visibilité inconnue', async () => {
+  it('refuse une visibilité inconnue et ne renvoie que « private » ou « public » dans l’état', async () => {
     setup()
-    await expectRedirect(createDashboard(form({ name: 'Perso', visibility: 'secret' })), to('invalid'))
+    expect(await createDashboard(null, form({ name: ' Perso ', visibility: 'secret' }))).toEqual({
+      ...state('invalid'),
+      name: 'Perso',
+      visibility: 'private',
+    })
   })
 
   it('remonte une erreur de comptage', async () => {
     setup({ tables: { 'synapse.dashboards': { error: boom } } })
-    await expectRedirect(createDashboard(form({ name: 'Perso', visibility: 'private' })), to('save'))
+    expect(await createDashboard(null, form({ name: 'Perso', visibility: 'private' }))).toEqual({
+      ...state('save'),
+      name: 'Perso',
+      visibility: 'private',
+    })
   })
 
   it('refuse au-delà du maximum de dashboards', async () => {
     const { calls } = setup({ tables: { 'synapse.dashboards': { count: DASHBOARDS_MAX } } })
-    await expectRedirect(createDashboard(form({ name: 'Perso', visibility: 'private' })), to('max'))
+    expect(await createDashboard(null, form({ name: 'Perso', visibility: 'private' }))).toEqual({
+      ...state('max'),
+      name: 'Perso',
+      visibility: 'private',
+    })
     expect(calls.some((c) => c.method === 'insert')).toBe(false)
   })
 
   it('remonte une erreur d’insertion', async () => {
     setup({ tables: { 'synapse.dashboards': [{ count: 1 }, { error: boom }] } })
-    await expectRedirect(createDashboard(form({ name: 'Perso', visibility: 'private' })), to('save'))
+    expect(await createDashboard(null, form({ name: 'Perso', visibility: 'private' }))).toEqual({
+      ...state('save'),
+      name: 'Perso',
+      visibility: 'private',
+    })
   })
 
-  it('crée le dashboard en dernière position', async () => {
+  it('refuse quand la base tient la limite (créations simultanées)', async () => {
+    setup({ tables: { 'synapse.dashboards': [{ count: DASHBOARDS_MAX - 1 }, { error: { message: 'dashboards_max' } }] } })
+    expect(await createDashboard(null, form({ name: 'Perso', visibility: 'private' }))).toEqual({
+      ...state('max'),
+      name: 'Perso',
+      visibility: 'private',
+    })
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
+  it('crée le dashboard, la base lui donne la dernière position', async () => {
     const { calls } = setup({ tables: { 'synapse.dashboards': [{ count: 3 }, { data: null }] } })
-    await expectRedirect(createDashboard(form({ name: ' Perso ', visibility: 'public' })), to('created'))
-    expect(calls.find((c) => c.method === 'insert')?.args[0]).toEqual({ name: 'Perso', visibility: 'public', position: 3 })
+    expect(await createDashboard(null, form({ name: ' Perso ', visibility: 'public' }))).toEqual(state('created'))
+    expectRevalidated()
+    expect(calls.find((c) => c.method === 'insert')?.args[0]).toEqual({ name: 'Perso', visibility: 'public' })
   })
 })
 
@@ -93,45 +146,46 @@ describe('saveDashboard', () => {
 
   it('refuse un id invalide', async () => {
     setup()
-    await expectRedirect(saveDashboard(form({ id: 'nope', name: 'Perso', visibility: 'private' })), to('invalid'))
+    expect(await saveDashboard(null, form({ id: 'nope', name: 'Perso', visibility: 'private' }))).toEqual(state('invalid'))
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
   it('refuse un widget sensible sur un dashboard public, sans rien modifier', async () => {
     const { calls, rpc } = setup({ tables: tables() })
-    await expectRedirect(
-      saveDashboard(form({ id: ID, name: 'Perso', visibility: 'public', widgets: ['todo', 'mail'] })),
-      to('sensitive'),
+    expect(await saveDashboard(null, form({ id: ID, name: 'Perso', visibility: 'public', widgets: ['todo', 'mail'] }))).toEqual(
+      state('sensitive'),
     )
     expect(calls.some((c) => c.method === 'update')).toBe(false)
     expect(rpc).not.toHaveBeenCalled()
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
   it('remonte une erreur de lecture des widgets', async () => {
     setup({ tables: { ...tables(), 'synapse.dashboard_widgets': { error: boom } } })
-    await expectRedirect(saveDashboard(valid()), to('save'))
+    expect(await saveDashboard(null, valid())).toEqual(state('save'))
   })
 
   it('refuse un dashboard introuvable (ou masqué par la RLS)', async () => {
     setup({ tables: { ...tables(), 'synapse.dashboards': { data: [] } } })
-    await expectRedirect(saveDashboard(valid()), to('invalid'))
+    expect(await saveDashboard(null, valid())).toEqual(state('invalid'))
   })
 
   it('remonte une erreur de modification', async () => {
     setup({ tables: { ...tables(), 'synapse.dashboards': { error: boom } } })
-    await expectRedirect(saveDashboard(valid()), to('save'))
+    expect(await saveDashboard(null, valid())).toEqual(state('save'))
   })
 
   it('remonte une erreur de set_dashboard_widgets', async () => {
     setup({ tables: tables(), rpc: { set_dashboard_widgets: { error: boom } } })
-    await expectRedirect(saveDashboard(valid()), to('save'))
+    expect(await saveDashboard(null, valid())).toEqual(state('save'))
   })
 
   it('garde l’ordre existant, ajoute les nouveaux widgets dans l’ordre du catalogue', async () => {
     const { rpc, calls } = setup({ tables: tables(), rpc: { set_dashboard_widgets: { data: null } } })
-    await expectRedirect(
-      saveDashboard(form({ id: ID, name: 'Perso', visibility: 'private', widgets: ['todo', 'agenda', 'weather', 'shopping'] })),
-      to('saved'),
-    )
+    expect(
+      await saveDashboard(null, form({ id: ID, name: 'Perso', visibility: 'private', widgets: ['todo', 'agenda', 'weather', 'shopping'] })),
+    ).toEqual(state('saved'))
+    expectRevalidated()
     expect(rpc).toHaveBeenCalledWith('set_dashboard_widgets', {
       p_dashboard: ID,
       p_widgets: ['weather', 'todo', 'shopping', 'agenda'],
@@ -143,12 +197,13 @@ describe('saveDashboard', () => {
 describe('resetDashboardOrder', () => {
   it('remonte une erreur de lecture', async () => {
     setup({ tables: { 'synapse.dashboard_widgets': { error: boom } } })
-    await expectRedirect(resetDashboardOrder(valid()), to('save'))
+    expect(await resetDashboardOrder(null, valid())).toEqual(state('save'))
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
   it('remonte une erreur de set_dashboard_widgets', async () => {
     setup({ tables: { 'synapse.dashboard_widgets': { data: rows('todo') } }, rpc: { set_dashboard_widgets: { error: boom } } })
-    await expectRedirect(resetDashboardOrder(valid()), to('save'))
+    expect(await resetDashboardOrder(null, valid())).toEqual(state('save'))
   })
 
   it('remet les widgets présents dans l’ordre du catalogue', async () => {
@@ -156,7 +211,8 @@ describe('resetDashboardOrder', () => {
       tables: { 'synapse.dashboard_widgets': { data: rows('weather', 'todo', 'mail') } },
       rpc: { set_dashboard_widgets: { data: null } },
     })
-    await expectRedirect(resetDashboardOrder(valid()), to('order-reset'))
+    expect(await resetDashboardOrder(null, valid())).toEqual(state('order-reset'))
+    expectRevalidated()
     const expected = WIDGET_IDS.filter((w) => ['weather', 'todo', 'mail'].includes(w))
     expect(rpc).toHaveBeenCalledWith('set_dashboard_widgets', { p_dashboard: ID, p_widgets: expected })
     expect(expected).toEqual(['mail', 'todo', 'weather'])
@@ -166,17 +222,19 @@ describe('resetDashboardOrder', () => {
 describe('setDefaultDashboard', () => {
   it('refuse un id invalide', async () => {
     setup()
-    await expectRedirect(setDefaultDashboard(form({ id: 'nope' })), to('invalid'))
+    expect(await setDefaultDashboard(null, form({ id: 'nope' }))).toEqual(state('invalid'))
   })
 
   it('remonte une erreur de la fonction', async () => {
     setup({ rpc: { set_default_dashboard: { error: boom } } })
-    await expectRedirect(setDefaultDashboard(valid()), to('save'))
+    expect(await setDefaultDashboard(null, valid())).toEqual(state('save'))
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
   it('désigne le dashboard par défaut', async () => {
     const { rpc } = setup({ rpc: { set_default_dashboard: { data: null } } })
-    await expectRedirect(setDefaultDashboard(valid()), to('default'))
+    expect(await setDefaultDashboard(null, valid())).toEqual(state('default'))
+    expectRevalidated()
     expect(rpc).toHaveBeenCalledWith('set_default_dashboard', { p_dashboard: ID })
   })
 })
@@ -184,33 +242,35 @@ describe('setDefaultDashboard', () => {
 describe('deleteDashboard', () => {
   it('refuse un id invalide', async () => {
     setup()
-    await expectRedirect(deleteDashboard(form({ id: 'nope' })), to('invalid'))
+    expect(await deleteDashboard(null, form({ id: 'nope' }))).toEqual(state('invalid'))
   })
 
   it('remonte une erreur de lecture', async () => {
     setup({ tables: { 'synapse.dashboards': { error: boom } } })
-    await expectRedirect(deleteDashboard(valid()), to('save'))
+    expect(await deleteDashboard(null, valid())).toEqual(state('save'))
   })
 
   it('refuse un dashboard introuvable', async () => {
     setup({ tables: { 'synapse.dashboards': { data: null } } })
-    await expectRedirect(deleteDashboard(valid()), to('invalid'))
+    expect(await deleteDashboard(null, valid())).toEqual(state('invalid'))
   })
 
   it('refuse de supprimer le dashboard par défaut', async () => {
     const { calls } = setup({ tables: { 'synapse.dashboards': { data: { is_default: true } } } })
-    await expectRedirect(deleteDashboard(valid()), to('default-delete'))
+    expect(await deleteDashboard(null, valid())).toEqual(state('default-delete'))
+    expect(revalidatePath).not.toHaveBeenCalled()
     expect(calls.some((c) => c.method === 'delete')).toBe(false)
   })
 
   it('remonte une erreur de suppression', async () => {
     setup({ tables: { 'synapse.dashboards': [{ data: { is_default: false } }, { error: boom }] } })
-    await expectRedirect(deleteDashboard(valid()), to('save'))
+    expect(await deleteDashboard(null, valid())).toEqual(state('save'))
   })
 
   it('supprime le dashboard', async () => {
     const { calls } = setup({ tables: { 'synapse.dashboards': [{ data: { is_default: false } }, { data: null }] } })
-    await expectRedirect(deleteDashboard(valid()), to('deleted'))
+    expect(await deleteDashboard(null, valid())).toEqual(state('deleted'))
+    expectRevalidated()
     expect(calls.some((c) => c.method === 'delete')).toBe(true)
   })
 })

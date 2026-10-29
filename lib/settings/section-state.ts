@@ -9,6 +9,9 @@ export type SectionState = { code: string; at: number } | null
 /** Comme `SectionState`, avec le nom d'habitude envoyé (renvoyé seulement sur les erreurs d'ajout, pour le garder dans le champ). */
 export type HabitState = { code: string; at: number; name?: string } | null
 
+/** Comme `SectionState`, avec le nom et la visibilité envoyés (renvoyés seulement sur les erreurs de création, pour les garder dans le formulaire). */
+export type DashboardCreateState = { code: string; at: number; name?: string; visibility?: string } | null
+
 /** Comme `SectionState`, avec la checklist envoyée (`noteId`, vide pour « Aucune »), pour garder la sélection du champ. */
 export type ShoppingState = { code: string; at: number; noteId: string } | null
 

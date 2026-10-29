@@ -17,7 +17,7 @@ import { CashSection } from './sections/CashSection'
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ dashboards?: string; google?: string; lock?: string }>
+  searchParams: Promise<{ google?: string; lock?: string }>
 }) {
   const supabase = await createClient()
   const { data } = await supabase.auth.getUser()
@@ -48,7 +48,7 @@ export default async function SettingsPage({
 
       {isAdmin && (
         <Suspense fallback={<SectionFallback title="Dashboards (admin)" className="mt-4" />}>
-          <DashboardsSection code={params.dashboards} />
+          <DashboardsSection />
         </Suspense>
       )}
 
