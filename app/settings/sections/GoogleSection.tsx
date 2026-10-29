@@ -1,25 +1,6 @@
-import { disconnectGoogle, syncGoogleNow } from '@/app/actions/google'
 import { readGoogleAccount } from '@/lib/connectors/google'
-import { SubmitButton } from '@/components/ui/SubmitButton'
-import { SectionMessage } from '@/components/settings/SectionMessage'
-import { card, primaryButton, secondaryButton } from './styles'
-
-/** Retours du flux Google (`?google=…`) : [message, est une erreur]. */
-const GOOGLE_MESSAGES: Record<string, [string, boolean]> = {
-  connected: ['Google connecté. Première synchro lancée.', false],
-  disconnected: ['Google déconnecté. Pense à retirer aussi l’accès dans ton compte Google.', false],
-  synced: ['Synchro terminée.', false],
-  denied: ['Autorisation refusée chez Google.', true],
-  state: ['Le retour de Google n’a pas pu être vérifié. Recommence la connexion.', true],
-  scopes: ['L’accès à l’agenda et à Gmail est nécessaire : coche les deux autorisations.', true],
-  'no-refresh': [
-    'Google n’a pas renvoyé de jeton durable. Retire l’accès de Synapse dans ton compte Google, puis recommence.',
-    true,
-  ],
-  config: ['OAuth Google non configuré côté serveur (SYNAPSE_GOOGLE_CLIENT_ID / SYNAPSE_GOOGLE_CLIENT_SECRET).', true],
-  'sync-error': ['La synchro a échoué. Détails dans le journal des synchros.', true],
-  error: ['Connexion à Google impossible, réessaie.', true],
-}
+import { GoogleForms } from '@/components/settings/GoogleForms'
+import { card } from './styles'
 
 /** Section « Google (agenda et mails) » : état de la connexion et synchro. */
 export async function GoogleSection({ code }: { code?: string }) {
@@ -49,26 +30,7 @@ export async function GoogleSection({ code }: { code?: string }) {
       ) : (
         <p className="text-sm">Non connecté.</p>
       )}
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <a href="/api/google/connect" className={primaryButton}>
-          {google ? 'Reconnecter Google' : 'Connecter Google'}
-        </a>
-        {google && !google.needsReauth && (
-          <form action={syncGoogleNow}>
-            <SubmitButton className={`${secondaryButton} w-full`}>
-              Synchroniser maintenant
-            </SubmitButton>
-          </form>
-        )}
-        {google && (
-          <form action={disconnectGoogle}>
-            <SubmitButton className={`${secondaryButton} w-full`}>
-              Déconnecter
-            </SubmitButton>
-          </form>
-        )}
-      </div>
-      <SectionMessage message={code ? (GOOGLE_MESSAGES[code] ?? GOOGLE_MESSAGES.error) : null} />
+      <GoogleForms account={google ? { needsReauth: google.needsReauth } : null} code={code} />
     </section>
   )
 }

@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { resetDatabase, seedCairnChecklist } from './support/db'
 import { STORAGE_STATE } from './support/env'
+import { seedCashSheet, seedGoogleConnection } from './support/seed'
 import { testUserId } from './support/users'
 
 test.beforeAll(async () => {
@@ -64,4 +65,25 @@ test('ajouter une habitude garde la saisie des autres sections et n’y affiche 
   await expect(meteo.getByLabel('Rechercher une ville')).toHaveValue('Strasbourg')
   await expect(meteo.getByRole('status')).toHaveCount(0)
   await expect(section(page, 'Liste de courses').getByRole('status')).toHaveCount(0)
+})
+
+test('déconnecter Google met à jour les sections Google et Dépenses cash sur place', async ({ page }) => {
+  await seedGoogleConnection()
+  await seedCashSheet('e2e-cash-sheet-0000000002')
+
+  await page.goto('/settings')
+  const google = section(page, 'Google (agenda et mails)')
+  const cash = section(page, 'Dépenses cash')
+  await expect(google).toContainText('Connecté en tant que')
+  await expect(google.getByRole('button', { name: 'Déconnecter' })).toBeVisible()
+  // Compte connecté : la section cash ne demande pas de connecter Google.
+  await expect(cash).not.toContainText('Connecte Google dans la section')
+
+  await google.getByRole('button', { name: 'Déconnecter' }).click()
+  await expect(google.getByRole('status').filter({ hasText: 'Google déconnecté' })).toBeVisible()
+  await expect(google.getByText('Non connecté.')).toBeVisible()
+  await expect(google.getByRole('button', { name: 'Déconnecter' })).toHaveCount(0)
+  // Déconnexion sur place : l'URL ne change pas, et la section cash suit sans rechargement.
+  await expect(page).toHaveURL(/\/settings$/)
+  await expect(cash).toContainText('Connecte Google dans la section « Google (agenda et mails) » pour choisir le fichier.')
 })
