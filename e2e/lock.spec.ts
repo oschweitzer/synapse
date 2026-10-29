@@ -13,6 +13,10 @@ test.beforeAll(async () => {
 /** Au moins 6 caractères (CODE_MIN de lib/lock/code.ts). */
 const CODE = '246810'
 
+/** La carte d'une section des réglages, repérée par son titre. */
+const section = (page: Page, title: string) =>
+  page.locator('section').filter({ has: page.getByRole('heading', { name: title, exact: true }) })
+
 /** Saisit le code et valide. Avant l'hydratation le bouton reste désactivé : on ressaisit jusqu'à ce qu'il s'active. */
 async function submitCode(page: Page, code: string) {
   const submit = page.getByRole('button', { name: 'Déverrouiller' })
@@ -36,7 +40,12 @@ test('code : activer, verrouiller, refuser un mauvais code, déverrouiller', asy
   await page.getByLabel('Code', { exact: true }).fill(CODE)
   await page.getByLabel('Confirmer le code').fill(CODE)
   await page.getByRole('button', { name: 'Activer le verrouillage' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Verrouillage activé' })).toBeVisible()
+  const lock = section(page, 'Verrouillage')
+  await expect(lock.getByRole('status').filter({ hasText: 'Verrouillage activé' })).toBeVisible()
+  // Mise à jour sur place : pas de navigation, et la section est passée au changement de code sans rechargement.
+  await expect(page).toHaveURL(/\/settings$/)
+  await expect(lock.getByRole('button', { name: 'Changer le code' })).toBeVisible()
+  await expect(lock.getByRole('button', { name: 'Verrouiller maintenant' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Verrouiller maintenant' }).click()
   await expect(page).toHaveURL(/\/unlock/)
@@ -66,7 +75,9 @@ test('verrouillage automatique après inactivité (horloge Playwright)', async (
     await page.goto('/settings')
     await page.locator('#idle_minutes').selectOption('1')
     await page.getByRole('button', { name: 'Enregistrer le délai' }).click()
-    await expect(page.getByRole('status').filter({ hasText: 'Délai enregistré.' })).toBeVisible()
+    await expect(section(page, 'Verrouillage').getByRole('status').filter({ hasText: 'Délai enregistré.' })).toBeVisible()
+    await expect(page).toHaveURL(/\/settings$/)
+    await expect(page.locator('#idle_minutes')).toHaveValue('1')
     await page.reload()
     await expect(page.locator('#idle_minutes')).toHaveValue('1')
 

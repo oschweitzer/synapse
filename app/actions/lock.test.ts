@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
@@ -13,6 +14,7 @@ import { disableLock, removePasskey, saveLockCode, saveLockIdle } from './lock'
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }))
 vi.mock('next/navigation', () => ({ redirect: vi.fn() }))
 vi.mock('next/headers', () => ({ cookies: vi.fn() }))
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('@/lib/lock/server', () => ({ attemptCode: vi.fn() }))
 vi.mock('@/lib/lock/config', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/lock/config')>()),
@@ -25,7 +27,8 @@ vi.mock('@/lib/lock/code', async (importOriginal) => ({
 }))
 
 const ID = '11111111-1111-4111-8111-111111111111'
-const to = (code: string) => `/settings?lock=${code}`
+const NOW = new Date('2026-05-01T10:00:00Z')
+const result = (code: string) => ({ code, at: NOW.getTime() })
 const boom = { message: 'boom' }
 let jar: ReturnType<typeof cookieJar>
 
@@ -35,6 +38,8 @@ function setup(opts: Parameters<typeof mockServerClient>[0] = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(NOW)
   vi.stubEnv('SYNAPSE_LOCK_SECRET', 'a'.repeat(32))
   vi.mocked(redirect).mockImplementation(throwRedirect)
   jar = cookieJar()
@@ -44,27 +49,34 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 
+afterEach(() => {
+  vi.useRealTimers()
+})
+
 describe('saveLockCode', () => {
   const fields = { code: 'secret-1', confirm: 'secret-1', current: '' }
 
   it('redirige vers /login sans session', async () => {
     setup({ user: null })
-    await expectRedirect(saveLockCode(form(fields)), '/login')
+    await expectRedirect(saveLockCode(null, form(fields)), '/login')
   })
 
   it('refuse un code trop court', async () => {
     setup()
-    await expectRedirect(saveLockCode(form({ ...fields, code: 'abcde', confirm: 'abcde' })), to('short'))
+    expect(await saveLockCode(null, form({ ...fields, code: 'abcde', confirm: 'abcde' }))).toEqual(result('short'))
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
   it('refuse une confirmation différente', async () => {
     setup()
-    await expectRedirect(saveLockCode(form({ ...fields, confirm: 'autre-chose' })), to('mismatch'))
+    expect(await saveLockCode(null, form({ ...fields, confirm: 'autre-chose' }))).toEqual(result('mismatch'))
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
   it('premier réglage : enregistre époque 1, délai 5 min, compteur à zéro, et déverrouille', async () => {
     const { calls } = setup({ tables: { 'synapse.lock': { data: null } } })
-    await expectRedirect(saveLockCode(form(fields)), to('enabled'))
+    expect(await saveLockCode(null, form(fields))).toEqual(result('enabled'))
+    expect(revalidatePath).toHaveBeenCalledWith('/settings')
     expect(attemptCode).not.toHaveBeenCalled()
     const upsert = calls.find((c) => c.method === 'upsert')
     expect(upsert?.args[0]).toEqual({
@@ -80,11 +92,18 @@ describe('saveLockCode', () => {
     expect(await isUnlocked(jar.set.mock.calls[0][1], 'u1', 1)).toBe(true)
   })
 
-  it('code actuel faux : la redirection ?lock=current sort du try/catch (elle ne devient pas ?lock=save)', async () => {
+  it('premier réglage avec un champ « current » périmé : le message reste « enabled »', async () => {
+    setup({ tables: { 'synapse.lock': { data: null } } })
+    expect(await saveLockCode(null, form({ ...fields, current: 'ancien' }))).toEqual(result('enabled'))
+    expect(attemptCode).not.toHaveBeenCalled()
+  })
+
+  it('code actuel faux : renvoie « current » (il n’est pas avalé en « save » par le try/catch)', async () => {
     const { calls } = setup()
     vi.mocked(readLockConfig).mockResolvedValue({ idleMinutes: 15, epoch: 2 })
     vi.mocked(attemptCode).mockResolvedValue({ ok: false, reason: 'wrong' })
-    await expectRedirect(saveLockCode(form({ ...fields, current: 'faux' })), to('current'))
+    expect(await saveLockCode(null, form({ ...fields, current: 'faux' }))).toEqual(result('current'))
+    expect(revalidatePath).not.toHaveBeenCalled()
     expect(calls.some((c) => c.method === 'upsert')).toBe(false)
     expect(jar.set).not.toHaveBeenCalled()
   })
@@ -93,60 +112,67 @@ describe('saveLockCode', () => {
     setup()
     vi.mocked(readLockConfig).mockResolvedValue({ idleMinutes: 15, epoch: 2 })
     vi.mocked(attemptCode).mockResolvedValue({ ok: false, reason: 'throttled', retryAfter: 30 })
-    await expectRedirect(saveLockCode(form({ ...fields, current: 'x' })), to('throttled-30'))
+    expect(await saveLockCode(null, form({ ...fields, current: 'x' }))).toEqual(result('throttled-30'))
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
   it('trop d’échecs (déconnecté) : redirige vers /login', async () => {
     setup()
     vi.mocked(readLockConfig).mockResolvedValue({ idleMinutes: 15, epoch: 2 })
     vi.mocked(attemptCode).mockResolvedValue({ ok: false, reason: 'signed-out' })
-    await expectRedirect(saveLockCode(form({ ...fields, current: 'x' })), '/login')
+    await expectRedirect(saveLockCode(null, form({ ...fields, current: 'x' })), '/login')
   })
 
   it('changement de code : époque + 1, délai conservé', async () => {
     const { calls } = setup({ tables: { 'synapse.lock': { data: null } } })
     vi.mocked(readLockConfig).mockResolvedValue({ idleMinutes: 15, epoch: 2 })
     vi.mocked(attemptCode).mockResolvedValue({ ok: true, config: { idleMinutes: 15, epoch: 2 } })
-    await expectRedirect(saveLockCode(form({ ...fields, current: 'ancien' })), to('changed'))
+    expect(await saveLockCode(null, form({ ...fields, current: 'ancien' }))).toEqual(result('changed'))
+    expect(revalidatePath).toHaveBeenCalledWith('/settings')
     expect(calls.find((c) => c.method === 'upsert')?.args[0]).toMatchObject({ epoch: 3, idle_minutes: 15 })
     expect(await isUnlocked(jar.set.mock.calls[0][1], 'u1', 3)).toBe(true)
   })
 
-  it('erreur Supabase : ?lock=save, sans cookie', async () => {
+  it('erreur Supabase : « save », sans cookie', async () => {
     setup({ tables: { 'synapse.lock': { error: boom } } })
-    await expectRedirect(saveLockCode(form(fields)), to('save'))
+    expect(await saveLockCode(null, form(fields))).toEqual(result('save'))
+    expect(revalidatePath).not.toHaveBeenCalled()
     expect(jar.set).not.toHaveBeenCalled()
   })
 })
 
 describe('saveLockIdle', () => {
   it('refuse un délai hors des choix, avant tout appel', async () => {
-    await expectRedirect(saveLockIdle(form({ idle_minutes: '7' })), to('save'))
+    expect(await saveLockIdle(null, form({ idle_minutes: '7' }))).toEqual(result('save'))
+    expect(revalidatePath).not.toHaveBeenCalled()
     expect(createClient).not.toHaveBeenCalled()
   })
 
   it('redirige vers /login sans session', async () => {
     setup({ user: null })
-    await expectRedirect(saveLockIdle(form({ idle_minutes: '15' })), '/login')
+    await expectRedirect(saveLockIdle(null, form({ idle_minutes: '15' })), '/login')
   })
 
   it('refuse si le verrouillage n’est pas activé', async () => {
     const { calls } = setup()
-    await expectRedirect(saveLockIdle(form({ idle_minutes: '15' })), to('save'))
+    expect(await saveLockIdle(null, form({ idle_minutes: '15' }))).toEqual(result('save'))
+    expect(revalidatePath).not.toHaveBeenCalled()
     expect(calls.some((c) => c.method === 'update')).toBe(false)
   })
 
-  it('erreur Supabase : ?lock=save', async () => {
+  it('erreur Supabase : « save »', async () => {
     setup({ tables: { 'synapse.lock': { error: boom } } })
     vi.mocked(readLockConfig).mockResolvedValue({ idleMinutes: 5, epoch: 4 })
-    await expectRedirect(saveLockIdle(form({ idle_minutes: '15' })), to('save'))
+    expect(await saveLockIdle(null, form({ idle_minutes: '15' }))).toEqual(result('save'))
+    expect(revalidatePath).not.toHaveBeenCalled()
     expect(jar.set).not.toHaveBeenCalled()
   })
 
   it('met à jour le délai et réémet le cookie avec la même époque', async () => {
     const { calls } = setup({ tables: { 'synapse.lock': { data: null } } })
     vi.mocked(readLockConfig).mockResolvedValue({ idleMinutes: 5, epoch: 4 })
-    await expectRedirect(saveLockIdle(form({ idle_minutes: '15' })), to('idle'))
+    expect(await saveLockIdle(null, form({ idle_minutes: '15' }))).toEqual(result('idle'))
+    expect(revalidatePath).toHaveBeenCalledWith('/settings')
     expect(calls.find((c) => c.method === 'update')?.args[0]).toEqual({ idle_minutes: 15 })
     expect(await isUnlocked(jar.set.mock.calls[0][1], 'u1', 4)).toBe(true)
   })
@@ -157,27 +183,30 @@ describe('disableLock', () => {
 
   it('redirige vers /login sans session', async () => {
     setup({ user: null })
-    await expectRedirect(disableLock(form({ current: 'x' })), '/login')
+    await expectRedirect(disableLock(null, form({ current: 'x' })), '/login')
   })
 
   it('code actuel faux : refusé, rien n’est supprimé', async () => {
     const { calls } = setup({ tables })
     vi.mocked(attemptCode).mockResolvedValue({ ok: false, reason: 'wrong' })
-    await expectRedirect(disableLock(form({ current: 'faux' })), to('current'))
+    expect(await disableLock(null, form({ current: 'faux' }))).toEqual(result('current'))
+    expect(revalidatePath).not.toHaveBeenCalled()
     expect(calls.some((c) => c.method === 'delete')).toBe(false)
   })
 
-  it('erreur à la suppression des empreintes : ?lock=save, le code reste', async () => {
+  it('erreur à la suppression des empreintes : « save », le code reste', async () => {
     const { calls } = setup({ tables: { ...tables, 'synapse.lock_passkeys': { error: boom } } })
     vi.mocked(attemptCode).mockResolvedValue({ ok: true, config: { idleMinutes: 5, epoch: 1 } })
-    await expectRedirect(disableLock(form({ current: 'ok' })), to('save'))
+    expect(await disableLock(null, form({ current: 'ok' }))).toEqual(result('save'))
+    expect(revalidatePath).not.toHaveBeenCalled()
     expect(calls.filter((c) => c.method === 'delete').map((c) => c.table)).toEqual(['lock_passkeys'])
   })
 
   it('supprime empreintes puis code de l’utilisateur et efface le cookie', async () => {
     const { calls } = setup({ tables })
     vi.mocked(attemptCode).mockResolvedValue({ ok: true, config: { idleMinutes: 5, epoch: 1 } })
-    await expectRedirect(disableLock(form({ current: 'ok' })), to('disabled'))
+    expect(await disableLock(null, form({ current: 'ok' }))).toEqual(result('disabled'))
+    expect(revalidatePath).toHaveBeenCalledWith('/settings')
     expect(calls.filter((c) => c.method === 'delete').map((c) => c.table)).toEqual(['lock_passkeys', 'lock'])
     expect(calls.filter((c) => c.method === 'eq')).toEqual([
       expect.objectContaining({ table: 'lock_passkeys', args: ['user_id', 'u1'] }),
@@ -189,23 +218,33 @@ describe('disableLock', () => {
 
 describe('removePasskey', () => {
   it('refuse un id invalide, avant tout appel', async () => {
-    await expectRedirect(removePasskey(form({ id: 'nope' })), to('save'))
+    expect(await removePasskey(null, form({ id: 'nope' }))).toEqual(result('save'))
+    expect(revalidatePath).not.toHaveBeenCalled()
     expect(createClient).not.toHaveBeenCalled()
   })
 
   it('redirige vers /login sans session', async () => {
     setup({ user: null })
-    await expectRedirect(removePasskey(form({ id: ID })), '/login')
+    await expectRedirect(removePasskey(null, form({ id: ID })), '/login')
   })
 
-  it('erreur Supabase : ?lock=save', async () => {
+  it('erreur Supabase : « save »', async () => {
     setup({ tables: { 'synapse.lock_passkeys': { error: boom } } })
-    await expectRedirect(removePasskey(form({ id: ID })), to('save'))
+    expect(await removePasskey(null, form({ id: ID }))).toEqual(result('save'))
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
   it('révoque l’empreinte', async () => {
-    const { calls } = setup({ tables: { 'synapse.lock_passkeys': { data: null } } })
-    await expectRedirect(removePasskey(form({ id: ID })), to('revoked'))
+    const { calls } = setup({ tables: { 'synapse.lock_passkeys': { data: [{ id: ID }] } } })
+    expect(await removePasskey(null, form({ id: ID }))).toEqual(result('revoked'))
+    expect(revalidatePath).toHaveBeenCalledWith('/settings')
     expect(calls).toContainEqual(expect.objectContaining({ method: 'eq', args: ['id', ID] }))
+    expect(calls).toContainEqual(expect.objectContaining({ method: 'eq', args: ['user_id', 'u1'] }))
+  })
+
+  it('aucune ligne supprimée (empreinte déjà retirée) : « save », sans revalidation', async () => {
+    setup({ tables: { 'synapse.lock_passkeys': { data: [] } } })
+    expect(await removePasskey(null, form({ id: ID }))).toEqual(result('save'))
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 })

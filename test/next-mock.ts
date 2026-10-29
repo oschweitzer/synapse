@@ -8,7 +8,7 @@ import { NextRequest } from 'next/server'
 /**
  * Faux `redirect` : comme le vrai, il interrompt l'exécution en levant une erreur qui porte
  * un `digest`. `app/actions/lock.ts` ne relance que les erreurs qui en ont un : sans lui,
- * la redirection serait avalée par son `try/catch` et deviendrait `?lock=save`.
+ * `redirect('/login')` serait avalée par son `try/catch` et deviendrait le code `save`.
  */
 export class RedirectError extends Error {
   readonly digest: string

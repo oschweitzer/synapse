@@ -17,7 +17,7 @@ import { CashSection } from './sections/CashSection'
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ google?: string; lock?: string }>
+  searchParams: Promise<{ google?: string }>
 }) {
   const supabase = await createClient()
   const { data } = await supabase.auth.getUser()
@@ -57,7 +57,7 @@ export default async function SettingsPage({
       </Suspense>
 
       <Suspense fallback={<SectionFallback title="Verrouillage" className="mt-4" />}>
-        <LockSection code={params.lock} />
+        <LockSection />
       </Suspense>
 
       <Suspense fallback={<SectionFallback title="Habitudes" className="mt-4" />}>

@@ -1,11 +1,12 @@
 'use client'
 
-import { useActionState, useState, type FormEvent } from 'react'
+import { useActionState, type FormEvent } from 'react'
 import { createDashboard, deleteDashboard, resetDashboardOrder, saveDashboard, setDefaultDashboard } from '@/app/actions/dashboards'
 import { DASHBOARDS_MAX, DASHBOARD_NAME_MAX, WIDGETS } from '@/lib/dashboard'
 import type { DashboardRow } from '@/lib/dashboards'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { SectionMessage } from '@/components/settings/SectionMessage'
+import { useLastSubmitted } from '@/components/settings/useLastSubmitted'
 import { primaryButton, secondaryButton } from '@/app/settings/sections/styles'
 
 /** Retours de la zone admin des dashboards : [message, est une erreur]. */
@@ -49,13 +50,16 @@ export function DashboardForms({ dashboards }: { dashboards: DashboardRow[] | nu
   const [resetState, resetAction] = useActionState(resetDashboardOrder, null)
   const [defaultState, defaultAction] = useActionState(setDefaultDashboard, null)
   const [deleteState, deleteAction] = useActionState(deleteDashboard, null)
-  const [last, setLast] = useState<Action | null>(null)
 
-  // Un seul message : celui du dernier envoi. Sans JavaScript `onSubmit` ne tourne pas (`last` reste null) : seul l'état
-  // revenu du POST natif est rempli, on affiche le premier qui l'est. Il en va de même quand le navigateur n'indique pas
-  // le bouton d'un formulaire de dashboard : on ne présume pas « save ».
-  const states = { create: createState, save: saveState, reset: resetState, default: defaultState, delete: deleteState }
-  const state = last ? states[last] : (Object.values(states).find((s) => s !== null) ?? null)
+  // Quand le navigateur n'indique pas le bouton d'un formulaire de dashboard, `submittedAction` renvoie null : on ne
+  // présume pas « save », et le premier état rempli est affiché.
+  const [state, setLast] = useLastSubmitted({
+    create: createState,
+    save: saveState,
+    reset: resetState,
+    default: defaultState,
+    delete: deleteState,
+  })
 
   return (
     <>

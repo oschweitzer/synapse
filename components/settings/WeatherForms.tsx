@@ -1,12 +1,13 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState } from 'react'
 import { addCity, moveCity, removeCity } from '@/app/actions/weather'
 // Import de type seulement : un import de valeur embarquerait le code serveur dans le bundle client.
 import type { WeatherLocation } from '@/lib/connectors/weather'
 import { CityAutocomplete } from '@/components/weather/CityAutocomplete'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { SectionMessage } from '@/components/settings/SectionMessage'
+import { useLastSubmitted } from '@/components/settings/useLastSubmitted'
 
 /** Retours de la météo : [message, est une erreur]. Le message « max » dépend de `max`, voir `weatherMessage`. */
 const WEATHER_MESSAGES: Record<string, [string, boolean]> = {
@@ -34,12 +35,7 @@ export function WeatherForms({ cities, max }: { cities: WeatherLocation[] | null
   const [moveState, moveAction] = useActionState(moveCity, null)
   const [removeState, removeAction] = useActionState(removeCity, null)
 
-  // Un seul message pour la section : celui du dernier formulaire envoyé, suivi côté client par `onSubmit` (l'`at` vient
-  // de l'horloge du serveur, il ne sert pas à ordonner deux envois). Sans JavaScript `onSubmit` ne tourne pas (`last`
-  // reste null) : seul l'état revenu du POST natif est rempli, on affiche celui qui l'est.
-  const [last, setLast] = useState<'add' | 'move' | 'remove' | null>(null)
-  const states = { add: addState, move: moveState, remove: removeState }
-  const latest = last ? states[last] : (addState ?? moveState ?? removeState)
+  const [latest, setLast] = useLastSubmitted({ add: addState, move: moveState, remove: removeState })
 
   return (
     <>

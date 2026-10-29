@@ -1,9 +1,10 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState } from 'react'
 import { disconnectGoogle, syncGoogleNow } from '@/app/actions/google'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { SectionMessage } from '@/components/settings/SectionMessage'
+import { useLastSubmitted } from '@/components/settings/useLastSubmitted'
 import { primaryButton, secondaryButton } from '@/app/settings/sections/styles'
 
 /** Retours du flux Google (`?google=…`) et des actions : [message, est une erreur]. */
@@ -34,11 +35,7 @@ export function GoogleForms({ account, code }: { account: { needsReauth: boolean
   // comme `action` du formulaire, et l'envoi ne marcherait plus sans JavaScript.
   const [syncState, syncAction] = useActionState(syncGoogleNow, null)
   const [disconnectState, disconnectAction] = useActionState(disconnectGoogle, null)
-  const [last, setLast] = useState<'sync' | 'disconnect' | null>(null)
-
-  // Message du dernier formulaire envoyé. Sans JavaScript `onSubmit` ne tourne pas (`last` reste null) :
-  // seul l'état revenu du POST natif est rempli, on affiche celui qui l'est.
-  const state = last === 'sync' ? syncState : last === 'disconnect' ? disconnectState : (disconnectState ?? syncState)
+  const [state, setLast] = useLastSubmitted({ sync: syncState, disconnect: disconnectState })
   const shown = state?.code ?? code
   const message = shown ? (GOOGLE_MESSAGES[shown] ?? GOOGLE_MESSAGES.error) : null
 

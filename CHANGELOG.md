@@ -41,6 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Settings: adding, moving or removing a weather city updates the Météo section in place, with its message inside the section and no `?weather=` in the URL (#80).
 - Settings: creating, saving, resetting the order of, setting the default or deleting a dashboard in the admin section updates the list in place, without reloading the page or jumping to the section (#81).
 - Settings: syncing or disconnecting Google updates the Google and cash expenses sections in place, without reloading the page (#82).
+- Settings: setting, changing or disabling the lock code, changing the idle delay or removing a fingerprint updates the Verrouillage section in place, without reloading the page or `?lock=` in the URL (#83).
 - Weather settings: the city search suggests cities as you type and adds the chosen one without reloading the page (#41).
 - Sign-in is Google-only and restricted to an email allowlist (#22).
 - Applied the Synapse design system (HUD theme) to the whole interface (#25).

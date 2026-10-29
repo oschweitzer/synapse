@@ -1,35 +1,38 @@
 'use server'
 
 import { cookies } from 'next/headers'
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { hashCode, validateNewCode } from '@/lib/lock/code'
 import { IDLE_CHOICES, readLockConfig } from '@/lib/lock/config'
 import { attemptCode } from '@/lib/lock/server'
 import { clearUnlockCookie, issueUnlockCookie } from '@/lib/lock/token'
+import { sectionState, type SectionState } from '@/lib/settings/section-state'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-/** Retour sur les réglages avec un message (`?lock=…`). */
-function back(code: string): never {
-  redirect(`/settings?lock=${code}`)
-}
 
 async function setUnlockCookie(userId: string, epoch: number, idleMinutes: number) {
   const { name, value, options } = await issueUnlockCookie(userId, epoch, idleMinutes)
   ;(await cookies()).set(name, value, options)
 }
 
-/** Vérifie le code actuel (avec temporisation) ; redirige avec le motif d'échec sinon. */
-async function requireCurrentCode(supabase: Awaited<ReturnType<typeof createClient>>, current: string) {
+/**
+ * Vérifie le code actuel (avec temporisation) : renvoie le code d'échec, `null` si le code est juste.
+ * Redirige vers /login quand la session est fermée.
+ */
+async function requireCurrentCode(supabase: Awaited<ReturnType<typeof createClient>>, current: string): Promise<string | null> {
   const result = await attemptCode(supabase, current)
-  if (result.ok) return result.config
+  if (result.ok) return null
   if (result.reason === 'signed-out') redirect('/login')
-  back(result.reason === 'throttled' ? `throttled-${result.retryAfter ?? 60}` : 'current')
+  return result.reason === 'throttled' ? `throttled-${result.retryAfter ?? 60}` : 'current'
 }
 
-/** Définit le code (premier réglage) ou le change (code actuel exigé). */
-export async function saveLockCode(formData: FormData) {
+/**
+ * Définit le code (premier réglage) ou le change (code actuel exigé).
+ * Action de `useActionState` : renvoie le code du message à afficher dans la section.
+ */
+export async function saveLockCode(_prev: SectionState, formData: FormData): Promise<SectionState> {
   const code = String(formData.get('code') ?? '')
   const confirm = String(formData.get('confirm') ?? '')
   const current = String(formData.get('current') ?? '')
@@ -38,12 +41,18 @@ export async function saveLockCode(formData: FormData) {
   const { data: auth } = await supabase.auth.getUser()
   if (!auth.user) redirect('/login')
 
-  if (validateNewCode(code)) back('short')
-  if (code !== confirm) back('mismatch')
+  if (validateNewCode(code)) return sectionState('short')
+  if (code !== confirm) return sectionState('mismatch')
 
+  // Le message suit la config lue côté serveur, pas le champ « current » envoyé par le client.
+  let changed = false
   try {
     const existing = await readLockConfig(supabase)
-    if (existing) await requireCurrentCode(supabase, current)
+    changed = existing !== null
+    if (existing) {
+      const failure = await requireCurrentCode(supabase, current)
+      if (failure) return sectionState(failure)
+    }
     const { hash, salt } = await hashCode(code)
     const db = supabase.schema('synapse')
     const idleMinutes = existing?.idleMinutes ?? 5
@@ -60,14 +69,19 @@ export async function saveLockCode(formData: FormData) {
   } catch (e) {
     if (e instanceof Error && 'digest' in e) throw e
     console.error('[lock] enregistrement du code', e)
-    back('save')
+    return sectionState('save')
   }
-  back(current ? 'changed' : 'enabled')
+  revalidatePath('/settings')
+  return sectionState(changed ? 'changed' : 'enabled')
 }
 
-export async function saveLockIdle(formData: FormData) {
+/**
+ * Change le délai d'inactivité avant verrouillage.
+ * Action de `useActionState` : renvoie le code du message à afficher dans la section.
+ */
+export async function saveLockIdle(_prev: SectionState, formData: FormData): Promise<SectionState> {
   const minutes = Number(formData.get('idle_minutes'))
-  if (!IDLE_CHOICES.some((c) => c.minutes === minutes)) back('save')
+  if (!IDLE_CHOICES.some((c) => c.minutes === minutes)) return sectionState('save')
 
   const supabase = await createClient()
   const { data: auth } = await supabase.auth.getUser()
@@ -75,26 +89,31 @@ export async function saveLockIdle(formData: FormData) {
 
   try {
     const config = await readLockConfig(supabase)
-    if (!config) back('save')
+    if (!config) return sectionState('save')
     const { error } = await supabase.schema('synapse').from('lock').update({ idle_minutes: minutes }).eq('user_id', auth.user.id)
     if (error) throw error
-    await setUnlockCookie(auth.user.id, config!.epoch, minutes)
+    await setUnlockCookie(auth.user.id, config.epoch, minutes)
   } catch (e) {
     if (e instanceof Error && 'digest' in e) throw e
     console.error('[lock] délai de verrouillage', e)
-    back('save')
+    return sectionState('save')
   }
-  back('idle')
+  revalidatePath('/settings')
+  return sectionState('idle')
 }
 
-/** Désactive le verrouillage : code actuel exigé, empreintes supprimées. */
-export async function disableLock(formData: FormData) {
+/**
+ * Désactive le verrouillage : code actuel exigé, empreintes supprimées.
+ * Action de `useActionState` : renvoie le code du message à afficher dans la section.
+ */
+export async function disableLock(_prev: SectionState, formData: FormData): Promise<SectionState> {
   const supabase = await createClient()
   const { data: auth } = await supabase.auth.getUser()
   if (!auth.user) redirect('/login')
 
   try {
-    await requireCurrentCode(supabase, String(formData.get('current') ?? ''))
+    const failure = await requireCurrentCode(supabase, String(formData.get('current') ?? ''))
+    if (failure) return sectionState(failure)
     const db = supabase.schema('synapse')
     const passkeys = await db.from('lock_passkeys').delete().eq('user_id', auth.user.id)
     if (passkeys.error) throw passkeys.error
@@ -105,23 +124,31 @@ export async function disableLock(formData: FormData) {
   } catch (e) {
     if (e instanceof Error && 'digest' in e) throw e
     console.error('[lock] désactivation', e)
-    back('save')
+    return sectionState('save')
   }
-  back('disabled')
+  revalidatePath('/settings')
+  return sectionState('disabled')
 }
 
-export async function removePasskey(formData: FormData) {
+/**
+ * Retire une empreinte enregistrée.
+ * Action de `useActionState` : renvoie le code du message à afficher dans la section.
+ */
+export async function removePasskey(_prev: SectionState, formData: FormData): Promise<SectionState> {
   const id = String(formData.get('id') ?? '')
-  if (!UUID.test(id)) back('save')
+  if (!UUID.test(id)) return sectionState('save')
 
   const supabase = await createClient()
   const { data: auth } = await supabase.auth.getUser()
   if (!auth.user) redirect('/login')
 
-  const { error } = await supabase.schema('synapse').from('lock_passkeys').delete().eq('id', id)
+  // Filtre aussi sur l'utilisateur (en plus de la RLS) et exige qu'une ligne ait été supprimée.
+  const { data, error } = await supabase.schema('synapse').from('lock_passkeys').delete().eq('id', id).eq('user_id', auth.user.id).select('id')
   if (error) {
     console.error('[lock] suppression de la passkey', error)
-    back('save')
+    return sectionState('save')
   }
-  back('revoked')
+  if (!data || data.length === 0) return sectionState('save')
+  revalidatePath('/settings')
+  return sectionState('revoked')
 }
