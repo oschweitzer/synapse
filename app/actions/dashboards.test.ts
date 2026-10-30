@@ -140,7 +140,6 @@ describe('createDashboard', () => {
 
 describe('saveDashboard', () => {
   const tables = () => ({
-    'synapse.dashboard_widgets': { data: rows('weather', 'todo') },
     'synapse.dashboards': { data: [{ id: ID }] },
   })
 
@@ -160,11 +159,6 @@ describe('saveDashboard', () => {
     expect(revalidatePath).not.toHaveBeenCalled()
   })
 
-  it('remonte une erreur de lecture des widgets', async () => {
-    setup({ tables: { ...tables(), 'synapse.dashboard_widgets': { error: boom } } })
-    expect(await saveDashboard(null, valid())).toEqual(state('save'))
-  })
-
   it('refuse un dashboard introuvable (ou masqué par la RLS)', async () => {
     setup({ tables: { ...tables(), 'synapse.dashboards': { data: [] } } })
     expect(await saveDashboard(null, valid())).toEqual(state('invalid'))
@@ -180,7 +174,7 @@ describe('saveDashboard', () => {
     expect(await saveDashboard(null, valid())).toEqual(state('save'))
   })
 
-  it('garde l’ordre existant, ajoute les nouveaux widgets dans l’ordre du catalogue', async () => {
+  it('enregistre les widgets dans l’ordre du formulaire', async () => {
     const { rpc, calls } = setup({ tables: tables(), rpc: { set_dashboard_widgets: { data: null } } })
     expect(
       await saveDashboard(null, form({ id: ID, name: 'Perso', visibility: 'private', widgets: ['todo', 'agenda', 'weather', 'shopping'] })),
@@ -188,9 +182,61 @@ describe('saveDashboard', () => {
     expectRevalidated()
     expect(rpc).toHaveBeenCalledWith('set_dashboard_widgets', {
       p_dashboard: ID,
-      p_widgets: ['weather', 'todo', 'shopping', 'agenda'],
+      p_widgets: ['todo', 'agenda', 'weather', 'shopping'],
     })
     expect(calls.find((c) => c.method === 'update')?.args[0]).toEqual({ name: 'Perso', visibility: 'private' })
+  })
+
+  it('ignore les ids inconnus et les doublons en gardant l’ordre', async () => {
+    const { rpc } = setup({ tables: tables(), rpc: { set_dashboard_widgets: { data: null } } })
+    await saveDashboard(null, form({ id: ID, name: 'Perso', visibility: 'private', widgets: ['weather', 'nope', 'todo', 'weather'] }))
+    expect(rpc).toHaveBeenCalledWith('set_dashboard_widgets', { p_dashboard: ID, p_widgets: ['weather', 'todo'] })
+  })
+
+  describe('ordre modifié entre-temps', () => {
+    const save = (initialWidgets: string | undefined, widgets: string[], stored: string[] | { message: string }) => {
+      const t = {
+        ...tables(),
+        'synapse.dashboard_widgets': Array.isArray(stored) ? { data: rows(...stored) } : { error: stored },
+      }
+      const ctx = setup({ tables: t, rpc: { set_dashboard_widgets: { data: null } } })
+      const fields: Record<string, string | string[]> = { id: ID, name: 'Perso', visibility: 'private', widgets }
+      if (initialWidgets !== undefined) fields.initialWidgets = initialWidgets
+      return { ...ctx, run: () => saveDashboard(null, form(fields)) }
+    }
+
+    it('ordre enregistré inchangé : applique l’ordre du formulaire', async () => {
+      const { rpc, run } = save('todo,agenda', ['agenda', 'todo'], ['todo', 'agenda'])
+      expect(await run()).toEqual(state('saved'))
+      expect(rpc).toHaveBeenCalledWith('set_dashboard_widgets', { p_dashboard: ID, p_widgets: ['agenda', 'todo'] })
+    })
+
+    it('ordre modifié ailleurs : garde l’ordre enregistré des widgets cochés, ajoute les nouveaux à la suite', async () => {
+      const { rpc, run } = save('todo,agenda', ['weather', 'todo', 'agenda'], ['agenda', 'todo'])
+      expect(await run()).toEqual(state('saved'))
+      expect(rpc).toHaveBeenCalledWith('set_dashboard_widgets', { p_dashboard: ID, p_widgets: ['agenda', 'todo', 'weather'] })
+      expectRevalidated()
+    })
+
+    it('ordre modifié ailleurs : un widget décoché est retiré', async () => {
+      const { rpc, run } = save('todo,agenda', ['todo'], ['agenda', 'todo'])
+      await run()
+      expect(rpc).toHaveBeenCalledWith('set_dashboard_widgets', { p_dashboard: ID, p_widgets: ['todo'] })
+    })
+
+    it('sans champ initialWidgets (formulaire ancien) : applique l’ordre du formulaire sans lire la base', async () => {
+      const { rpc, calls, run } = save(undefined, ['agenda', 'todo'], ['todo', 'agenda'])
+      await run()
+      expect(calls.some((c) => JSON.stringify(c).includes('dashboard_widgets'))).toBe(false)
+      expect(rpc).toHaveBeenCalledWith('set_dashboard_widgets', { p_dashboard: ID, p_widgets: ['agenda', 'todo'] })
+    })
+
+    it('remonte une erreur de lecture sans rien modifier', async () => {
+      const { rpc, calls, run } = save('todo', ['todo'], boom)
+      expect(await run()).toEqual(state('save'))
+      expect(calls.some((c) => c.method === 'update')).toBe(false)
+      expect(rpc).not.toHaveBeenCalled()
+    })
   })
 })
 

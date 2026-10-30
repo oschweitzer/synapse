@@ -89,7 +89,7 @@ export async function createDashboard(_prev: DashboardCreateState, formData: For
   return done('created')
 }
 
-/** Renomme un dashboard, change sa visibilité et ses widgets (ordre existant conservé, nouveaux en fin). Action `useActionState`. */
+/** Renomme un dashboard, change sa visibilité, ses widgets et leur ordre (celui du formulaire, sauf s'il a changé entre-temps). Action `useActionState`. */
 export async function saveDashboard(_prev: SectionState, formData: FormData): Promise<SectionState> {
   const admin = await requireAdmin()
   if (!admin) return sectionState('forbidden')
@@ -100,20 +100,28 @@ export async function saveDashboard(_prev: SectionState, formData: FormData): Pr
   if (!name) return sectionState('name')
   const visibility = readVisibility(formData)
   if (!visibility) return sectionState('invalid')
-  const chosen = new Set(normalizeWidgets(formData.getAll('widgets').map(String)))
-
+  const checked = normalizeWidgets(formData.getAll('widgets').map(String))
   const db = supabase.schema('synapse')
-  const { data: current, error: readError } = await db
-    .from('dashboard_widgets')
-    .select('widget_id')
-    .eq('dashboard_id', id)
-    .order('position')
-  if (readError) {
-    console.error('[dashboards] lecture des widgets', readError)
-    return sectionState('save')
+
+  // Si l'ordre enregistré a changé depuis l'affichage du formulaire (autre onglet, glisser-déposer du dashboard), on le
+  // garde pour les widgets encore cochés et on ajoute les nouveaux à la suite, dans l'ordre du formulaire.
+  const initial = formData.get('initialWidgets')
+  let widgets = checked
+  if (typeof initial === 'string') {
+    const { data: current, error: readError } = await db
+      .from('dashboard_widgets')
+      .select('widget_id')
+      .eq('dashboard_id', id)
+      .order('position')
+    if (readError) {
+      console.error('[dashboards] lecture des widgets', readError)
+      return sectionState('save')
+    }
+    const stored = normalizeWidgets(current.map((w) => w.widget_id))
+    if (stored.join(',') !== normalizeWidgets(initial.split(',')).join(',')) {
+      widgets = [...stored.filter((w) => checked.includes(w)), ...checked.filter((w) => !stored.includes(w))]
+    }
   }
-  const kept = normalizeWidgets(current.map((w) => w.widget_id)).filter((w) => chosen.has(w))
-  const widgets = [...kept, ...WIDGET_IDS.filter((w) => chosen.has(w) && !kept.includes(w))]
 
   // Un dashboard public ne sert que la session Supabase : pas de données sensibles dessus.
   if (visibility === 'public' && sensitiveWidgets(widgets).length > 0) return sectionState('sensitive')

@@ -198,6 +198,10 @@ Sheet des dépenses est lui-même la source de vérité.
   tous les appareils.
 - Les ids inconnus ou absents du dashboard sont ignorés ; le choix des widgets est réservé à
   l'admin (voir plus bas). **Réglages** propose « Rétablir l'ordre par défaut » par dashboard.
+- L'admin peut aussi changer l'ordre dans **Réglages → Dashboards** avec les boutons monter/descendre
+  de chaque widget (clavier et tactile) ; l'ordre est celui des widgets cochés, enregistré avec le
+  formulaire (`saveDashboard`), dans la même table `synapse.dashboard_widgets`, donc le même que sur
+  le dashboard.
 - Les tailles (4 ou 8 colonnes) ne changent pas ; la numérotation `01…` suit la position
   (compteur CSS).
 

@@ -193,6 +193,9 @@ expenses Google Sheet is itself the source of truth.
   same on every device.
 - Unknown ids, or ids absent from the dashboard, are ignored; choosing the widgets is
   admin-only (see below). **Settings** offers "Restore the default order" per dashboard.
+- The admin can also reorder in **Settings → Dashboards** with each widget's move up/down buttons
+  (keyboard and touch); the order of the checked widgets is saved with the form (`saveDashboard`) in
+  the same `synapse.dashboard_widgets` table, so it matches the dashboard.
 - Sizes (4 or 8 columns) do not change; the `01…` numbering follows the position (CSS counter).
 
 ### Multiple dashboards — chosen widgets, public or private
