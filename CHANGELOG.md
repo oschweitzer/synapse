@@ -48,6 +48,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Upgraded Next.js to 16 and the minimum Node.js version to 24 (#56).
 - The Google OAuth token, Google Sheets, Open-Meteo and TheMealDB base URLs can be overridden by environment variables, for tests only (#60).
 
+### Fixed
+
+- Settings: the label of the "Reconnect Google" button is centered like the other buttons, also when it wraps (#43).
+
 ### Security
 
 - Weather settings: city suggestions are limited to 60 searches per minute and per user, and the 5-city cap is now enforced by the database (migration `0011_weather_locations_cap.sql`), so simultaneous additions cannot exceed it (#41).
