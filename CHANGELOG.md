@@ -48,6 +48,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Sign-in is Google-only and restricted to an email allowlist (#22).
 - Applied the Synapse design system (HUD theme) to the whole interface (#25).
 - Upgraded Next.js to 16 and the minimum Node.js version to 24 (#56).
+- Server functions are pinned to the Paris region (`cdg1`) in `vercel.json`, next to the Supabase database in `eu-west-1`, instead of the default `iad1` (#93).
 - The Google OAuth token, Google Sheets, Open-Meteo and TheMealDB base URLs can be overridden by environment variables, for tests only (#60).
 
 ### Fixed

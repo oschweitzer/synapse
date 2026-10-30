@@ -198,6 +198,8 @@ Interface « poste de pilotage » : sombre uniquement, accent cyan (données) et
 
 Importer le dépôt dans Vercel (preset Next.js), renseigner les variables ci-dessus, puis déployer. Installer ensuite l'appli depuis le navigateur du téléphone (« Ajouter à l'écran d'accueil »).
 
+Les fonctions serveur tournent à Paris (`cdg1`), fixé par `vercel.json`, pour être à côté de la base Supabase (`eu-west-1`) : sans ce réglage, Vercel les place à Washington (`iad1`) et chaque requête à la base traverse l'Atlantique. Le middleware n'est pas concerné : il tourne sur le réseau Edge, au plus près du visiteur.
+
 Les icônes PWA sont régénérables avec `node scripts/generate-icons.mjs`.
 
 ## Tests

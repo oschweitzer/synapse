@@ -15,14 +15,14 @@ to-dos and shopping, recipe of the day, weather, mood and habits. Constraints:
 | Database & auth | **The same Supabase project as Cairn** | Same user account, Cairn to-dos readable directly through RLS without writing an API; we stay on a single free project (the free plan allows two) and daily use of Cairn prevents the inactivity pause |
 | Fetching data | Scheduled jobs write to the database; the front end reads the database | Instant display, API quotas respected, last known value if a source goes down |
 | Scheduled jobs | Supabase `pg_cron` + Edge Functions (TypeScript/Deno); GitHub Actions for Garmin (Python) | Same tools as Cairn; Garmin only has a reliable library in Python |
-| Front-end hosting | Vercel Hobby (or Netlify, like Cairn) | Free for non-commercial use |
+| Front-end hosting | Vercel Hobby (or Netlify, like Cairn), functions in Paris (`cdg1`) | Free for non-commercial use; region `cdg1` (set in `vercel.json`) to sit next to Supabase `eu-west-1` |
 | Mobile | **PWA** first; Capacitor later if needed | App stores cost money (Apple $99/year, Google $25); a PWA installs for free on the home screen |
 | Tests | Vitest, `*.test.ts` files next to the code; Supabase, `fetch` and the clock mocked; Playwright e2e (`e2e/*.spec.ts`) against a local Supabase with the external APIs (Google, Open-Meteo, TheMealDB) mocked: sign-in, recipes, shopping, to-dos, mood, habits, cash, mind maps, dashboards, lock, settings and weather each have a browser flow; GitHub Actions CI (typecheck, lint, tests, e2e) | Change the app and know right away if existing behaviour breaks |
 
 ## 2. Architecture
 
 ```
-┌──────────────── Next.js (Vercel Hobby) ────────────────┐
+┌──────────── Next.js (Vercel Hobby, cdg1 Paris) ────────┐
 │  React dashboard (PWA)                                 │
 │  Server Components: read Supabase with the session     │
 │  Route handlers /api/*: Google OAuth, actions          │

@@ -198,6 +198,8 @@ Prerequisites: set `SYNAPSE_LOCK_SECRET` (Vercel and `.env.local`) **before** en
 
 Import the repository into Vercel (Next.js preset), set the variables above, then deploy. Then install the app from the phone's browser ("Add to Home Screen").
 
+Server functions run in Paris (`cdg1`), set in `vercel.json`, to sit next to the Supabase database (`eu-west-1`): without this setting Vercel puts them in Washington (`iad1`) and every database query crosses the Atlantic. Middleware is not affected: it runs on the Edge network, closest to the visitor.
+
 The PWA icons can be regenerated with `node scripts/generate-icons.mjs`.
 
 ## Tests

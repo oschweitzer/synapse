@@ -15,14 +15,14 @@ utilisable dans le navigateur, puis sur mobile.
 | Base & auth | **Le même projet Supabase que Cairn** | Même compte utilisateur, les to-do Cairn sont lisibles directement via RLS, sans API à écrire ; on reste à un seul projet free (le plan gratuit en autorise deux) et l'usage quotidien de Cairn évite la mise en pause pour inactivité |
 | Récupération des données | Jobs planifiés qui écrivent en base ; le front lit la base | Affichage instantané, quotas des API respectés, dernière valeur connue si une source tombe |
 | Jobs planifiés | Supabase `pg_cron` + Edge Functions (TypeScript/Deno) ; GitHub Actions pour Garmin (Python) | Mêmes outils que Cairn ; Garmin n'a de lib fiable qu'en Python |
-| Hébergement front | Vercel Hobby (ou Netlify, comme Cairn) | Gratuit pour un usage non commercial |
+| Hébergement front | Vercel Hobby (ou Netlify, comme Cairn), fonctions à Paris (`cdg1`) | Gratuit pour un usage non commercial ; région `cdg1` (fixée par `vercel.json`) pour être à côté de Supabase `eu-west-1` |
 | Mobile | **PWA** d'abord ; Capacitor plus tard si besoin | Les stores sont payants (Apple 99 $/an, Google 25 $) ; une PWA s'installe gratuitement sur l'écran d'accueil |
 | Tests | Vitest, fichiers `*.test.ts` à côté du code ; Supabase, `fetch` et l'horloge simulés ; e2e Playwright (`e2e/*.spec.ts`) contre une Supabase locale, API externes (Google, Open-Meteo, TheMealDB) simulées : la connexion, les recettes, les courses, les to-do, l'humeur, les habitudes, Cash, les cartes mentales, les dashboards, le verrouillage, les réglages et la météo ont chacun un parcours navigateur ; CI GitHub Actions (typecheck, lint, tests, e2e) | Modifier l'app en sachant tout de suite si un comportement existant casse |
 
 ## 2. Architecture
 
 ```
-┌──────────────── Next.js (Vercel Hobby) ────────────────┐
+┌──────────── Next.js (Vercel Hobby, cdg1 Paris) ────────┐
 │  Dashboard React (PWA)                                 │
 │  Server Components : lecture Supabase avec la session  │
 │  Route handlers /api/* : OAuth Google, actions         │
