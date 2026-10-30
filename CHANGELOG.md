@@ -37,6 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Dashboard settings: each dashboard lists only its widgets, with remove and move buttons, and an "Ajouter un widget" picker (search, grouped by source, multi-select, appended at the end; sensitive widgets disabled on public dashboards) replaces the full checkbox list (#45).
 - Settings page sections load independently, so a slow source no longer delays the others (#78).
 - Settings: saving the shopping checklist or adding/removing a habit updates the section in place, without reloading the page or losing what is typed in other sections (#79).
 - Settings: adding, moving or removing a weather city updates the Météo section in place, with its message inside the section and no `?weather=` in the URL (#80).

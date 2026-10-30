@@ -194,7 +194,7 @@ expenses Google Sheet is itself the source of truth.
 - Unknown ids, or ids absent from the dashboard, are ignored; choosing the widgets is
   admin-only (see below). **Settings** offers "Restore the default order" per dashboard.
 - The admin can also reorder in **Settings → Dashboards** with each widget's move up/down buttons
-  (keyboard and touch); the order of the checked widgets is saved with the form (`saveDashboard`) in
+  (keyboard and touch); the order of the dashboard's widget list is saved with the form (`saveDashboard`) in
   the same `synapse.dashboard_widgets` table, so it matches the dashboard.
 - Sizes (4 or 8 columns) do not change; the `01…` numbering follows the position (CSS counter).
 
@@ -207,7 +207,7 @@ expenses Google Sheet is itself the source of truth.
   order (that column is now unused, to be dropped by a later migration). A user with no
   dashboard gets one on first access (`ensure_default_dashboard`).
 - Admin area in **Settings**: create, rename, delete a dashboard (10 at most, the default one
-  cannot be deleted), choose its visibility and widgets, set the default, restore the catalog
+  cannot be deleted), choose its visibility and widgets (compact list of the dashboard's widgets with a remove button, and an "Add widget" picker: search, grouping by source, multi-select, appended at the end, sensitive widgets disabled on a public dashboard), set the default, restore the catalog
   order. Admin = `ADMIN_EMAILS`, otherwise every `ALLOWED_EMAILS` account (single-user app).
   The right is re-checked in every Server Action (`app/actions/dashboards.ts`), not just
   hidden. Dashboards belong to each user (RLS); a dashboard's widgets are set by its owner

@@ -15,9 +15,9 @@ export async function DashboardsSection() {
     <section id="dashboards" className={`${card} mt-4`}>
       <h2 className="font-semibold">Dashboards (admin)</h2>
       <p className="text-sm text-slate-500 dark:text-slate-400">
-        Choisis les widgets de chaque dashboard. Un dashboard <strong>privé</strong> n’est servi qu’une fois le
+        Ajoute ou retire les widgets de chaque dashboard avec « Ajouter un widget » et « Retirer ». Un dashboard <strong>privé</strong> n’est servi qu’une fois le
         verrouillage levé ; un dashboard <strong>public</strong> ne demande que la connexion, et ne peut pas
-        afficher de widget sensible. Les flèches ci-dessous changent l’ordre des widgets cochés (enregistré avec le
+        afficher de widget sensible. Les flèches ci-dessous changent leur ordre (enregistré avec le
         formulaire) ; il se change aussi par glisser-déposer sur le dashboard.
       </p>
       <DashboardForms dashboards={dashboards} />

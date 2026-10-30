@@ -13,7 +13,7 @@ test.beforeAll(async () => {
 const handleNames = (page: Page) =>
   page.getByRole('button', { name: /^Déplacer « / }).evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))
 
-test('un admin choisit les widgets d’un dashboard public', async ({ browser }) => {
+test('un admin ajoute des widgets à un dashboard public avec le sélecteur', async ({ browser }) => {
   const context = await browser.newContext({ storageState: STORAGE_STATE.allowed })
   const page = await context.newPage()
 
@@ -28,17 +28,35 @@ test('un admin choisit les widgets d’un dashboard public', async ({ browser })
   await expect(admin.getByRole('status').filter({ hasText: 'Dashboard créé. Choisis ses widgets ci-dessous.' })).toBeVisible()
   await expect(page).toHaveURL(/\/settings$/)
 
-  // Un widget sensible est refusé sur un dashboard public.
   const salon = () => page.locator('form').filter({ has: page.locator('input[name="name"][value="Salon"]') })
-  await salon().getByRole('checkbox', { name: /^Mails/ }).check()
+
+  // Sur un dashboard public, le sélecteur désactive les widgets sensibles.
+  await salon().getByRole('button', { name: /^Ajouter un widget/ }).click()
+  const dialog = salon().getByRole('dialog')
+  await expect(dialog.getByRole('checkbox', { name: /^Mails/ })).toBeDisabled()
+  await expect(dialog.getByText('Un dashboard public ne peut pas afficher de widget sensible.')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Annuler' }).click()
+  await expect(dialog).toBeHidden()
+
+  // Le serveur refuse quand même un widget sensible : privé, on ajoute Mails, puis on repasse en public.
+  await salon().getByLabel('Visibilité').selectOption({ label: 'Privé (verrouillage)' })
+  await salon().getByRole('button', { name: /^Ajouter un widget/ }).click()
+  await salon().getByRole('dialog').getByRole('checkbox', { name: /^Mails/ }).check()
+  await salon().getByRole('dialog').getByRole('button', { name: 'Ajouter (1)' }).click()
+  await salon().getByLabel('Visibilité').selectOption({ label: 'Public (connexion seule)' })
+  await expect(salon().getByText('Retire les widgets sensibles avant d’enregistrer')).toBeVisible()
   await salon().getByRole('button', { name: 'Enregistrer' }).click()
   await expect(admin.getByRole('alert').filter({ hasText: 'ne peut pas afficher de widget sensible' })).toBeVisible()
   await expect(page).toHaveURL(/\/settings$/)
+  await salon().getByRole('button', { name: /^Retirer « Mails »/ }).click()
+  await expect(salon().locator('input[name="widgets"][value="mail"]')).toHaveCount(0)
 
-  // Le formulaire revient aux valeurs enregistrées après l'action : Mails n'est pas coché, on choisit deux widgets non sensibles.
-  await salon().getByRole('checkbox', { name: /^Météo/ }).check()
-  await salon().getByRole('checkbox', { name: /^À faire/ }).check()
-  await expect(salon().getByRole('checkbox', { name: /^Mails/ })).not.toBeChecked()
+  // On ajoute deux widgets non sensibles d'un coup.
+  await salon().getByRole('button', { name: /^Ajouter un widget/ }).click()
+  await salon().getByRole('dialog').getByRole('checkbox', { name: /^Météo/ }).check()
+  await salon().getByRole('dialog').getByRole('checkbox', { name: /^À faire/ }).check()
+  await salon().getByRole('dialog').getByRole('button', { name: 'Ajouter (2)' }).click()
+  expect(await salon().locator('input[name="widgets"]').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value))).toEqual(['todo', 'weather'])
   await salon().getByRole('button', { name: 'Enregistrer' }).click()
   await expect(admin.getByRole('status').filter({ hasText: 'Dashboard enregistré.' })).toBeVisible()
   await expect(page).toHaveURL(/\/settings$/)
@@ -46,7 +64,7 @@ test('un admin choisit les widgets d’un dashboard public', async ({ browser })
   await page.goto('/')
   await page.getByRole('navigation', { name: 'Dashboards' }).getByRole('link', { name: 'Salon' }).click()
   await expect(page).toHaveURL(/\?d=/)
-  // Ordre du catalogue : « À faire » avant « Météo ».
+  // Ajoutés ensemble : ordre du catalogue, « À faire » avant « Météo ».
   await expect.poll(() => handleNames(page)).toEqual(['Déplacer « À faire »', 'Déplacer « Météo »'])
   await context.close()
 })

@@ -19,6 +19,8 @@ export const WIDGETS = [
 
 export type WidgetId = (typeof WIDGETS)[number]['id']
 
+export type Widget = (typeof WIDGETS)[number]
+
 export const WIDGET_IDS: readonly WidgetId[] = WIDGETS.map((w) => w.id)
 
 const KNOWN = new Set<string>(WIDGET_IDS)
@@ -46,6 +48,29 @@ export function normalizeWidgets(ids: readonly string[] | null | undefined): Wid
 /** Widgets sensibles d'une liste (interdits sur un dashboard public). */
 export function sensitiveWidgets(ids: readonly string[]): WidgetId[] {
   return ids.filter((id): id is WidgetId => SENSITIVE.has(id))
+}
+
+/** Minuscules sans accents, pour comparer sans tenir compte de la casse ni des accents. */
+function fold(text: string): string {
+  return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+}
+
+/** Un widget correspond à la recherche si elle est vide, ou contenue dans son libellé, sa description ou sa source (sans casse ni accents). */
+export function matchesWidgetQuery(widget: Widget, query: string): boolean {
+  const q = fold(query.trim())
+  if (q === '') return true
+  return [widget.label, widget.description, widget.source].some((text) => fold(text).includes(q))
+}
+
+/** Regroupe les widgets par source, dans l'ordre de première apparition, en gardant l'ordre donné dans chaque groupe. */
+export function widgetsBySource(widgets: readonly Widget[]): { source: string; widgets: Widget[] }[] {
+  const groups = new Map<string, Widget[]>()
+  for (const widget of widgets) {
+    const group = groups.get(widget.source)
+    if (group) group.push(widget)
+    else groups.set(widget.source, [widget])
+  }
+  return Array.from(groups, ([source, list]) => ({ source, widgets: list }))
 }
 
 export const DASHBOARD_NAME_MAX = 40

@@ -2,10 +2,12 @@
 
 import { useActionState, useEffect, useRef, useState, type FormEvent } from 'react'
 import { createDashboard, deleteDashboard, resetDashboardOrder, saveDashboard, setDefaultDashboard } from '@/app/actions/dashboards'
-import { DASHBOARDS_MAX, DASHBOARD_NAME_MAX, WIDGETS, WIDGET_IDS, type WidgetId } from '@/lib/dashboard'
+import { DASHBOARDS_MAX, DASHBOARD_NAME_MAX, WIDGETS, sensitiveWidgets, type Visibility, type WidgetId } from '@/lib/dashboard'
 import type { DashboardRow } from '@/lib/dashboards'
+import { Badge } from '@/components/ui/Badge'
 import { Icon } from '@/components/ui/Icon'
 import { SubmitButton } from '@/components/ui/SubmitButton'
+import { WidgetPicker } from '@/components/settings/WidgetPicker'
 import { SectionMessage } from '@/components/settings/SectionMessage'
 import { useLastSubmitted } from '@/components/settings/useLastSubmitted'
 import { primaryButton, secondaryButton } from '@/app/settings/sections/styles'
@@ -42,21 +44,25 @@ function submittedAction(e: FormEvent<HTMLFormElement>, fallback: Action | null)
 const BY_ID = new Map(WIDGETS.map((w) => [w.id, w]))
 
 /**
- * Cases des widgets, dans l'ordre du dashboard (cochés d'abord) puis celui du catalogue, avec des flèches monter/descendre.
- * L'ordre du formulaire est l'ordre des cases dans le DOM. Le champ `initialWidgets` garde l'ordre affiché au montage :
- * `saveDashboard` s'en sert pour détecter un ordre modifié entre-temps ailleurs.
+ * Liste des widgets du dashboard, dans son ordre, avec des boutons monter/descendre et retirer, et le sélecteur d'ajout.
+ * L'ordre du formulaire est l'ordre des champs cachés `widgets` dans le DOM. Le champ `initialWidgets` garde l'ordre
+ * affiché au montage : `saveDashboard` s'en sert pour détecter un ordre modifié entre-temps ailleurs.
  */
-function WidgetList({ selected }: { selected: WidgetId[] }) {
-  const [order, setOrder] = useState<WidgetId[]>(() => [...selected, ...WIDGET_IDS.filter((id) => !selected.includes(id))])
+function WidgetList({ selected, dashboardName, isPublic }: { selected: WidgetId[]; dashboardName: string; isPublic: boolean }) {
+  const [order, setOrder] = useState<WidgetId[]>(() => [...selected])
   const [initialWidgets] = useState(() => selected.join(','))
   const [announce, setAnnounce] = useState('')
   const [pendingFocus, setPendingFocus] = useState<string | null>(null)
   const buttons = useRef(new Map<string, HTMLButtonElement>())
-  const fieldset = useRef<HTMLFieldSetElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
 
   // Le bouton cliqué peut être désactivé une fois le widget en bout de liste : le focus est remis après le rendu.
   useEffect(() => {
-    if (pendingFocus) buttons.current.get(pendingFocus)?.focus()
+    if (!pendingFocus) return
+    if (pendingFocus === 'add') triggerRef.current?.focus()
+    else buttons.current.get(pendingFocus)?.focus()
+    // La demande est consommée : un changement d'ordre ultérieur ne doit pas redonner le focus.
+    setPendingFocus(null)
   }, [pendingFocus, order])
 
   function move(index: number, delta: -1 | 1) {
@@ -65,16 +71,20 @@ function WidgetList({ selected }: { selected: WidgetId[] }) {
     const next = [...order]
     ;[next[index], next[target]] = [next[target], next[index]]
     setOrder(next)
-    // Seuls les widgets cochés sont enregistrés : pour un widget coché, la position annoncée est parmi les cochés.
-    const checked = new Set(
-      Array.from(fieldset.current?.querySelectorAll<HTMLInputElement>('input[name="widgets"]:checked') ?? [], (c) => c.value),
-    )
-    const [list, position] = checked.has(id)
-      ? [next.filter((w) => checked.has(w)), next.filter((w) => checked.has(w)).indexOf(id) + 1]
-      : [next, target + 1]
-    setAnnounce(`« ${BY_ID.get(id)!.label} » déplacé en position ${position} sur ${list.length}.`)
+    setAnnounce(`« ${BY_ID.get(id)!.label} » déplacé en position ${target + 1} sur ${next.length}.`)
     const atEnd = delta === -1 ? target === 0 : target === next.length - 1
     setPendingFocus(`${id}:${(delta === -1) !== atEnd ? 'up' : 'down'}`)
+  }
+
+  function remove(id: WidgetId) {
+    setOrder(order.filter((w) => w !== id))
+    setAnnounce(`« ${BY_ID.get(id)!.label} » retiré.`)
+    setPendingFocus('add')
+  }
+
+  function add(ids: WidgetId[]) {
+    setOrder([...order, ...ids])
+    setAnnounce(ids.length === 1 ? '1 widget ajouté en fin de liste.' : `${ids.length} widgets ajoutés en fin de liste.`)
   }
 
   const setButton = (key: string) => (el: HTMLButtonElement | null) => {
@@ -83,54 +93,66 @@ function WidgetList({ selected }: { selected: WidgetId[] }) {
   }
 
   return (
-    <fieldset ref={fieldset} className="flex flex-col gap-2">
+    <fieldset className="flex flex-col gap-2">
       <legend className="text-sm">Widgets</legend>
       <input type="hidden" name="initialWidgets" value={initialWidgets} />
       <p className="text-sm text-slate-500 dark:text-slate-400">
-        Les flèches changent l’ordre des widgets cochés ; il est enregistré avec le formulaire. Seul l’ordre des widgets
-        cochés est conservé : la place des widgets non cochés n’est pas enregistrée.
+        Les flèches changent l’ordre des widgets ; « Ajouter un widget » les place en fin de liste. L’ordre, les ajouts et
+        les retraits sont enregistrés avec le formulaire.
       </p>
-      <ol className="flex flex-col gap-2">
-        {order.map((id, index) => {
-          const widget = BY_ID.get(id)!
-          return (
-            <li key={id} className="flex items-start gap-2">
-              <label className="flex flex-1 items-start gap-2 text-sm">
-                <input type="checkbox" name="widgets" value={id} defaultChecked={selected.includes(id)} className="mt-1" />
-                <span>
-                  {widget.label}
-                  {widget.sensitive && <span className="text-amber-600 dark:text-amber-400"> · sensible</span>}
-                  <span className="block text-slate-500 dark:text-slate-400">
-                    {widget.description} Source : {widget.source}.
-                  </span>
-                </span>
-              </label>
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  ref={setButton(`${id}:up`)}
-                  className={`${secondaryButton} min-h-11 min-w-11 justify-center`}
-                  aria-label={`Monter « ${widget.label} »`}
-                  disabled={index === 0}
-                  onClick={() => move(index, -1)}
-                >
-                  <Icon name="up" size={14} />
+      {order.length === 0 ? (
+        <p className="text-sm text-slate-500 dark:text-slate-400">Aucun widget.</p>
+      ) : (
+        <ol className="flex flex-col gap-2">
+          {order.map((id, index) => {
+            const widget = BY_ID.get(id)!
+            return (
+              <li key={id} className="flex items-center gap-2">
+                <input type="hidden" name="widgets" value={id} />
+                <span className="flex-1 text-sm">{widget.label}</span>
+                {widget.sensitive && <Badge tone="amber">sensible</Badge>}
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    ref={setButton(`${id}:up`)}
+                    className={`${secondaryButton} min-h-11 min-w-11 justify-center`}
+                    aria-label={`Monter « ${widget.label} »`}
+                    disabled={index === 0}
+                    onClick={() => move(index, -1)}
+                  >
+                    <Icon name="up" size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    ref={setButton(`${id}:down`)}
+                    className={`${secondaryButton} min-h-11 min-w-11 justify-center`}
+                    aria-label={`Descendre « ${widget.label} »`}
+                    disabled={index === order.length - 1}
+                    onClick={() => move(index, 1)}
+                  >
+                    <Icon name="down" size={14} />
+                  </button>
+                </div>
+                <button type="button" className={`${secondaryButton} min-h-11`} onClick={() => remove(id)}>
+                  Retirer <span className="sr-only">« {widget.label} »</span>
                 </button>
-                <button
-                  type="button"
-                  ref={setButton(`${id}:down`)}
-                  className={`${secondaryButton} min-h-11 min-w-11 justify-center`}
-                  aria-label={`Descendre « ${widget.label} »`}
-                  disabled={index === order.length - 1}
-                  onClick={() => move(index, 1)}
-                >
-                  <Icon name="down" size={14} />
-                </button>
-              </div>
-            </li>
-          )
-        })}
-      </ol>
+              </li>
+            )
+          })}
+        </ol>
+      )}
+      {isPublic && sensitiveWidgets(order).length > 0 && (
+        <p className="text-sm text-amber-600 dark:text-amber-400">
+          Retire les widgets sensibles avant d’enregistrer : un dashboard public ne peut pas les afficher.
+        </p>
+      )}
+      <WidgetPicker
+        dashboardName={dashboardName}
+        available={WIDGETS.filter((w) => !order.includes(w.id))}
+        isPublic={isPublic}
+        onAdd={add}
+        triggerRef={triggerRef}
+      />
       <p aria-live="polite" className="sr-only">
         {announce}
       </p>
@@ -169,6 +191,10 @@ export function DashboardForms({ dashboards }: { dashboards: DashboardRow[] | nu
     if (saveState?.code === 'saved') remount('save')
   }, [saveState])
 
+  // Visibilité en cours de saisie par dashboard : le sélecteur de widgets s'en sert pour désactiver les widgets sensibles.
+  // Le select reste non contrôlé ; React 19 réinitialise le formulaire après chaque action, ce qui efface la saisie ici aussi.
+  const [visibilityEdits, setVisibilityEdits] = useState<Record<string, Visibility>>({})
+
   // Quand le navigateur n'indique pas le bouton d'un formulaire de dashboard, `submittedAction` renvoie null : on ne
   // présume pas « save », et le premier état rempli est affiché.
   const [state, setLast] = useLastSubmitted({
@@ -196,6 +222,13 @@ export function DashboardForms({ dashboards }: { dashboards: DashboardRow[] | nu
             submitTarget.current = action === 'reset' || action === 'save' ? { id: dashboard.id, action } : null
             setLast(action)
           }}
+          onReset={() =>
+            setVisibilityEdits((v) => {
+              const next = { ...v }
+              delete next[dashboard.id]
+              return next
+            })
+          }
           className="flex flex-col gap-3 border border-slate-200 p-3 dark:border-slate-700"
         >
           <input type="hidden" name="id" value={dashboard.id} />
@@ -212,13 +245,23 @@ export function DashboardForms({ dashboards }: { dashboards: DashboardRow[] | nu
             </label>
             <label className="flex flex-col gap-1 text-sm">
               Visibilité
-              <select name="visibility" defaultValue={dashboard.visibility} className="hud-input">
+              <select
+                name="visibility"
+                defaultValue={dashboard.visibility}
+                onChange={(e) => setVisibilityEdits((v) => ({ ...v, [dashboard.id]: e.target.value as Visibility }))}
+                className="hud-input"
+              >
                 <option value="private">Privé (verrouillage)</option>
                 <option value="public">Public (connexion seule)</option>
               </select>
             </label>
           </div>
-          <WidgetList key={remountCounts[dashboard.id] ?? 0} selected={dashboard.widgets} />
+          <WidgetList
+            key={remountCounts[dashboard.id] ?? 0}
+            selected={dashboard.widgets}
+            dashboardName={dashboard.name}
+            isPublic={(visibilityEdits[dashboard.id] ?? dashboard.visibility) === 'public'}
+          />
           <div className="flex flex-wrap items-center gap-3">
             <SubmitButton data-action="save" className={primaryButton}>
               Enregistrer

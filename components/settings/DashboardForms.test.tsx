@@ -2,9 +2,9 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderToString } from 'react-dom/server'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDashboard, deleteDashboard, resetDashboardOrder, saveDashboard, setDefaultDashboard } from '@/app/actions/dashboards'
-import { DASHBOARDS_MAX, WIDGETS, WIDGET_IDS, type WidgetId } from '@/lib/dashboard'
+import { DASHBOARDS_MAX, WIDGETS } from '@/lib/dashboard'
 import type { DashboardRow } from '@/lib/dashboards'
 import { DashboardForms } from './DashboardForms'
 
@@ -34,8 +34,31 @@ const DASHBOARDS: DashboardRow[] = [
 ]
 
 const ORDERED: DashboardRow[] = [{ id: 'd1', name: 'Perso', visibility: 'private', isDefault: true, widgets: ['weather', 'todo'] }]
-const widget = (id: WidgetId) => WIDGETS.find((w) => w.id === id)!
-const values = () => screen.getAllByRole('checkbox').map((c) => (c as HTMLInputElement).value)
+const values = () => Array.from(document.querySelectorAll<HTMLInputElement>('input[name="widgets"]'), (i) => i.value)
+
+// jsdom n'implémente pas les méthodes du dialogue natif.
+beforeAll(() => {
+  if (!HTMLDialogElement.prototype.showModal) {
+    HTMLDialogElement.prototype.showModal = function () {
+      this.setAttribute('open', '')
+    }
+  }
+  if (!HTMLDialogElement.prototype.close) {
+    HTMLDialogElement.prototype.close = function () {
+      this.removeAttribute('open')
+      this.dispatchEvent(new Event('close'))
+    }
+  }
+})
+
+const openPicker = () => screen.getByRole('button', { name: /^Ajouter un widget/ })
+
+/** Ouvre le sélecteur, coche les widgets par libellé et confirme. */
+async function addWidgets(user: ReturnType<typeof userEvent.setup>, labels: string[]) {
+  await user.click(openPicker())
+  for (const label of labels) await user.click(screen.getByRole('checkbox', { name: new RegExp(`^${label}`) }))
+  await user.click(screen.getByRole('button', { name: `Ajouter (${labels.length})` }))
+}
 
 const actions = [createDashboard, saveDashboard, resetDashboardOrder, setDefaultDashboard, deleteDashboard]
 
@@ -179,43 +202,54 @@ describe('DashboardForms', () => {
     expect(renderToString(<DashboardForms dashboards={DASHBOARDS} />)).toContain('Dashboard supprimé.')
   })
 
-  it('liste les widgets cochés dans l’ordre enregistré puis les autres dans l’ordre du catalogue', () => {
+  it('ne liste que les widgets du dashboard, dans l’ordre enregistré', () => {
     render(<DashboardForms dashboards={ORDERED} />)
-    const boxes = screen.getAllByRole('checkbox') as HTMLInputElement[]
-    expect(boxes.slice(0, 2).map((c) => c.value)).toEqual(['weather', 'todo'])
-    expect(boxes.filter((c) => c.checked).map((c) => c.value)).toEqual(['weather', 'todo'])
-    expect(boxes.slice(2).map((c) => c.value)).toEqual(WIDGET_IDS.filter((id) => id !== 'weather' && id !== 'todo'))
+    expect(values()).toEqual(['weather', 'todo'])
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+
+  it('liste seulement ses widgets : Perso montre « À faire » (champ caché) et ni « Mails » ni « Météo »', () => {
+    render(<DashboardForms dashboards={DASHBOARDS} />)
+    const perso = screen.getByDisplayValue('Perso').closest('form') as HTMLFormElement
+    expect(Array.from(perso.querySelectorAll<HTMLInputElement>('input[name="widgets"]'), (i) => i.value)).toEqual(['todo'])
+    expect(within(perso).getByText('À faire')).toBeInTheDocument()
+    expect(within(perso).queryByText('Mails')).not.toBeInTheDocument()
+    expect(within(perso).queryByText('Météo')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+
+  it('affiche le badge « sensible » sur un widget sensible listé', () => {
+    render(<DashboardForms dashboards={[{ ...DASHBOARDS[0], widgets: ['mail'] }]} />)
+    expect(screen.getByText('sensible')).toBeInTheDocument()
   })
 
   it('désactive « Monter » sur le premier widget et « Descendre » sur le dernier', () => {
     render(<DashboardForms dashboards={ORDERED} />)
     expect(screen.getByRole('button', { name: 'Monter « Météo »' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Descendre « Météo »' })).toBeEnabled()
-    const last = widget(WIDGET_IDS.filter((id) => id !== 'weather' && id !== 'todo').at(-1)!)
-    expect(screen.getByRole('button', { name: `Descendre « ${last.label} »` })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Descendre « À faire »' })).toBeDisabled()
   })
 
-  it('monte « À faire » avant Météo, garde les cases cochées et envoie le nouvel ordre', async () => {
+  it('monte « À faire » avant Météo et envoie le nouvel ordre', async () => {
     vi.mocked(saveDashboard).mockResolvedValue({ code: 'saved', at: 1 })
     const user = userEvent.setup()
     render(<DashboardForms dashboards={ORDERED} />)
     await user.click(screen.getByRole('button', { name: 'Monter « À faire »' }))
-    expect(values().slice(0, 2)).toEqual(['todo', 'weather'])
-    expect((screen.getAllByRole('checkbox') as HTMLInputElement[]).filter((c) => c.checked)).toHaveLength(2)
+    expect(values()).toEqual(['todo', 'weather'])
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
     await vi.waitFor(() => expect(saveDashboard).toHaveBeenCalled())
     expect(vi.mocked(saveDashboard).mock.calls[0][1].getAll('widgets')).toEqual(['todo', 'weather'])
   })
 
-  it('envoie à sa place un widget non coché déplacé puis coché', async () => {
+  it('ajoute Mails par le sélecteur, le monte en tête et l’envoie à sa place', async () => {
     vi.mocked(saveDashboard).mockResolvedValue({ code: 'saved', at: 1 })
     const user = userEvent.setup()
     render(<DashboardForms dashboards={ORDERED} />)
-    const mail = widget('mail').label
-    const position = values().indexOf('mail')
-    for (let i = 0; i < position; i++) await user.click(screen.getByRole('button', { name: `Monter « ${mail} »` }))
-    expect(values()[0]).toBe('mail')
-    await user.click(screen.getAllByRole('checkbox')[0])
+    await addWidgets(user, ['Mails'])
+    expect(values()).toEqual(['weather', 'todo', 'mail'])
+    await user.click(screen.getByRole('button', { name: 'Monter « Mails »' }))
+    await user.click(screen.getByRole('button', { name: 'Monter « Mails »' }))
+    expect(values()).toEqual(['mail', 'weather', 'todo'])
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
     await vi.waitFor(() => expect(saveDashboard).toHaveBeenCalled())
     expect(vi.mocked(saveDashboard).mock.calls[0][1].getAll('widgets')).toEqual(['mail', 'weather', 'todo'])
@@ -225,12 +259,28 @@ describe('DashboardForms', () => {
     const user = userEvent.setup()
     render(<DashboardForms dashboards={ORDERED} />)
     await user.click(screen.getByRole('button', { name: 'Descendre « Météo »' }))
-    expect(screen.getByRole('button', { name: 'Descendre « Météo »' })).toHaveFocus()
-    // Météo et À faire sont cochés : la position est comptée parmi les 2 widgets cochés.
+    // Arrivé en dernier, « Descendre » est désactivé : le focus passe sur « Monter ».
+    expect(screen.getByRole('button', { name: 'Monter « Météo »' })).toHaveFocus()
     expect(screen.getByText('« Météo » déplacé en position 2 sur 2.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Monter « Météo »' }))
     // Arrivé en tête, « Monter » est désactivé : le focus passe sur « Descendre ».
     expect(screen.getByRole('button', { name: 'Descendre « Météo »' })).toHaveFocus()
+  })
+
+  it('ne redonne pas le focus à une flèche après un ajout : la demande de focus est consommée', async () => {
+    const user = userEvent.setup()
+    render(<DashboardForms dashboards={ORDERED} />)
+    await user.click(screen.getByRole('button', { name: 'Descendre « Météo »' }))
+    expect(screen.getByRole('button', { name: 'Monter « Météo »' })).toHaveFocus()
+    await addWidgets(user, ['Mails'])
+    expect(screen.getByRole('button', { name: /^Ajouter un widget/ })).toHaveFocus()
+  })
+
+  it('annonce la position parmi les widgets du dashboard', async () => {
+    const user = userEvent.setup()
+    render(<DashboardForms dashboards={[{ ...ORDERED[0], widgets: ['weather', 'todo', 'shopping'] }]} />)
+    await user.click(screen.getByRole('button', { name: 'Descendre « Météo »' }))
+    expect(screen.getByText('« Météo » déplacé en position 2 sur 3.')).toBeInTheDocument()
   })
 
   it('garde les modifications non enregistrées quand le serveur envoie un autre ordre', async () => {
@@ -252,9 +302,9 @@ describe('DashboardForms', () => {
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
     await vi.waitFor(() => expect(saveDashboard).toHaveBeenCalled())
     rerender(<DashboardForms dashboards={[{ ...ORDERED[0], widgets: ['weather', 'mail', 'todo'] }]} />)
-    expect(values().slice(0, 2)).toEqual(['todo', 'weather'])
+    expect(values()).toEqual(['todo', 'weather'])
     finish({ code: 'saved', at: 1 })
-    await vi.waitFor(() => expect(values().slice(0, 3)).toEqual(['weather', 'mail', 'todo']))
+    await vi.waitFor(() => expect(values()).toEqual(['weather', 'mail', 'todo']))
   })
 
   it('poste l’ordre affiché au montage, même si le serveur en envoie un autre ensuite', async () => {
@@ -270,7 +320,14 @@ describe('DashboardForms', () => {
   it('ne remonte que la liste du dashboard rétabli, pas celles des autres', async () => {
     vi.mocked(resetDashboardOrder).mockResolvedValue({ code: 'order-reset', at: 1 })
     const user = userEvent.setup()
-    render(<DashboardForms dashboards={DASHBOARDS} />)
+    render(
+      <DashboardForms
+        dashboards={[
+          { id: 'd1', name: 'Perso', visibility: 'private', isDefault: true, widgets: ['todo', 'shopping'] },
+          { id: 'd2', name: 'Salon', visibility: 'public', isDefault: false, widgets: ['weather', 'agenda'] },
+        ]}
+      />,
+    )
     const salon = screen.getByDisplayValue('Salon').closest('form') as HTMLFormElement
     const perso = screen.getByDisplayValue('Perso').closest('form') as HTMLFormElement
     const order = (form: HTMLFormElement) => Array.from(form.querySelectorAll<HTMLInputElement>('input[name="widgets"]')).map((c) => c.value)
@@ -287,17 +344,177 @@ describe('DashboardForms', () => {
     expect(order(salon)).toEqual(salonMoved)
   })
 
-  it('précise que seule la place des widgets cochés est enregistrée', () => {
-    render(<DashboardForms dashboards={ORDERED} />)
-    expect(screen.getAllByText(/la place des widgets non cochés n’est pas enregistrée/).length).toBeGreaterThan(0)
+  it('retire « À faire » : la ligne disparaît, le focus va sur « Ajouter un widget » et l’enregistrement envoie une liste vide', async () => {
+    vi.mocked(saveDashboard).mockResolvedValue({ code: 'saved', at: 1 })
+    const user = userEvent.setup()
+    render(<DashboardForms dashboards={[DASHBOARDS[0]]} />)
+    await user.click(screen.getByRole('button', { name: /^Retirer « À faire »/ }))
+    expect(values()).toEqual([])
+    expect(screen.getByText('Aucun widget.')).toBeInTheDocument()
+    expect(screen.getByText('« À faire » retiré.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Ajouter un widget/ })).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    await vi.waitFor(() => expect(saveDashboard).toHaveBeenCalled())
+    expect(vi.mocked(saveDashboard).mock.calls[0][1].getAll('widgets')).toEqual([])
   })
 
-  it('annonce la position parmi tous les widgets pour un widget non coché', async () => {
-    const user = userEvent.setup()
-    render(<DashboardForms dashboards={ORDERED} />)
-    const mail = widget('mail').label
-    await user.click(screen.getByRole('button', { name: `Monter « ${mail} »` }))
-    const position = values().indexOf('mail') + 1
-    expect(screen.getByText(`« ${mail} » déplacé en position ${position} sur ${WIDGET_IDS.length}.`)).toBeInTheDocument()
+  describe('sélecteur de widgets', () => {
+    const persoOnly = [DASHBOARDS[0]]
+
+    it('ouvre un dialogue qui ne liste que les widgets restants, groupés par source', async () => {
+      const user = userEvent.setup()
+      render(<DashboardForms dashboards={persoOnly} />)
+      await user.click(openPicker())
+      const dialog = screen.getByRole('dialog', { name: /^Ajouter des widgets à « Perso »/ })
+      expect(within(dialog).queryByRole('checkbox', { name: /^À faire/ })).not.toBeInTheDocument()
+      expect(within(dialog).getAllByRole('checkbox')).toHaveLength(WIDGETS.length - 1)
+      expect(within(dialog).getByRole('group', { name: 'Garmin' })).toBeInTheDocument()
+      expect(within(dialog).getByRole('checkbox', { name: /^Mails/ })).toBeInTheDocument()
+    })
+
+    it('coche Météo puis Courses, ajoute en fin de liste dans l’ordre du catalogue et envoie le tout', async () => {
+      vi.mocked(saveDashboard).mockResolvedValue({ code: 'saved', at: 1 })
+      const user = userEvent.setup()
+      render(<DashboardForms dashboards={persoOnly} />)
+      await user.click(openPicker())
+      await user.click(screen.getByRole('checkbox', { name: /^Météo/ }))
+      await user.click(screen.getByRole('checkbox', { name: /^Courses/ }))
+      await user.click(screen.getByRole('button', { name: 'Ajouter (2)' }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(values()).toEqual(['todo', 'shopping', 'weather'])
+      expect(screen.getByText('2 widgets ajoutés en fin de liste.')).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+      await vi.waitFor(() => expect(saveDashboard).toHaveBeenCalled())
+      expect(vi.mocked(saveDashboard).mock.calls[0][1].getAll('widgets')).toEqual(['todo', 'shopping', 'weather'])
+    })
+
+    it('place les ajouts après l’ordre modifié non enregistré', async () => {
+      vi.mocked(saveDashboard).mockResolvedValue({ code: 'saved', at: 1 })
+      const user = userEvent.setup()
+      render(<DashboardForms dashboards={ORDERED} />)
+      await user.click(screen.getByRole('button', { name: 'Monter « À faire »' }))
+      await addWidgets(user, ['Courses'])
+      await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+      await vi.waitFor(() => expect(saveDashboard).toHaveBeenCalled())
+      expect(vi.mocked(saveDashboard).mock.calls[0][1].getAll('widgets')).toEqual(['todo', 'weather', 'shopping'])
+    })
+
+    it('garde « Ajouter (0) » désactivé tant que rien n’est coché', async () => {
+      const user = userEvent.setup()
+      render(<DashboardForms dashboards={persoOnly} />)
+      await user.click(openPicker())
+      expect(screen.getByRole('button', { name: 'Ajouter (0)' })).toBeDisabled()
+    })
+
+    it('« Annuler » ferme sans ajouter ; à la réouverture rien n’est coché et la recherche est vide', async () => {
+      const user = userEvent.setup()
+      render(<DashboardForms dashboards={persoOnly} />)
+      await user.click(openPicker())
+      await user.type(screen.getByRole('searchbox', { name: 'Rechercher un widget' }), 'garmin')
+      await user.click(screen.getByRole('checkbox', { name: /^Activités/ }))
+      await user.click(screen.getByRole('button', { name: 'Annuler' }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(values()).toEqual(['todo'])
+      await user.click(openPicker())
+      expect(screen.getByRole('searchbox', { name: 'Rechercher un widget' })).toHaveValue('')
+      expect((screen.getAllByRole('checkbox') as HTMLInputElement[]).some((c) => c.checked)).toBe(false)
+    })
+
+    it('un appui commencé dans le contenu et relâché sur le dialogue ne ferme pas le sélecteur', async () => {
+      const user = userEvent.setup()
+      render(<DashboardForms dashboards={persoOnly} />)
+      await user.click(openPicker())
+      const dialog = document.querySelector('dialog')!
+      fireEvent.mouseDown(screen.getByRole('searchbox', { name: 'Rechercher un widget' }))
+      fireEvent.click(dialog)
+      expect(screen.getByRole('dialog', { name: /^Ajouter des widgets/ })).toBeInTheDocument()
+      fireEvent.mouseDown(dialog)
+      fireEvent.click(dialog)
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('Échap (événement cancel) ferme sans ajouter et remet le focus sur le déclencheur', async () => {
+      const user = userEvent.setup()
+      render(<DashboardForms dashboards={persoOnly} />)
+      await user.click(openPicker())
+      await user.click(screen.getByRole('checkbox', { name: /^Météo/ }))
+      fireEvent(document.querySelector('dialog')!, new Event('cancel', { cancelable: true }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(values()).toEqual(['todo'])
+      expect(openPicker()).toHaveFocus()
+    })
+
+    it('filtre par recherche sans tenir compte de la casse ni des accents ; Entrée n’envoie pas le formulaire', async () => {
+      const user = userEvent.setup()
+      render(<DashboardForms dashboards={persoOnly} />)
+      await user.click(openPicker())
+      const search = screen.getByRole('searchbox', { name: 'Rechercher un widget' })
+      await user.type(search, 'garmin')
+      expect(screen.getAllByRole('checkbox').map((c) => c.closest('label')!.textContent)).toEqual([
+        expect.stringContaining('Activités'),
+        expect.stringContaining('7 derniers jours'),
+        expect.stringContaining('Sommeil'),
+      ])
+      await user.clear(search)
+      await user.type(search, 'meteo')
+      expect(screen.getAllByRole('checkbox')).toHaveLength(1)
+      expect(screen.getByRole('checkbox', { name: /^Météo/ })).toBeInTheDocument()
+      await user.clear(search)
+      await user.type(search, 'zzz{Enter}')
+      expect(screen.getByText('Aucun widget ne correspond.')).toBeInTheDocument()
+      expect(saveDashboard).not.toHaveBeenCalled()
+    })
+
+    it('sur le dashboard public Salon, la case « Mails » est désactivée et l’explication affichée', async () => {
+      const user = userEvent.setup()
+      render(<DashboardForms dashboards={[DASHBOARDS[1]]} />)
+      await user.click(openPicker())
+      const mail = screen.getByRole('checkbox', { name: /^Mails/ })
+      expect(mail).toBeDisabled()
+      expect(mail).toHaveAccessibleDescription(expect.stringContaining('Un dashboard public ne peut pas afficher de widget sensible.'))
+      expect(screen.getByRole('checkbox', { name: /^Agenda/ })).toBeEnabled()
+    })
+
+    it('passer Perso en public désactive les widgets sensibles et avertit si l’un est déjà listé', async () => {
+      const user = userEvent.setup()
+      render(<DashboardForms dashboards={[{ ...DASHBOARDS[0], widgets: ['todo', 'mail'] }]} />)
+      expect(screen.queryByText(/Retire les widgets sensibles/)).not.toBeInTheDocument()
+      await user.selectOptions(within(screen.getByDisplayValue('Perso').closest('form') as HTMLFormElement).getByLabelText('Visibilité'), 'public')
+      expect(screen.getByText(/Retire les widgets sensibles avant d’enregistrer/)).toBeInTheDocument()
+      await user.click(openPicker())
+      expect(screen.getByRole('checkbox', { name: /^Activités/ })).toBeDisabled()
+    })
+
+    it('après la réinitialisation du formulaire, le sélecteur ne traite plus Perso comme public', async () => {
+      const user = userEvent.setup()
+      render(<DashboardForms dashboards={persoOnly} />)
+      const form = screen.getByDisplayValue('Perso').closest('form') as HTMLFormElement
+      await user.selectOptions(within(form).getByLabelText('Visibilité'), 'public')
+      await user.click(openPicker())
+      expect(screen.getByRole('checkbox', { name: /^Mails/ })).toBeDisabled()
+      await user.click(screen.getByRole('button', { name: 'Annuler' }))
+      fireEvent.reset(form)
+      await user.click(openPicker())
+      expect(screen.getByRole('checkbox', { name: /^Mails/ })).toBeEnabled()
+    })
+
+    it('ne donne pas de nom aux cases du sélecteur : elles ne sont jamais postées', async () => {
+      const user = userEvent.setup()
+      render(<DashboardForms dashboards={persoOnly} />)
+      await user.click(openPicker())
+      for (const box of screen.getAllByRole('checkbox')) expect(box).not.toHaveAttribute('name')
+    })
+
+    it('désactive le déclencheur et l’explique quand tous les widgets sont sur le dashboard', () => {
+      render(<DashboardForms dashboards={[{ ...DASHBOARDS[0], widgets: [...WIDGETS.map((w) => w.id)] }]} />)
+      expect(openPicker()).toBeDisabled()
+      expect(screen.getByText('Tous les widgets sont déjà sur ce dashboard.')).toBeInTheDocument()
+    })
+  })
+
+  it('rend les widgets en champs cachés et initialWidgets côté serveur (sans JavaScript)', () => {
+    const html = renderToString(<DashboardForms dashboards={DASHBOARDS} />)
+    expect(html).toContain('name="widgets" value="todo"')
+    expect(html).toContain('name="initialWidgets"')
   })
 })

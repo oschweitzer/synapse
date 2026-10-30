@@ -199,7 +199,7 @@ Sheet des dépenses est lui-même la source de vérité.
 - Les ids inconnus ou absents du dashboard sont ignorés ; le choix des widgets est réservé à
   l'admin (voir plus bas). **Réglages** propose « Rétablir l'ordre par défaut » par dashboard.
 - L'admin peut aussi changer l'ordre dans **Réglages → Dashboards** avec les boutons monter/descendre
-  de chaque widget (clavier et tactile) ; l'ordre est celui des widgets cochés, enregistré avec le
+  de chaque widget (clavier et tactile) ; l'ordre est celui de la liste des widgets du dashboard, enregistré avec le
   formulaire (`saveDashboard`), dans la même table `synapse.dashboard_widgets`, donc le même que sur
   le dashboard.
 - Les tailles (4 ou 8 colonnes) ne changent pas ; la numérotation `01…` suit la position
@@ -214,7 +214,7 @@ Sheet des dépenses est lui-même la source de vérité.
   (colonne devenue inutilisée, à supprimer par une migration ultérieure). Un utilisateur sans
   dashboard reçoit le sien au premier accès (`ensure_default_dashboard`).
 - Zone admin dans **Réglages** : créer, renommer, supprimer un dashboard (10 au plus, le dashboard
-  par défaut ne se supprime pas), choisir sa visibilité et ses widgets, désigner le défaut,
+  par défaut ne se supprime pas), choisir sa visibilité et ses widgets (liste compacte des widgets du dashboard avec « Retirer », et un sélecteur « Ajouter un widget » : recherche, regroupement par source, sélection multiple, ajout en fin de liste, widgets sensibles désactivés sur un dashboard public), désigner le défaut,
   rétablir l'ordre du catalogue. Administrateur = `ADMIN_EMAILS`, sinon tout compte de
   `ALLOWED_EMAILS` (application mono-utilisateur). Le droit est revérifié dans chaque Server
   Action (`app/actions/dashboards.ts`), pas seulement masqué. Les dashboards sont propres à
