@@ -25,7 +25,7 @@ type Configured = MockResult | MockResult[]
 export type MockCall = { schema: string | null; table: string; method: string; args: unknown[] }
 
 /** Méthodes du query builder utilisées par `lib/` : elles se notent et se chaînent. */
-const CHAINABLE = ['select', 'eq', 'neq', 'is', 'in', 'gt', 'gte', 'lt', 'order', 'limit', 'update', 'upsert', 'insert', 'delete'] as const
+const CHAINABLE = ['select', 'eq', 'neq', 'is', 'in', 'gt', 'gte', 'lt', 'order', 'abortSignal', 'limit', 'update', 'upsert', 'insert', 'delete'] as const
 
 /** Prochain résultat configuré : un résultat seul est répété, un tableau est consommé en place. */
 function sequence(config: Configured) {

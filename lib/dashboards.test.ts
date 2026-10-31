@@ -26,10 +26,30 @@ function setup(over: { dashboards?: unknown; widgets?: unknown; ensure?: unknown
 }
 
 describe('listDashboards', () => {
-  it('crée le dashboard par défaut avec tout le catalogue de widgets', async () => {
-    const m = setup()
+  it('dashboards existants : la RPC n’est pas appelée', async () => {
+    const m = setup({ dashboards: [dashboard('a')] })
     await listDashboards(m.client)
+    expect(m.rpc).not.toHaveBeenCalled()
+    expect(m.calls.filter((c) => c.table === 'dashboards' && c.method === 'select')).toHaveLength(1)
+  })
+
+  it('liste vide : la RPC est appelée avec tout le catalogue puis les listes sont relues', async () => {
+    const m = mockSupabase({
+      rpc: { ensure_default_dashboard: {} },
+      tables: {
+        dashboards: [{ data: [] }, { data: [dashboard('a', { name: 'Principal', is_default: true })] }],
+        dashboard_widgets: [{ data: [] }, { data: [widget('a', 'weather')] }],
+      },
+    })
+    const result = await listDashboards(m.client)
+    expect(m.rpc).toHaveBeenCalledTimes(1)
     expect(m.rpc).toHaveBeenCalledWith('ensure_default_dashboard', { p_widgets: WIDGET_IDS })
+    expect(result).toEqual([{ id: 'a', name: 'Principal', visibility: 'private', isDefault: true, widgets: ['weather'] }])
+    expect(m.calls.filter((c) => c.table === 'dashboards' && c.method === 'select')).toHaveLength(2)
+    // Chaque lecture porte son propre signal : Next ne la mémoïse pas avec la précédente.
+    const signals = m.calls.filter((c) => c.table === 'dashboards' && c.method === 'abortSignal').map((c) => c.args[0])
+    expect(signals).toHaveLength(2)
+    expect(signals[0]).not.toBe(signals[1])
   })
 
   it('lève l’erreur de ensure_default_dashboard telle quelle', async () => {
@@ -37,22 +57,33 @@ describe('listDashboards', () => {
     await expect(listDashboards(setup({ ensure: error }).client)).rejects.toBe(error)
   })
 
-  it('lève l’erreur de lecture des dashboards', async () => {
+  it('lève l’erreur de la seconde lecture après la RPC', async () => {
+    const error = new Error('relecture down')
+    const m = mockSupabase({
+      rpc: { ensure_default_dashboard: {} },
+      tables: { dashboards: [{ data: [] }, { error }], dashboard_widgets: { data: [] } },
+    })
+    await expect(listDashboards(m.client)).rejects.toBe(error)
+  })
+
+  it('lève l’erreur de lecture des dashboards, sans appeler la RPC', async () => {
     const error = new Error('dashboards down')
     const m = mockSupabase({
       rpc: { ensure_default_dashboard: {} },
       tables: { dashboards: { error }, dashboard_widgets: { data: [] } },
     })
     await expect(listDashboards(m.client)).rejects.toBe(error)
+    expect(m.rpc).not.toHaveBeenCalled()
   })
 
-  it('lève l’erreur de lecture des widgets', async () => {
+  it('lève l’erreur de lecture des widgets, sans appeler la RPC', async () => {
     const error = new Error('widgets down')
     const m = mockSupabase({
       rpc: { ensure_default_dashboard: {} },
       tables: { dashboards: { data: [] }, dashboard_widgets: { error } },
     })
     await expect(listDashboards(m.client)).rejects.toBe(error)
+    expect(m.rpc).not.toHaveBeenCalled()
   })
 
   it('rend [] sans dashboard', async () => {
@@ -116,7 +147,7 @@ describe('listDashboards', () => {
   })
 
   it('lit dans le schéma synapse, dashboards triés par position puis création', async () => {
-    const m = setup()
+    const m = setup({ dashboards: [dashboard('a')] })
     await listDashboards(m.client)
     const dashboards = m.calls.filter((c) => c.table === 'dashboards')
     expect(dashboards.every((c) => c.schema === 'synapse')).toBe(true)

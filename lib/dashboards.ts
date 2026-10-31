@@ -10,25 +10,39 @@ export type DashboardRow = {
 }
 
 /**
- * Dashboards de l'utilisateur (le premier accès crée le dashboard par défaut), le dashboard par
- * défaut en tête, avec leurs widgets dans l'ordre. Lève si la lecture échoue.
+ * Dashboards de l'utilisateur, le dashboard par défaut en tête, avec leurs widgets dans l'ordre.
+ * Une liste vide (premier accès) déclenche la création du dashboard par défaut
+ * (`ensure_default_dashboard`) puis une seconde lecture ; sinon aucune écriture. Lève si une
+ * lecture ou la création échoue.
  */
 export async function listDashboards(supabase: SupabaseClient): Promise<DashboardRow[]> {
   const db = supabase.schema('synapse')
-  const ensured = await db.rpc('ensure_default_dashboard', { p_widgets: [...WIDGET_IDS] })
-  if (ensured.error) throw ensured.error
 
-  const [dashboards, widgets] = await Promise.all([
-    db.from('dashboards').select('id, name, visibility, is_default, position, created_at').order('position').order('created_at'),
-    db.from('dashboard_widgets').select('dashboard_id, widget_id, position').order('position'),
-  ])
-  if (dashboards.error) throw dashboards.error
-  if (widgets.error) throw widgets.error
+  // Next mémoïse les GET identiques d'un même rendu : sans signal propre, la relecture après la
+  // création rendrait la liste vide d'avant. Un `AbortSignal` sort la requête de la mémoïsation.
+  const read = async () => {
+    const signal = new AbortController().signal
+    const [dashboards, widgets] = await Promise.all([
+      db.from('dashboards').select('id, name, visibility, is_default, position, created_at').order('position').order('created_at').abortSignal(signal),
+      db.from('dashboard_widgets').select('dashboard_id, widget_id, position').order('position').abortSignal(signal),
+    ])
+    if (dashboards.error) throw dashboards.error
+    if (widgets.error) throw widgets.error
+    return { dashboards: dashboards.data, widgets: widgets.data }
+  }
+
+  let rows = await read()
+  if (rows.dashboards.length === 0) {
+    const ensured = await db.rpc('ensure_default_dashboard', { p_widgets: [...WIDGET_IDS] })
+    if (ensured.error) throw ensured.error
+    rows = await read()
+  }
+  const { dashboards, widgets } = rows
 
   const byDashboard = new Map<string, string[]>()
-  for (const w of widgets.data) byDashboard.set(w.dashboard_id, [...(byDashboard.get(w.dashboard_id) ?? []), w.widget_id])
+  for (const w of widgets) byDashboard.set(w.dashboard_id, [...(byDashboard.get(w.dashboard_id) ?? []), w.widget_id])
 
-  return dashboards.data
+  return dashboards
     .map((d) => ({
       id: d.id,
       name: d.name,
