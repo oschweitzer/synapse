@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { enforceLock } from '@/lib/lock/gate'
+import { checkLock } from '@/lib/lock/gate'
 import { readLockConfig } from '@/lib/lock/config'
 import { UNLOCK_COOKIE, issueUnlockCookie } from '@/lib/lock/token'
 
@@ -18,7 +18,7 @@ function request(path: string, init: { method?: string; headers?: Record<string,
 async function run(req: NextRequest) {
   const response = NextResponse.next()
   const redirect = vi.fn((url: URL) => NextResponse.redirect(url))
-  const result = await enforceLock(req, supabase, USER, response, redirect)
+  const result = (await checkLock(req, supabase, USER, response, redirect)).blocked
   return { result, response, redirect }
 }
 
@@ -32,7 +32,7 @@ beforeEach(() => {
   vi.mocked(readLockConfig).mockResolvedValue(CONFIG)
 })
 
-describe('enforceLock', () => {
+describe('checkLock (blocked)', () => {
   it("laisse tout passer sans verrouillage activé, sans poser de cookie", async () => {
     vi.mocked(readLockConfig).mockResolvedValue(null)
     const { result, response } = await run(request('/settings'))
@@ -127,5 +127,57 @@ describe('enforceLock', () => {
     expect(redirect).toHaveBeenCalledOnce()
     expect(response.cookies.get(UNLOCK_COOKIE)).toBeUndefined()
     expect(error).toHaveBeenCalled()
+  })
+})
+
+describe('checkLock', () => {
+  async function check(req: NextRequest) {
+    const response = NextResponse.next()
+    const redirect = vi.fn((url: URL) => NextResponse.redirect(url))
+    return { ...(await checkLock(req, supabase, USER, response, redirect)), response }
+  }
+
+  it('sans verrouillage activé : rien de bloqué, état déverrouillé sans configuration', async () => {
+    vi.mocked(readLockConfig).mockResolvedValue(null)
+    const { blocked, lock } = await check(request('/settings'))
+    expect(blocked).toBeNull()
+    expect(lock).toEqual({ config: null, unlocked: true })
+  })
+
+  it('avec un cookie valide : état déverrouillé et cookie réémis', async () => {
+    const { blocked, lock, response } = await check(request('/settings', { headers: await unlockedHeaders() }))
+    expect(blocked).toBeNull()
+    expect(lock).toEqual({ config: CONFIG, unlocked: true })
+    expect(response.cookies.get(UNLOCK_COOKIE)?.value).toBeTruthy()
+  })
+
+  it('GET / sans cookie : exempté, état verrouillé', async () => {
+    const { blocked, lock } = await check(request('/'))
+    expect(blocked).toBeNull()
+    expect(lock).toEqual({ config: CONFIG, unlocked: false })
+  })
+
+  it('GET /settings sans cookie : redirigé, état verrouillé', async () => {
+    const { blocked, lock } = await check(request('/settings'))
+    expect(blocked).not.toBeNull()
+    expect(lock).toEqual({ config: CONFIG, unlocked: false })
+  })
+
+  it("si la lecture échoue : état null, GET / passe et /settings est redirigé", async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(readLockConfig).mockRejectedValue(new Error('db down'))
+    const home = await check(request('/'))
+    expect(home.lock).toBeNull()
+    expect(home.blocked).toBeNull()
+    const settings = await check(request('/settings'))
+    expect(settings.lock).toBeNull()
+    expect(settings.blocked).not.toBeNull()
+  })
+
+  it('si SYNAPSE_LOCK_SECRET manque : état null', async () => {
+    const headers = await unlockedHeaders()
+    vi.stubEnv('SYNAPSE_LOCK_SECRET', '')
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect((await check(request('/settings', { headers }))).lock).toBeNull()
   })
 })

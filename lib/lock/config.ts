@@ -10,6 +10,9 @@ export const IDLE_CHOICES = [
 
 export type LockConfig = { idleMinutes: number; epoch: number }
 
+/** État du verrouillage d'une requête : configuration (`null` = non activé) et cookie de déverrouillage valide. */
+export type LockState = { config: LockConfig | null; unlocked: boolean }
+
 /** `null` = verrouillage non activé. Lève si la lecture échoue : l'appelant doit rester verrouillé. */
 export async function readLockConfig(supabase: SupabaseClient): Promise<LockConfig | null> {
   const { data, error } = await supabase.schema('synapse').from('lock').select('idle_minutes, epoch').maybeSingle()

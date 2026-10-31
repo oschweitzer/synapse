@@ -1,7 +1,15 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { isAllowedUser } from '@/lib/auth'
-import { enforceLock } from '@/lib/lock/gate'
+import { checkLock } from '@/lib/lock/gate'
+import {
+  LOCK_HEADER,
+  SIGNATURE_HEADER,
+  USER_ID_HEADER,
+  encodeLock,
+  signRequestContext,
+  stripForwardedHeaders,
+} from '@/lib/request-context-headers'
 
 const PUBLIC_PATHS = ['/login', '/auth']
 
@@ -15,7 +23,20 @@ function redirectWithCookies(url: URL, from: NextResponse, status = 307) {
   return redirect
 }
 
+/** Réponse `next` qui transmet les en-têtes de requête courants, avec les cookies et en-têtes de `from`. */
+function nextWithContext(request: NextRequest, from: NextResponse) {
+  const next = NextResponse.next({ request })
+  from.cookies.getAll().forEach((cookie) => next.cookies.set(cookie))
+  from.headers.forEach((value, key) => {
+    const name = key.toLowerCase()
+    if (!name.startsWith('x-middleware-') && name !== 'set-cookie') next.headers.set(key, value)
+  })
+  return next
+}
+
 export async function updateSession(request: NextRequest) {
+  // Anti-usurpation : un client ne peut jamais fournir le contexte que le middleware transmet à la page.
+  stripForwardedHeaders(request.headers)
   let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -65,10 +86,25 @@ export async function updateSession(request: NextRequest) {
 
   if (data.user && !isPublic) {
     // Second facteur : sans code (ou passkey) saisi, le dashboard et ses actions restent fermés.
-    const blocked = await enforceLock(request, supabase, data.user.id, response, (url) =>
+    const { blocked, lock } = await checkLock(request, supabase, data.user.id, response, (url) =>
       redirectWithCookies(url, response, request.method === 'GET' ? 307 : 303),
     )
     if (blocked) return blocked
+    if (lock) {
+      // Utilisateur et verrouillage déjà vérifiés : la page les relit ici au lieu de les redemander à Supabase.
+      // Les en-têtes sont signés (HMAC, SYNAPSE_LOCK_SECRET) : une requête qui contournerait le middleware
+      // ne peut pas les forger. Sans secret, rien n'est transmis et la page relit tout.
+      const encoded = encodeLock(lock)
+      try {
+        const signature = await signRequestContext(data.user.id, encoded)
+        request.headers.set(USER_ID_HEADER, data.user.id)
+        request.headers.set(LOCK_HEADER, encoded)
+        request.headers.set(SIGNATURE_HEADER, signature)
+        return nextWithContext(request, response)
+      } catch {
+        return response
+      }
+    }
   }
 
   return response

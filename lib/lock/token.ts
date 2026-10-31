@@ -48,6 +48,15 @@ async function open(label: string, token: string | undefined): Promise<string | 
   return same(token.slice(cut + 1), await sign(label, payload)) ? payload : null
 }
 
+/** Signature du contexte que le middleware transmet à la page (identifiant + verrouillage). */
+export async function signContext(payload: string): Promise<string> {
+  return sign('ctx', payload)
+}
+
+export async function verifyContext(payload: string, signature: string): Promise<boolean> {
+  return same(signature, await signContext(payload))
+}
+
 export type CookieSpec = { name: string; value: string; options: Record<string, unknown> }
 
 function baseOptions(maxAge?: number) {

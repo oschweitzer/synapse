@@ -19,7 +19,9 @@ import {
 import { SortableDashboard, type DashboardItem } from '@/components/dashboard/SortableDashboard'
 import type { WidgetId } from '@/lib/dashboard'
 import { listDashboards } from '@/lib/dashboards'
+import type { LockState } from '@/lib/lock/config'
 import { readLockState } from '@/lib/lock/page'
+import { readRequestContext } from '@/lib/request-context'
 import { WidgetSkeleton } from '@/components/widgets/WidgetShell'
 import { WidgetSlot } from '@/components/widgets/WidgetSlot'
 import { WeatherWidget } from '@/components/widgets/Weather'
@@ -45,8 +47,24 @@ function formatTopbar(now: Date) {
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ d?: string }> }) {
   const supabase = await createClient()
-  const { data } = await supabase.auth.getUser()
-  if (!data.user) redirect('/login')
+
+  // Le middleware (lib/supabase/middleware.ts) a déjà vérifié l'utilisateur et lu le verrouillage : il les
+  // transmet en en-têtes. Sans eux (middleware non exécuté), on relit tout : la page reste sûre.
+  const ctx = await readRequestContext()
+  let userId: string
+  let lockPromise: Promise<LockState | null>
+  if (ctx) {
+    userId = ctx.userId
+    lockPromise = Promise.resolve(ctx.lock)
+  } else {
+    const { data } = await supabase.auth.getUser()
+    if (!data.user) redirect('/login')
+    userId = data.user.id
+    lockPromise = readLockState(supabase, userId).catch((e) => {
+      console.error('[dashboard] lecture du verrouillage', e)
+      return null
+    })
+  }
 
   const { d } = await searchParams
 
@@ -57,10 +75,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       console.error('[dashboard] lecture des dashboards', e)
       return null
     }),
-    readLockState(supabase, data.user.id).catch((e) => {
-      console.error('[dashboard] lecture du verrouillage', e)
-      return null
-    }),
+    lockPromise,
   ])
   if (!lock) redirect('/unlock')
   if (!dashboards) {
@@ -89,7 +104,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             title="Activités"
             index="auto" icon="run" span={8} hero
             connector={activitiesConnector}
-            userId={data.user.id}
+            userId={userId}
             render={(activities) => <ActivitiesWidget activities={activities} />}
           />
         </Suspense>
@@ -106,7 +121,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             title="Mails"
             index="auto" icon="mail" span={4}
             connector={mailConnector}
-            userId={data.user.id}
+            userId={userId}
             render={(mail) => <MailWidget mail={mail} />}
           />
         </Suspense>
@@ -123,7 +138,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             title="7 derniers jours"
             index="auto" icon="run" span={8}
             connector={trendConnector}
-            userId={data.user.id}
+            userId={userId}
             render={(trend) => <TrendWidget trend={trend} />}
           />
         </Suspense>
@@ -140,7 +155,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             title="Sommeil"
             index="auto" icon="moon" span={4}
             connector={sleepConnector}
-            userId={data.user.id}
+            userId={userId}
             render={(sleep) => <SleepWidget sleep={sleep} />}
           />
         </Suspense>
@@ -157,7 +172,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             title="Dépenses cash"
             index="auto" icon="wallet" span={8}
             connector={cashConnector}
-            userId={data.user.id}
+            userId={userId}
             render={(cash) => <CashWidget cash={cash} picker={pickerConfig()} today={dayKey(new Date())} />}
           />
         </Suspense>
@@ -174,7 +189,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             title="À faire"
             index="auto" icon="task" span={4}
             connector={todoConnector}
-            userId={data.user.id}
+            userId={userId}
             render={(todo) => <TodoWidget todo={todo} />}
           />
         </Suspense>
@@ -191,7 +206,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             title="Courses"
             index="auto" icon="cart" span={4}
             connector={shoppingConnector}
-            userId={data.user.id}
+            userId={userId}
             render={(shopping) => <ShoppingWidget shopping={shopping} />}
           />
         </Suspense>
@@ -208,7 +223,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             title="Agenda"
             index="auto" icon="grid" span={4}
             connector={agendaConnector}
-            userId={data.user.id}
+            userId={userId}
             render={(agenda) => <AgendaWidget agenda={agenda} />}
           />
         </Suspense>
@@ -225,7 +240,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             title="Météo"
             index="auto" icon="grid" span={4}
             connector={weatherConnector}
-            userId={data.user.id}
+            userId={userId}
             render={(cities) => <WeatherWidget cities={cities} />}
           />
         </Suspense>
@@ -242,7 +257,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             title="Humeur"
             index="auto" icon="heart" span={4}
             connector={moodConnector}
-            userId={data.user.id}
+            userId={userId}
             render={(mood) => <MoodWidget mood={mood} />}
           />
         </Suspense>
@@ -259,7 +274,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             title="Habitudes"
             index="auto" icon="check" span={4}
             connector={habitsConnector}
-            userId={data.user.id}
+            userId={userId}
             render={(habits) => <HabitsWidget habits={habits} />}
           />
         </Suspense>
@@ -276,7 +291,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             title="Recette du jour"
             index="auto" icon="cart" span={4}
             connector={dailyRecipeConnector}
-            userId={data.user.id}
+            userId={userId}
             render={(daily) => <DailyRecipeWidget daily={daily} />}
           />
         </Suspense>

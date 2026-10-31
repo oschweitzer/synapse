@@ -1,9 +1,7 @@
 import { cookies } from 'next/headers'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { readLockConfig, type LockConfig } from '@/lib/lock/config'
+import { readLockConfig, type LockState } from '@/lib/lock/config'
 import { UNLOCK_COOKIE, isUnlocked } from '@/lib/lock/token'
-
-export type LockState = { config: LockConfig | null; unlocked: boolean }
 
 /**
  * État du verrouillage pour une page rendue sous le middleware : le middleware laisse passer
