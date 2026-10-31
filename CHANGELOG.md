@@ -55,6 +55,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - Settings: the label of the "Reconnect Google" button is centered like the other buttons, also when it wraps (#43).
+- Cash: a new expense is written explicitly to columns A:E of the next free row instead of using the Sheets `append` call, which could shift the row one column to the right (category read as an amount, "unreadable row").
 
 ### Security
 

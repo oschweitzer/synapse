@@ -368,9 +368,11 @@ describe('createEntry', () => {
     const created = await createEntry(raw)
     expect(created).toEqual({ id: expect.any(String), date: '2026-10-14', amount: 12.5, category: 'Marché', note: 'pain' })
     expect(isUuid(created.id)).toBe(true)
-    expect(appendValues).toHaveBeenCalledWith(TOKEN, SHEET_ID, range(ENTRIES_SHEET, 'A:E'), [
+    // 9 lignes de données (lignes 2 à 10) : la nouvelle va en ligne 11, colonnes A à E.
+    expect(updateValues).toHaveBeenCalledWith(TOKEN, SHEET_ID, range(ENTRIES_SHEET, 'A11:E11'), [
       [created.id, toSerial('2026-10-14'), 12.5, 'Marché', 'pain'],
     ])
+    expect(appendValues).not.toHaveBeenCalled()
   })
 
   it('invalide le cache de l’utilisateur', async () => {
@@ -383,7 +385,7 @@ describe('createEntry', () => {
     setup()
     await expect(createEntry({ ...raw, date: '2026-04-31' })).rejects.toMatchObject({ status: 400, message: 'Date invalide.' })
     await expect(createEntry({ ...raw, category: 'Inconnue' })).rejects.toBeInstanceOf(CashError)
-    expect(appendValues).not.toHaveBeenCalled()
+    expect(updateValues).not.toHaveBeenCalled()
     expect(revalidateTag).not.toHaveBeenCalled()
   })
 
@@ -394,7 +396,7 @@ describe('createEntry', () => {
   ] satisfies [string, Over][])('refuse avec un 409 %s', async (_name, over) => {
     setup(over)
     await expect(createEntry(raw)).rejects.toMatchObject({ status: 409 })
-    expect(appendValues).not.toHaveBeenCalled()
+    expect(updateValues).not.toHaveBeenCalled()
   })
 
   it('refuse sans session avec un 401', async () => {
@@ -404,14 +406,14 @@ describe('createEntry', () => {
 
   it('traduit un refus d’accès de Google en 409', async () => {
     setup()
-    vi.mocked(appendValues).mockRejectedValue(new SheetsError(403, 'Google Sheets 403'))
+    vi.mocked(updateValues).mockRejectedValue(new SheetsError(403, 'Google Sheets 403'))
     await expect(createEntry(raw)).rejects.toMatchObject({ status: 409, message: expect.stringContaining('n’a pas accès') })
     expect(revalidateTag).not.toHaveBeenCalled()
   })
 
   it('traduit un jeton refusé en 401 « reauth » et pose le bandeau', async () => {
     const m = setup()
-    vi.mocked(appendValues).mockRejectedValue(new SheetsError(401, 'Google Sheets 401'))
+    vi.mocked(updateValues).mockRejectedValue(new SheetsError(401, 'Google Sheets 401'))
     await expect(createEntry(raw)).rejects.toMatchObject({ status: 401, code: 'reauth' })
     expect(m.rpc).toHaveBeenCalledWith('flag_google_reauth')
   })

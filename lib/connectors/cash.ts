@@ -293,7 +293,10 @@ export async function createEntry(raw: unknown) {
     const result = validateEntry(raw, await freshCategories(token, sheetId))
     if (!result.entry) throw new CashError(400, result.error)
     const id = crypto.randomUUID()
-    await appendValues(token, sheetId, range(ENTRIES_SHEET, 'A:E'), [entryToRow(id, result.entry)])
+    // Ligne écrite en A:E explicitement : `values:append` détecte un « tableau » et peut démarrer
+    // à une autre colonne que A (ligne décalée, catégorie lue comme un montant).
+    const row = (await getValues(token, sheetId, range(ENTRIES_SHEET, 'A2:E'))).length + 2
+    await updateValues(token, sheetId, range(ENTRIES_SHEET, `A${row}:E${row}`), [entryToRow(id, result.entry)])
     done(userId)
     return { id, ...result.entry } satisfies CashEntry
   })
