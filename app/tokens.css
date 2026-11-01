@@ -19,6 +19,9 @@
   --ok-wash: rgba(94, 230, 168, 0.08);
   --signal-danger: #ff6b6b;
   --danger-wash: rgba(255, 107, 107, 0.10);
+  --violet-400: #a78bfa;
+  --blue-400: #5b9bff;
+  --pink-400: #ff7ac6;
   --grid-line: rgba(63, 216, 242, 0.035);
   --scrim: rgba(5, 8, 13, 0.78);
   --on-accent: #04121a;

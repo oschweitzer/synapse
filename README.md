@@ -188,7 +188,7 @@ Interface « poste de pilotage » : sombre uniquement, accent cyan (données) et
 
 - `app/tokens.css` : tokens (couleurs, espacements, biseaux), copiés depuis `tokens.json` du design system.
 - `app/hud.css` : classes `hud-*` (panel, bouton, badge, champ, jauge, courbe, mail…).
-- `components/ui/` : composants React portés du design system (`Panel`, `Button`, `Badge`, `Input`, `Stat`, `Gauge`, `Sparkline`, `Icon`), mêmes props et classes.
+- `components/ui/` : composants React portés du design system (`Panel`, `Button`, `Badge`, `Input`, `Stat`, `Gauge`, `Sparkline`, `Icon`, `Toolbox`), mêmes props et classes. `Toolbox` est une barre d'outils verticale navigable aux flèches, composée de `ToolGroup` (groupe titré en grille), `ToolButton` (bouton icône, état enfoncé) et `ColorSwatches` (pastilles de couleur `TOOL_COLORS` et couleur personnalisée).
 - `tailwind.config.ts` expose les tokens (`ink-*`, `hull-*`, `cyan-*`, `amber-*`…) ; les palettes `slate`, `red`, `green`, `amber` et `sky` y sont aliasées sur les tokens pour que les écrans existants prennent le style sans être réécrits. Pour un nouvel écran, utiliser les tokens et `components/ui/`.
 - Polices (Chakra Petch, IBM Plex Sans, JetBrains Mono) auto-hébergées (`app/fonts`, licence OFL, sous-ensemble latin) et chargées par `next/font/local` dans `app/layout.tsx`, pour que le build ne dépende pas de Google Fonts.
 - Un widget tient sur 4 ou 8 colonnes de la grille `.hud-dash` (voir `WidgetShell`).

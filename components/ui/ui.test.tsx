@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { Badge } from './Badge'
@@ -9,6 +10,7 @@ import { Input } from './Input'
 import { Panel } from './Panel'
 import { Sparkline } from './Sparkline'
 import { Stat } from './Stat'
+import { ColorSwatches, TOOL_COLORS, ToolButton, ToolGroup, Toolbox } from './Toolbox'
 
 describe('buttonClass', () => {
   it("renvoie 'hud-btn hud-btn--ghost' par défaut", () => {
@@ -249,5 +251,208 @@ describe('Sparkline', () => {
     const { container } = render(<Sparkline data={[1, 2, 3]} />)
     expect(container.querySelector('line.hud-spark__goal')).not.toBeInTheDocument()
     expect(container.querySelector('text')).not.toBeInTheDocument()
+  })
+})
+
+describe('Toolbox', () => {
+  it('expose une barre d\'outils verticale nommée, avec ses enfants', () => {
+    render(<Toolbox label="Outils"><button type="button">a</button></Toolbox>)
+    const bar = screen.getByRole('toolbar', { name: 'Outils' })
+    expect(bar.getAttribute('aria-orientation')).toBe('vertical')
+    expect(bar.className).toContain('hud-toolbox')
+    expect(screen.getByRole('button', { name: 'a' })).toBeTruthy()
+  })
+
+  it('ignore les boutons qui ne sont ni outils ni pastilles', async () => {
+    const user = userEvent.setup()
+    render(
+      <Toolbox label="Outils">
+        <ToolButton name="plus" label="un" />
+        <button type="button">autre</button>
+        <ToolButton name="plus" label="deux" />
+      </Toolbox>,
+    )
+    screen.getByRole('button', { name: 'un' }).focus()
+    await user.keyboard('{ArrowDown}')
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'deux' }))
+  })
+
+  function setup() {
+    render(
+      <>
+        <Toolbox label="Outils">
+          <ToolButton name="plus" label="un" />
+          <ToolButton name="plus" label="deux" disabled />
+          <ToolButton name="plus" label="trois" />
+        </Toolbox>
+        <button type="button">après</button>
+      </>,
+    )
+  }
+
+  it('les flèches déplacent le focus en sautant les boutons désactivés', async () => {
+    const user = userEvent.setup()
+    setup()
+    screen.getByRole('button', { name: 'un' }).focus()
+    await user.keyboard('{ArrowDown}')
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'trois' }))
+    await user.keyboard('{ArrowUp}')
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'un' }))
+    await user.keyboard('{ArrowRight}')
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'trois' }))
+    await user.keyboard('{ArrowLeft}')
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'un' }))
+  })
+
+  it('boucle aux deux extrémités', async () => {
+    const user = userEvent.setup()
+    setup()
+    screen.getByRole('button', { name: 'trois' }).focus()
+    await user.keyboard('{ArrowDown}')
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'un' }))
+    await user.keyboard('{ArrowUp}')
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'trois' }))
+  })
+
+  it('Tab sort de la barre vers le bouton suivant', async () => {
+    const user = userEvent.setup()
+    setup()
+    screen.getByRole('button', { name: 'trois' }).focus()
+    await user.tab()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'après' }))
+  })
+})
+
+describe('ToolGroup', () => {
+  it('est un groupe nommé par son titre, avec une grille', () => {
+    render(<ToolGroup title="Formes"><span data-testid="c">x</span></ToolGroup>)
+    const group = screen.getByRole('group', { name: 'Formes' })
+    expect(group.className).toContain('hud-toolgroup')
+    expect(group.querySelector('.hud-label')?.textContent).toBe('Formes')
+    expect(screen.getByTestId('c').parentElement?.className).toContain('hud-toolgroup__grid')
+  })
+})
+
+describe('ToolButton', () => {
+  it('rend un bouton icône nommé par son label', () => {
+    render(<ToolButton name="undo" label="Annuler" />)
+    const b = screen.getByRole('button', { name: 'Annuler' })
+    expect(b.getAttribute('type')).toBe('button')
+    expect(b.className).toContain('hud-tool')
+    expect(b.getAttribute('title')).toBe('Annuler')
+    expect(b.querySelectorAll('svg')).toHaveLength(1)
+  })
+
+  it('aria-pressed suit la prop pressed', () => {
+    const { rerender } = render(<ToolButton name="undo" label="x" />)
+    expect(screen.getByRole('button').hasAttribute('aria-pressed')).toBe(false)
+    rerender(<ToolButton name="undo" label="x" pressed />)
+    expect(screen.getByRole('button').getAttribute('aria-pressed')).toBe('true')
+    rerender(<ToolButton name="undo" label="x" pressed={false} />)
+    expect(screen.getByRole('button').getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('appelle onClick, sauf désactivé', async () => {
+    const user = userEvent.setup()
+    const onClick = vi.fn()
+    const { rerender } = render(<ToolButton name="undo" label="x" onClick={onClick} />)
+    await user.click(screen.getByRole('button'))
+    expect(onClick).toHaveBeenCalledTimes(1)
+    rerender(<ToolButton name="undo" label="x" onClick={onClick} disabled />)
+    const b = screen.getByRole('button') as HTMLButtonElement
+    expect(b.disabled).toBe(true)
+    await user.click(b)
+    expect(onClick).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('ColorSwatches', () => {
+  it('rend une pastille par couleur, nommée et colorée', () => {
+    render(<ColorSwatches label="Couleur" value="#000000" onChange={() => {}} />)
+    for (const c of TOOL_COLORS) {
+      const b = screen.getByRole('button', { name: c.name }) as HTMLButtonElement
+      expect(b.className).toContain('hud-swatch')
+      expect(b.style.backgroundColor).not.toBe('')
+    }
+    expect(screen.getAllByRole('button')).toHaveLength(TOOL_COLORS.length)
+  })
+
+  it('marque la pastille correspondant à la valeur, sans tenir compte de la casse', () => {
+    render(<ColorSwatches label="Couleur" value="#3FD8F2" onChange={() => {}} />)
+    expect(screen.getByRole('button', { name: 'cyan' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'ambre' }).getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('un clic appelle onChange avec le hex', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<ColorSwatches label="Couleur" value="#000000" onChange={onChange} />)
+    await user.click(screen.getByRole('button', { name: 'rose' }))
+    expect(onChange).toHaveBeenCalledWith('#ff7ac6')
+  })
+
+  it("'Sans remplissage' n'existe qu'avec allowNone", async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    const { rerender } = render(<ColorSwatches label="Couleur" value="#000000" onChange={onChange} />)
+    expect(screen.queryByRole('button', { name: 'Sans remplissage' })).toBeNull()
+    rerender(<ColorSwatches label="Couleur" value="transparent" onChange={onChange} allowNone />)
+    const none = screen.getByRole('button', { name: 'Sans remplissage' })
+    expect(none.className).toContain('hud-swatch--none')
+    expect(none.getAttribute('aria-pressed')).toBe('true')
+    await user.click(none)
+    expect(onChange).toHaveBeenCalledWith('transparent')
+  })
+
+  it('le champ personnalisé reflète la valeur hex, sinon #000000', () => {
+    const { rerender } = render(<ColorSwatches label="Couleur" value="#123abc" onChange={() => {}} />)
+    const input = screen.getByLabelText('Couleur personnalisée') as HTMLInputElement
+    expect(input.type).toBe('color')
+    expect(input.closest('.hud-swatch--custom')).not.toBeNull()
+    expect(input.value).toBe('#123abc')
+    rerender(<ColorSwatches label="Couleur" value="transparent" onChange={() => {}} />)
+    expect((screen.getByLabelText('Couleur personnalisée') as HTMLInputElement).value).toBe('#000000')
+  })
+
+  it('marque la pastille personnalisée comme sélectionnée seulement pour une couleur hors palette', () => {
+    const { rerender } = render(<ColorSwatches label="Couleur" value="#123abc" onChange={() => {}} allowNone />)
+    const custom = () => screen.getByLabelText('Couleur personnalisée').closest('.hud-swatch--custom') as HTMLElement
+    expect(custom().dataset.selected).toBe('true')
+    rerender(<ColorSwatches label="Couleur" value="#3fd8f2" onChange={() => {}} allowNone />)
+    expect(custom().dataset.selected).toBeUndefined()
+    rerender(<ColorSwatches label="Couleur" value="transparent" onChange={() => {}} allowNone />)
+    expect(custom().dataset.selected).toBeUndefined()
+  })
+
+  it('normalise les couleurs #rgb : pastille de palette et champ personnalisé', () => {
+    render(<ColorSwatches label="Couleur" value="#FA0" onChange={() => {}} />)
+    expect((screen.getByLabelText('Couleur personnalisée') as HTMLInputElement).value).toBe('#ffaa00')
+  })
+
+  it('changer le champ personnalisé appelle onChange', () => {
+    const onChange = vi.fn()
+    render(<ColorSwatches label="Couleur" value="#000000" onChange={onChange} />)
+    fireEvent.change(screen.getByLabelText('Couleur personnalisée'), { target: { value: '#123456' } })
+    expect(onChange).toHaveBeenCalledWith('#123456')
+  })
+})
+
+describe('TOOL_COLORS', () => {
+  it('reprend les valeurs de app/tokens.css pour les couleurs qui y ont un jeton', () => {
+    const css = readFileSync('app/tokens.css', 'utf8')
+    const token = (name: string) => new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})`).exec(css)?.[1].toLowerCase()
+    for (const c of TOOL_COLORS) {
+      const tokenName = { cyan: 'cyan-400', ambre: 'amber-400', vert: 'signal-ok', rouge: 'signal-danger', violet: 'violet-400', bleu: 'blue-400', rose: 'pink-400' }[c.name] ?? c.name
+      const expected = token(tokenName)
+      if (expected) expect(c.value).toBe(expected)
+    }
+  })
+
+
+  it('liste les 12 couleurs dans l\'ordre', () => {
+    expect(TOOL_COLORS.map((c) => `${c.name}:${c.value}`)).toEqual([
+      'cyan:#3fd8f2', 'ambre:#ffb547', 'vert:#5ee6a8', 'rouge:#ff6b6b', 'violet:#a78bfa', 'bleu:#5b9bff',
+      'rose:#ff7ac6', 'ink-100:#e4eef5', 'ink-300:#9fb4c4', 'line-300:#4d7192', 'hull-700:#0f1924', 'void-900:#05080d',
+    ])
   })
 })

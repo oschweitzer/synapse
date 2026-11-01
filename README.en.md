@@ -188,7 +188,7 @@ Prerequisites: set `SYNAPSE_LOCK_SECRET` (Vercel and `.env.local`) **before** en
 
 - `app/tokens.css`: tokens (colours, spacing, bevels), copied from the design system's `tokens.json`.
 - `app/hud.css`: `hud-*` classes (panel, button, badge, input, gauge, sparkline, mail…).
-- `components/ui/`: React components ported from the design system (`Panel`, `Button`, `Badge`, `Input`, `Stat`, `Gauge`, `Sparkline`, `Icon`), same props and classes.
+- `components/ui/`: React components ported from the design system (`Panel`, `Button`, `Badge`, `Input`, `Stat`, `Gauge`, `Sparkline`, `Icon`, `Toolbox`), same props and classes. `Toolbox` is a vertical, arrow-key navigable toolbar built from `ToolGroup` (titled grid group), `ToolButton` (icon button with a pressed state) and `ColorSwatches` (`TOOL_COLORS` swatches plus a custom colour).
 - `tailwind.config.ts` exposes the tokens (`ink-*`, `hull-*`, `cyan-*`, `amber-*`…); the `slate`, `red`, `green`, `amber` and `sky` palettes are aliased to the tokens there so existing screens pick up the style without being rewritten. For a new screen, use the tokens and `components/ui/`.
 - Fonts (Chakra Petch, IBM Plex Sans, JetBrains Mono) are self-hosted (`app/fonts`, OFL licence, latin subset) and loaded by `next/font/local` in `app/layout.tsx`, so the build does not depend on Google Fonts.
 - A widget fits 4 or 8 columns of the `.hud-dash` grid (see `WidgetShell`).

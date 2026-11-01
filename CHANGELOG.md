@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Mood and habits tracking (#18).
 - Cash expenses widget backed by a Google Sheet (#21).
 - Drag-and-drop reordering of dashboard widgets, saved per user (#30).
+- `Toolbox` design system components (toolbar, tool groups, tool buttons, colour swatches), 20 toolbox icons and three swatch colour tokens, ahead of the mind map toolbox (#100).
 - Per-widget refresh button (#35).
 - Loading spinners on buttons and widgets (#29).
 - Mind map workspace (#37).
