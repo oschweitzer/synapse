@@ -8,11 +8,31 @@ export type WeatherHour = {
   weatherCode: number
 }
 
+export type WeatherDay = {
+  /** Date locale du lieu, ex. "2026-01-15". */
+  date: string
+  min: number
+  max: number
+  precipitationProbability: number | null
+  weatherCode: number
+}
+
 export type Weather = {
   location: string
   current: { temperature: number; weatherCode: number }
   today: { min: number; max: number; precipitationProbability: number | null }
   hours: WeatherHour[]
+  days: WeatherDay[]
+}
+
+/** Libellé d'un jour de la vue semaine ; UTC à midi pour que serveur et navigateur rendent la même chaîne. */
+export function dayLabel(date: string, index: number): string {
+  if (index === 0) return 'Auj.'
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString('fr-FR', {
+    weekday: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  })
 }
 
 /** Une ville du widget ; `weather` vaut null si Open-Meteo n'a pas répondu pour elle. */

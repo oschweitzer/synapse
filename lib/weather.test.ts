@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { describeWeatherCode } from '@/lib/weather'
+import { dayLabel, describeWeatherCode } from '@/lib/weather'
 
 describe('describeWeatherCode', () => {
   it.each([
@@ -29,5 +29,15 @@ describe('describeWeatherCode', () => {
 
   it.each([4, 44, 50, 58, 70, 83, 84, 90])('code inconnu %i → Inconnu', (code) => {
     expect(describeWeatherCode(code).label).toBe('Inconnu')
+  })
+})
+
+describe('dayLabel', () => {
+  it('rend « Auj. » pour l’indice 0', () => {
+    expect(dayLabel('2026-01-15', 0)).toBe('Auj.')
+  })
+
+  it('rend le jour de la semaine abrégé et le jour du mois', () => {
+    expect(dayLabel('2026-01-16', 1)).toMatch(/^ven\.? 16$/)
   })
 })

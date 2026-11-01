@@ -1,10 +1,10 @@
 import { envUrl } from '@/lib/env'
 import { createClient } from '@/lib/supabase/server'
 import type { Connector } from './types'
-import type { CityWeather, Weather, WeatherHour } from '@/lib/weather'
+import type { CityWeather, Weather, WeatherDay, WeatherHour } from '@/lib/weather'
 
 export { describeWeatherCode } from '@/lib/weather'
-export type { CityWeather, Weather, WeatherHour }
+export type { CityWeather, Weather, WeatherDay, WeatherHour }
 
 /** Ville utilisée tant qu'aucune n'est configurée. */
 export const DEFAULT_LOCATION = { id: 'default', label: 'Paris', latitude: 48.8566, longitude: 2.3522 }
@@ -14,7 +14,10 @@ export const WEATHER_LOCATIONS_MAX = 5
 
 /** Durée du cache Next sur l'appel Open-Meteo (30 min). */
 const REVALIDATE_SECONDS = 30 * 60
-const HOURS_AHEAD = 6
+/** Heures affichées dans le bandeau horaire, heure courante comprise. */
+const HOURS_AHEAD = 24
+/** Jours de la vue semaine, aujourd'hui compris. */
+const DAYS_AHEAD = 7
 
 const DEFAULT_FORECAST_URL = 'https://api.open-meteo.com/v1/forecast'
 const DEFAULT_GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search'
@@ -29,6 +32,8 @@ type OpenMeteoResponse = {
     weather_code: number[]
   }
   daily: {
+    time: string[]
+    weather_code: number[]
     temperature_2m_max: number[]
     temperature_2m_min: number[]
     precipitation_probability_max: (number | null)[]
@@ -56,9 +61,9 @@ async function fetchForecast(latitude: number, longitude: number): Promise<OpenM
     longitude: String(longitude),
     current: 'temperature_2m,weather_code',
     hourly: 'temperature_2m,precipitation_probability,weather_code',
-    daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max',
+    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
     timezone: 'auto',
-    forecast_days: '2',
+    forecast_days: String(DAYS_AHEAD),
   })
   const res = await fetch(`${envUrl('OPEN_METEO_FORECAST_URL', DEFAULT_FORECAST_URL)}?${params}`, {
     next: { revalidate: REVALIDATE_SECONDS },
@@ -76,24 +81,44 @@ function localToDate(time: string, utcOffsetSeconds: number) {
 export function toWeather(location: string, raw: OpenMeteoResponse): Weather {
   const currentHour = raw.current.time.slice(0, 13)
   const start = raw.hourly.time.findIndex((t) => t.slice(0, 13) >= currentHour)
-  const hours = (start < 0 ? [] : raw.hourly.time.slice(start + 1, start + 1 + HOURS_AHEAD)).map(
+  const hours = (start < 0 ? [] : raw.hourly.time.slice(start, start + HOURS_AHEAD)).map(
     (time, i) => ({
       time: time.slice(11, 16),
-      temperature: raw.hourly.temperature_2m[start + 1 + i],
-      precipitationProbability: raw.hourly.precipitation_probability[start + 1 + i],
-      weatherCode: raw.hourly.weather_code[start + 1 + i],
+      temperature: raw.hourly.temperature_2m[start + i],
+      precipitationProbability: raw.hourly.precipitation_probability[start + i],
+      weatherCode: raw.hourly.weather_code[start + i],
+    }),
+  )
+
+  // Date courante du lieu : daily.time est déjà en heure locale (timezone=auto).
+  const today = raw.current.time.slice(0, 10)
+  const d = raw.daily
+  const dailyArrays = [d?.time, d?.weather_code, d?.temperature_2m_max, d?.temperature_2m_min, d?.precipitation_probability_max]
+  // Tableaux parallèles : on s'arrête au plus court, absent = aucun jour.
+  const dailyLength = dailyArrays.every(Array.isArray) ? Math.min(...dailyArrays.map((a) => a!.length)) : 0
+  const dailyTimes = (d?.time ?? []).slice(0, dailyLength)
+  const first = dailyTimes.findIndex((t) => t === today)
+  const days: WeatherDay[] = (first < 0 ? [] : dailyTimes.slice(first, first + DAYS_AHEAD)).map(
+    (date, i) => ({
+      date,
+      min: raw.daily.temperature_2m_min[first + i],
+      max: raw.daily.temperature_2m_max[first + i],
+      precipitationProbability: raw.daily.precipitation_probability_max[first + i] ?? null,
+      weatherCode: raw.daily.weather_code[first + i],
     }),
   )
 
   return {
     location,
     current: { temperature: raw.current.temperature_2m, weatherCode: raw.current.weather_code },
+    // Même jour que la vue semaine : l'entrée du jour courant du lieu, sinon la première.
     today: {
-      min: raw.daily.temperature_2m_min[0],
-      max: raw.daily.temperature_2m_max[0],
-      precipitationProbability: raw.daily.precipitation_probability_max[0],
+      min: raw.daily.temperature_2m_min[Math.max(first, 0)],
+      max: raw.daily.temperature_2m_max[Math.max(first, 0)],
+      precipitationProbability: raw.daily.precipitation_probability_max[Math.max(first, 0)],
     },
     hours,
+    days,
   }
 }
 

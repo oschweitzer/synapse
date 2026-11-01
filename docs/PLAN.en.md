@@ -50,7 +50,7 @@ expenses Google Sheet is itself the source of truth.
 ## 3. Sources
 
 ### Weather — Open-Meteo
-- Free, no key. Today's forecast and the coming hours, for one or several cities
+- Free, no key. Hourly forecast (next 24 h) and a 7-day forecast starting today, for one or several cities
   (five at most) chosen in the settings (Open-Meteo geocoding).
 - 30 min Next cache.
 

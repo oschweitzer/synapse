@@ -35,6 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - End-to-end flow for cash expenses (add, edit, delete, forget and re-link the sheet through a faked Google Picker), with a seeded Google connection and a stateful in-memory Sheets mock (#71).
 - The plan (`docs/PLAN.md`) states that sign-in, recipes, shopping, to-do, mood, habits, cash, mind maps, dashboards, lock, settings and weather each have an end-to-end browser flow (#72).
 - Reorder dashboard widgets from the settings with move up/down buttons, saved with the dashboard form (#44).
+- Weather widget: the hourly forecast scrolls horizontally over the next 24 hours, and a Day / Week toggle shows the 7 days starting today (#48).
 
 ### Changed
 

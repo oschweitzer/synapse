@@ -17,6 +17,19 @@ function hours(count: number, day = '2026-01-15') {
   return Array.from({ length: count }, (_, h) => `${day}T${String(h).padStart(2, '0')}:00`)
 }
 
+const DAYS = ['2026-01-15', '2026-01-16', '2026-01-17', '2026-01-18', '2026-01-19', '2026-01-20', '2026-01-21']
+
+/** Prévision horaire sur 48 h : la température de l'heure i vaut i. */
+function forecast48() {
+  const time = [...hours(24, '2026-01-15'), ...hours(24, '2026-01-16')]
+  return {
+    time,
+    temperature_2m: time.map((_, i) => i),
+    precipitation_probability: time.map((_, i) => (i % 2 ? null : i * 2)),
+    weather_code: time.map((_, i) => i % 4),
+  }
+}
+
 function forecast(over: Record<string, unknown> = {}) {
   const time = hours(24)
   return {
@@ -28,7 +41,13 @@ function forecast(over: Record<string, unknown> = {}) {
       precipitation_probability: time.map((_, i) => (i % 2 ? null : i * 2)),
       weather_code: time.map((_, i) => i % 4),
     },
-    daily: { temperature_2m_max: [8, 9], temperature_2m_min: [1, 2], precipitation_probability_max: [30, 40] },
+    daily: {
+      time: DAYS,
+      weather_code: [0, 1, 2, 3, 45, 61, 95],
+      temperature_2m_max: [8, 9, 10, 11, 12, 13, 14],
+      temperature_2m_min: [1, 2, 3, 4, 5, 6, 7],
+      precipitation_probability_max: [30, 40, null, 10, 20, 50, 60],
+    },
     ...over,
   }
 }
@@ -64,17 +83,20 @@ describe('toWeather', () => {
     expect(weather.today).toEqual({ min: 1, max: 8, precipitationProbability: 30 })
   })
 
-  it('rend les 6 heures suivant l’heure courante, au format HH:MM', () => {
-    const weather = toWeather('Paris', forecast() as never)
-    expect(weather.hours.map((h) => h.time)).toEqual(['15:00', '16:00', '17:00', '18:00', '19:00', '20:00'])
-    expect(weather.hours.map((h) => h.temperature)).toEqual([15, 16, 17, 18, 19, 20])
-    expect(weather.hours.map((h) => h.precipitationProbability)).toEqual([null, 32, null, 36, null, 40])
-    expect(weather.hours.map((h) => h.weatherCode)).toEqual([3, 0, 1, 2, 3, 0])
+  it('rend 24 heures à partir de l’heure courante, au format HH:MM', () => {
+    const weather = toWeather('Paris', forecast({ hourly: forecast48() }) as never)
+    expect(weather.hours).toHaveLength(24)
+    expect(weather.hours[0].time).toBe('14:00')
+    expect(weather.hours[23].time).toBe('13:00')
+    expect(weather.hours.slice(0, 3).map((h) => h.temperature)).toEqual([14, 15, 16])
+    expect(weather.hours.slice(0, 3).map((h) => h.precipitationProbability)).toEqual([28, null, 32])
+    expect(weather.hours.slice(0, 3).map((h) => h.weatherCode)).toEqual([2, 3, 0])
+    expect(weather.hours[23].temperature).toBe(37)
   })
 
   it('en rend moins quand la prévision s’arrête', () => {
     const weather = toWeather('Paris', forecast({ current: { time: '2026-01-15T21:30', temperature_2m: 3, weather_code: 0 } }) as never)
-    expect(weather.hours.map((h) => h.time)).toEqual(['22:00', '23:00'])
+    expect(weather.hours.map((h) => h.time)).toEqual(['21:00', '22:00', '23:00'])
   })
 
   it('rend [] quand l’heure courante est absente de la prévision', () => {
@@ -83,6 +105,53 @@ describe('toWeather', () => {
       hourly: { time, temperature_2m: time.map(() => 0), precipitation_probability: time.map(() => 0), weather_code: time.map(() => 0) },
     })
     expect(toWeather('Paris', raw as never).hours).toEqual([])
+  })
+})
+
+describe('toWeather, jours', () => {
+  it('rend 7 jours à partir d’aujourd’hui', () => {
+    const { days } = toWeather('Paris', forecast() as never)
+    expect(days).toHaveLength(7)
+    expect(days[0]).toEqual({ date: '2026-01-15', min: 1, max: 8, precipitationProbability: 30, weatherCode: 0 })
+    expect(days[2]).toEqual({ date: '2026-01-17', min: 3, max: 10, precipitationProbability: null, weatherCode: 2 })
+    expect(days[6]).toEqual({ date: '2026-01-21', min: 7, max: 14, precipitationProbability: 60, weatherCode: 95 })
+  })
+
+  it('commence à la date courante du lieu quand daily.time commence plus tôt', () => {
+    const base = forecast()
+    const raw = forecast({
+      daily: {
+        time: ['2026-01-14', ...DAYS],
+        weather_code: [9, ...base.daily.weather_code],
+        temperature_2m_max: [99, ...base.daily.temperature_2m_max],
+        temperature_2m_min: [-9, ...base.daily.temperature_2m_min],
+        precipitation_probability_max: [0, ...base.daily.precipitation_probability_max],
+      },
+    })
+    const { days } = toWeather('Paris', raw as never)
+    expect(days).toHaveLength(7)
+    expect(days[0]).toMatchObject({ date: '2026-01-15', max: 8, min: 1 })
+    // Le résumé du jour suit la même entrée que la vue semaine.
+    expect(toWeather('Paris', raw as never).today).toEqual({ min: 1, max: 8, precipitationProbability: 30 })
+  })
+
+  it('rend [] quand aujourd’hui est absent de daily.time', () => {
+    const raw = forecast({ current: { time: '2026-02-01T10:00', temperature_2m: 1, weather_code: 0 } })
+    expect(toWeather('Paris', raw as never).days).toEqual([])
+  })
+
+  it('ne garde que les jours couverts par tous les tableaux parallèles', () => {
+    const base = forecast()
+    const raw = forecast({ daily: { ...base.daily, temperature_2m_max: [8, 9, 10] } })
+    const { days } = toWeather('Paris', raw as never)
+    expect(days.map((d) => d.date)).toEqual(DAYS.slice(0, 3))
+    expect(days.every((d) => Number.isFinite(d.max) && Number.isFinite(d.min))).toBe(true)
+  })
+
+  it('rend [] quand un tableau journalier est absent', () => {
+    const base = forecast()
+    const daily = { ...base.daily, weather_code: undefined }
+    expect(toWeather('Paris', forecast({ daily }) as never).days).toEqual([])
   })
 })
 
@@ -128,7 +197,8 @@ describe('weatherConnector', () => {
     routeFetch({ '48.8566': () => json(forecast()) })
     await weatherConnector.read('u1')
     const params = new URL(fetchMock.mock.calls[0][0]).searchParams
-    expect(Object.fromEntries(params)).toMatchObject({ latitude: '48.8566', longitude: '2.3522', timezone: 'auto', forecast_days: '2' })
+    expect(Object.fromEntries(params)).toMatchObject({ latitude: '48.8566', longitude: '2.3522', timezone: 'auto', forecast_days: '7' })
+    expect(params.get('daily')).toBe('weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max')
   })
 
   it('utilise OPEN_METEO_FORECAST_URL quand elle est définie', async () => {

@@ -61,7 +61,7 @@ Une seule fois, après la première migration : ajouter `synapse` dans Supabase 
 
 ### Météo
 
-Prévisions Open-Meteo (gratuit, sans clé), appelées côté serveur et mises en cache 30 min. Sans réglage, la position est Paris. Les villes (cinq au plus, affichées en onglets dans le widget) se choisissent dans **Réglages > Météo** : recherche avec suggestions à la saisie (géocodage Open-Meteo), ajout, retrait et réordonnancement sans rechargement de la page.
+Prévisions Open-Meteo (gratuit, sans clé), appelées côté serveur et mises en cache 30 min. Sans réglage, la position est Paris. Les villes (cinq au plus, affichées en onglets dans le widget) se choisissent dans **Réglages > Météo** : recherche avec suggestions à la saisie (géocodage Open-Meteo), ajout, retrait et réordonnancement sans rechargement de la page. Le widget affiche les 24 prochaines heures dans un bandeau défilant et, au choix (Jour / Semaine), la prévision des 7 jours à partir d'aujourd'hui, à l'heure locale de la ville.
 
 ### To-do et courses (Cairn)
 

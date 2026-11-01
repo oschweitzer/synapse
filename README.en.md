@@ -61,7 +61,7 @@ Once, after the first migration: add `synapse` under Supabase **Settings > API >
 
 ### Weather
 
-Open-Meteo forecasts (free, no key), fetched server-side and cached for 30 min. Without a setting, the location is Paris. Cities (up to five, shown as tabs in the widget) are chosen in **Settings > Weather**: search with suggestions as you type (Open-Meteo geocoding), add, remove and reorder without reloading the page.
+Open-Meteo forecasts (free, no key), fetched server-side and cached for 30 min. Without a setting, the location is Paris. Cities (up to five, shown as tabs in the widget) are chosen in **Settings > Weather**: search with suggestions as you type (Open-Meteo geocoding), add, remove and reorder without reloading the page. The widget shows the next 24 hours in a scrollable strip and, through a Day / Week toggle, the forecast for the 7 days starting today, in the city's local time.
 
 ### To-dos and shopping (Cairn)
 

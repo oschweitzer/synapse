@@ -50,7 +50,7 @@ Sheet des dépenses est lui-même la source de vérité.
 ## 3. Sources
 
 ### Météo — Open-Meteo
-- Gratuit, sans clé. Prévisions du jour et des heures à venir, pour une ou
+- Gratuit, sans clé. Prévisions heure par heure (24 h à venir) et sur 7 jours à partir d'aujourd'hui, pour une ou
   plusieurs villes (cinq au plus) choisies dans les réglages (géocodage Open-Meteo).
 - Cache Next de 30 min.
 

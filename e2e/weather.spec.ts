@@ -34,6 +34,23 @@ test('une ville trouvée par l’autocomplétion est ajoutée sur place et affic
   await expect(widget).toContainText('Min 12° · Max 22° · Pluie 20 %')
 })
 
+test('le widget fait défiler 24 heures et bascule sur la vue semaine de 7 jours', async ({ page }) => {
+  await page.goto('/')
+  const widget = page.locator('.hud-dash__item').filter({ has: page.getByRole('button', { name: 'Déplacer « Météo »' }) })
+  const hourly = widget.getByRole('list', { name: 'Prévision heure par heure, 24 prochaines heures' })
+  await expect(hourly.getByRole('listitem')).toHaveCount(24)
+
+  const week = widget.getByRole('button', { name: 'Semaine', exact: true })
+  await week.click()
+  await expect(week).toHaveAttribute('aria-pressed', 'true')
+  const days = widget.getByRole('list', { name: 'Prévision sur 7 jours' })
+  await expect(days.getByRole('listitem')).toHaveCount(7)
+  await expect(days.getByRole('listitem').first()).toContainText(/^Auj\./)
+
+  await widget.getByRole('button', { name: 'Jour', exact: true }).click()
+  await expect(hourly).toBeVisible()
+})
+
 test('monter et retirer une ville mettent la liste à jour sur place', async ({ page }) => {
   const uid = await userId()
   await withSql(async (sql) => {

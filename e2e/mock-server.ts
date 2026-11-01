@@ -9,7 +9,7 @@ const HOST = '127.0.0.1'
 
 type Json = Record<string, unknown>
 
-/** Réponse Open-Meteo fixe : 48 heures à partir de l'heure courante, 2 jours. */
+/** Réponse Open-Meteo fixe : 48 heures à partir de l'heure courante, 7 jours. */
 function forecast(): Json {
   const start = new Date()
   start.setUTCMinutes(0, 0, 0)
@@ -26,9 +26,13 @@ function forecast(): Json {
       weather_code: time.map(() => 2),
     },
     daily: {
-      temperature_2m_max: [22, 21],
-      temperature_2m_min: [12, 11],
-      precipitation_probability_max: [20, 30],
+      time: Array.from({ length: 7 }, (_, i) =>
+        new Date(start.getTime() + i * 86_400_000).toISOString().slice(0, 10),
+      ),
+      weather_code: [2, 2, 2, 2, 2, 2, 2],
+      temperature_2m_max: [22, 21, 20, 19, 20, 21, 22],
+      temperature_2m_min: [12, 11, 10, 9, 10, 11, 12],
+      precipitation_probability_max: [20, 30, 40, 10, 0, 20, 30],
     },
   }
 }
