@@ -13,6 +13,14 @@ export type NodeData = {
   fontSize: number
 }
 
+export type NodeStyleValues = Omit<NodeData, 'label' | 'shape'>
+
+/** Outil actif de la boîte à outils : sélection, déplacement, ou une forme à placer. */
+export type Tool = 'select' | 'pan' | Shape
+export function isShapeTool(tool: Tool): tool is Shape {
+  return tool !== 'select' && tool !== 'pan'
+}
+
 export type MindNode = Node<NodeData, 'mind'>
 // Style d'un lien : champs natifs de React Flow (type, label, marqueurs, style).
 export type MindEdge = Edge
@@ -52,7 +60,7 @@ export const FONT_SIZES = [12, 14, 16, 20, 24, 32]
 export const NODE_WIDTHS = [1, 2, 3, 4, 6]
 export const EDGE_WIDTHS = [1, 2, 3, 5]
 
-export const DEFAULT_STYLE = {
+export const DEFAULT_STYLE: NodeStyleValues = {
   fill: '#0f1924',
   stroke: '#3fd8f2',
   strokeWidth: 2,

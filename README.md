@@ -161,7 +161,7 @@ Mise en place, une seule fois :
 
 ### Mind maps
 
-Page **Mind maps** (`/mindmaps`) : liste de cartes, chacune avec un canevas libre (zoom, déplacement, minimap) basé sur [React Flow](https://reactflow.dev). Texte libre et boîtes (rectangle, arrondi, ellipse, losange) à éditer par double-clic, redimensionnables ; liens fléchés entre n’importe quels nœuds (flèches, trait plein/tirets/pointillés, courbe/droit/angles, texte sur le lien) ; couleurs, bordure et taille du texte ; annuler/rétablir (Ctrl+Z / Ctrl+Y), dupliquer (Ctrl+D), export PNG. Enregistrement automatique.
+Page **Mind maps** (`/mindmaps`) : liste de cartes, chacune avec un canevas libre (zoom, déplacement, minimap) basé sur [React Flow](https://reactflow.dev). Texte libre et boîtes (rectangle, arrondi, ellipse, losange) à éditer par double-clic, redimensionnables ; liens fléchés entre n’importe quels nœuds (flèches, trait plein/tirets/pointillés, courbe/droit/angles, texte sur le lien) ; boîte à outils posée sur le canevas (outils sélection et déplacement, annuler/rétablir/dupliquer/supprimer, formes placées d’un clic sur le canevas, pastilles de remplissage, de bordure et de texte qui modifient la sélection, ou les valeurs par défaut des nouveaux nœuds quand rien n’est sélectionné ; barre en bas sur mobile)  ; annuler/rétablir (Ctrl+Z / Ctrl+Y), dupliquer (Ctrl+D), export PNG. Enregistrement automatique.
 
 Mise en place : migration `0008_mindmaps.sql` (`npm run db:migrate`), table `synapse.mindmaps` (nœuds, liens et vue en JSONB, RLS limitée au propriétaire).
 

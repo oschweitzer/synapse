@@ -68,20 +68,21 @@ export function ToolGroup({ title, children }: { title: string; children?: React
   )
 }
 
-/** Bouton icône 28px ; `label` sert d'infobulle et de nom accessible. */
-export function ToolButton({ name, label, pressed, disabled, onClick, className }: {
+/** Bouton icône 28px ; `label` sert de nom accessible et d'infobulle, sauf si `title` la précise. */
+export function ToolButton({ name, label, title, pressed, disabled, onClick, className }: {
   name: IconName
   label: string
+  title?: string
   pressed?: boolean
   disabled?: boolean
-  onClick?: () => void
+  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void
   className?: string
 }) {
   return (
     <button
       type="button"
       className={cx('hud-tool', className)}
-      title={label}
+      title={title ?? label}
       aria-label={label}
       aria-pressed={typeof pressed === 'boolean' ? pressed : undefined}
       disabled={disabled}

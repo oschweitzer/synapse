@@ -39,12 +39,18 @@ test('créer, éditer, annuler/rétablir, recharger puis supprimer une carte', a
   })
 
   await test.step('ajouter un nœud rectangle', async () => {
-    const rect = page.getByRole('group', { name: 'Ajouter' }).getByRole('button', { name: 'Rectangle', exact: true })
+    const toolbar = page.getByRole('toolbar', { name: 'Outils de la carte' })
+    const rect = toolbar.getByRole('button', { name: 'Rectangle', exact: true })
     // Avant l'hydratation le clic est perdu : on ne clique que s'il n'y a pas encore de nœud.
     await expect(async () => {
-      if ((await nodes.count()) === 0) await rect.click()
+      if ((await nodes.count()) === 0) {
+        await rect.click()
+        await page.locator('.react-flow__pane').click()
+      }
       await expect(nodes).toHaveCount(1, { timeout: 1000 })
     }).toPass()
+    // L'outil revient sur Sélection après le placement.
+    await expect(rect).toHaveAttribute('aria-pressed', 'false')
   })
 
   await test.step('éditer le texte du nœud', async () => {

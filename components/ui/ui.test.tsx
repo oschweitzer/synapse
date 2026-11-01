@@ -343,6 +343,12 @@ describe('ToolButton', () => {
     expect(b.querySelectorAll('svg')).toHaveLength(1)
   })
 
+  it('title remplace l\'infobulle, le nom accessible reste le label', () => {
+    render(<ToolButton name="undo" label="Annuler" title="Annuler (Ctrl+Z)" />)
+    const b = screen.getByRole('button', { name: 'Annuler' })
+    expect(b.getAttribute('title')).toBe('Annuler (Ctrl+Z)')
+  })
+
   it('aria-pressed suit la prop pressed', () => {
     const { rerender } = render(<ToolButton name="undo" label="x" />)
     expect(screen.getByRole('button').hasAttribute('aria-pressed')).toBe(false)

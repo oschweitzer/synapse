@@ -21,14 +21,17 @@ import {
   type EdgeChange,
   type NodeChange,
   type Viewport,
+  type XYPosition,
 } from '@xyflow/react'
 import { toPng } from 'html-to-image'
 import { saveMindmap, type MindmapPatch } from '@/app/actions/mindmaps'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
+import { ColorSwatches, ToolButton, ToolGroup, Toolbox } from '@/components/ui/Toolbox'
 import { MindHistoryContext } from './history'
 import { MindNodeView } from './MindNodeView'
 import { applyEdgeStyle, newEdge, readEdgeStyle } from './edgeStyle'
+import { newNode } from './newNode'
 import {
   DEFAULT_STYLE,
   EDGE_ARROWS,
@@ -36,12 +39,15 @@ import {
   EDGE_ROUTES,
   EDGE_WIDTHS,
   FONT_SIZES,
+  isShapeTool,
   NODE_WIDTHS,
   SHAPES,
   type MindEdge,
   type MindNode,
   type NodeData,
+  type NodeStyleValues,
   type Shape,
+  type Tool,
 } from './types'
 
 const nodeTypes = { mind: MindNodeView }
@@ -87,6 +93,17 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
   const [status, setStatus] = useState<Status>('saved')
   const [error, setError] = useState<string | null>(null)
   const wrapper = useRef<HTMLDivElement>(null)
+  const [tool, setTool] = useState<Tool>('select')
+  const [nodeDefaults, setNodeDefaults] = useState<NodeStyleValues>(DEFAULT_STYLE)
+  // Écran tactile : un glissé d'un doigt déplace la carte (pas de bouton milieu / droit).
+  const [coarse, setCoarse] = useState(false)
+  useEffect(() => {
+    const query = window.matchMedia('(pointer: coarse)')
+    const sync = () => setCoarse(query.matches)
+    sync()
+    query.addEventListener('change', sync)
+    return () => query.removeEventListener('change', sync)
+  }, [])
 
   // Copies lisibles depuis les gestionnaires d'événements (historique, sauvegarde).
   const nodesRef = useRef(nodes)
@@ -226,25 +243,18 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
     [record],
   )
 
-  const addNode = (shape: Shape) => {
+  const addNode = (shape: Shape, flowPosition: XYPosition) => {
     record()
-    const rect = wrapper.current?.getBoundingClientRect()
-    const center = screenToFlowPosition({
-      x: (rect?.left ?? 0) + (rect?.width ?? 400) / 2,
-      y: (rect?.top ?? 0) + (rect?.height ?? 300) / 2,
-    })
-    const jitter = (nodesRef.current.length % 6) * 24
-    const node: MindNode = {
-      id: `n-${crypto.randomUUID()}`,
-      type: 'mind',
-      position: { x: center.x - 70 + jitter, y: center.y - 30 + jitter },
-      width: shape === 'text' ? 140 : 160,
-      height: shape === 'diamond' ? 100 : 60,
-      selected: true,
-      data: { label: shape === 'text' ? 'Texte' : '', shape, ...DEFAULT_STYLE },
-    }
+    const node = newNode(shape, flowPosition, nodeDefaults)
     setNodes((n) => [...n.map((x) => ({ ...x, selected: false })), node])
     setEdges((e) => e.map((x) => ({ ...x, selected: false })))
+  }
+
+  // Une forme choisie dans la boîte à outils se place d'un clic sur le canevas vide.
+  const onPaneClick = (event: React.MouseEvent) => {
+    if (!isShapeTool(tool)) return
+    addNode(tool, screenToFlowPosition({ x: event.clientX, y: event.clientY }))
+    setTool('select')
   }
 
   const duplicate = () => {
@@ -270,6 +280,17 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
     recordCoalesced(key)
     setNodes((all) => all.map((n) => (n.selected ? { ...n, data: { ...n.data, ...patch } } : n)))
   }
+  // Même chemin que la touche Suppr : les liens des nœuds partent avec eux.
+  const deleteSelection = () => {
+    const picked = nodesRef.current.filter((n) => n.selected)
+    const pickedEdges = edgesRef.current.filter((e) => e.selected)
+    if (!picked.length && !pickedEdges.length) return
+    record()
+    const gone = new Set(picked.map((n) => n.id))
+    setNodes((all) => all.filter((n) => !n.selected))
+    setEdges((all) => all.filter((e) => !e.selected && !gone.has(e.source) && !gone.has(e.target)))
+  }
+
   const patchEdges = (key: string, fn: (edge: MindEdge) => MindEdge) => {
     recordCoalesced(key)
     setEdges((all) => all.map((e) => (e.selected ? fn(e) : e)))
@@ -306,6 +327,10 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
   useEffect(() => {
     shortcuts.current = (e) => {
       if ((e.target as HTMLElement).closest('input, textarea, select')) return
+      if (e.key === 'Escape') {
+        setTool('select')
+        return
+      }
       if (!(e.ctrlKey || e.metaKey)) return
       const key = e.key.toLowerCase()
       if (key === 'z') {
@@ -321,6 +346,26 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
       }
     }
   })
+  // Clavier : activer une forme au clavier la place au centre du canevas, faute de clic.
+  const pickShape = (shape: Shape, event: React.MouseEvent) => {
+    if (event.detail === 0) {
+      const box = wrapper.current?.getBoundingClientRect()
+      if (!box) return
+      addNode(shape, screenToFlowPosition({ x: box.left + box.width / 2, y: box.top + box.height / 2 }))
+      setTool('select')
+      return
+    }
+    // Un second clic sur la forme active la désarme (utile sans touche Échap).
+    setTool(tool === shape ? 'select' : shape)
+  }
+
+  // En mode Déplacement la sélection n'est plus visible ni modifiable : on la vide.
+  const pickPan = () => {
+    setNodes((n) => n.map((x) => ({ ...x, selected: false })))
+    setEdges((e) => e.map((x) => ({ ...x, selected: false })))
+    setTool('pan')
+  }
+
   useEffect(() => {
     const listener = (e: KeyboardEvent) => shortcuts.current(e)
     window.addEventListener('keydown', listener)
@@ -329,6 +374,12 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
 
   const selectedNodes = nodes.filter((n) => n.selected)
   const selectedEdges = edges.filter((e) => e.selected)
+  // Sans nœud sélectionné, les pastilles règlent le style des prochains nœuds.
+  const styleSource: NodeStyleValues = selectedNodes[0]?.data ?? nodeDefaults
+  const setStyle = (key: keyof NodeStyleValues, patch: Partial<NodeStyleValues>) => {
+    if (selectedNodes.length) patchNodes(key, patch)
+    else setNodeDefaults((d) => ({ ...d, ...patch }))
+  }
   const history = useMemo(() => ({ record }), [record])
 
   return (
@@ -347,24 +398,6 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
             className="hud-input hud-input--sm min-w-0 max-w-64 flex-1 font-semibold"
           />
-          <span className="flex flex-wrap items-center gap-1" role="group" aria-label="Ajouter">
-            {SHAPES.map((s) => (
-              <Button key={s.value} size="sm" icon="plus" onClick={() => addNode(s.value)}>
-                {s.label}
-              </Button>
-            ))}
-          </span>
-          <span className="flex items-center gap-1" role="group" aria-label="Historique">
-            <Button size="sm" variant="quiet" onClick={undo} disabled={!depth.past} title="Annuler (Ctrl+Z)">
-              Annuler
-            </Button>
-            <Button size="sm" variant="quiet" onClick={redo} disabled={!depth.future} title="Rétablir (Ctrl+Y)">
-              Rétablir
-            </Button>
-          </span>
-          <Button size="sm" variant="quiet" onClick={duplicate} disabled={!selectedNodes.length} title="Dupliquer (Ctrl+D)">
-            Dupliquer
-          </Button>
           <Button size="sm" variant="quiet" onClick={() => void exportPng()} disabled={!nodes.length}>
             Export PNG
           </Button>
@@ -382,28 +415,13 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
           </span>
         </header>
 
-        {(selectedNodes.length > 0 || selectedEdges.length > 0) && (
+        {selectedEdges.length > 0 && (
           <div className="flex flex-wrap items-end gap-x-6 gap-y-2 border-b border-[var(--line-500)] px-3 py-2 text-xs">
-            {selectedNodes.length > 0 && <NodeStyle nodes={selectedNodes} patch={patchNodes} />}
-            {selectedEdges.length > 0 && <EdgeStyle edges={selectedEdges} patch={patchEdges} />}
-            <Button
-              size="sm"
-              variant="danger-quiet"
-              icon="trash"
-              onClick={() => {
-                // Même chemin que la touche Suppr : les liens des nœuds partent avec eux.
-                record()
-                const gone = new Set(selectedNodes.map((n) => n.id))
-                setNodes((all) => all.filter((n) => !n.selected))
-                setEdges((all) => all.filter((e) => !e.selected && !gone.has(e.source) && !gone.has(e.target)))
-              }}
-            >
-              Supprimer
-            </Button>
+            <EdgeStyle edges={selectedEdges} patch={patchEdges} />
           </div>
         )}
 
-        <div ref={wrapper} className="min-h-0 flex-1">
+        <div ref={wrapper} className="hud-mindmap relative min-h-0 flex-1" data-tool={isShapeTool(tool) ? 'shape' : tool}>
           <ReactFlow<MindNode, MindEdge>
             colorMode="dark"
             style={{ '--xy-background-color': '#05080d' } as React.CSSProperties}
@@ -414,6 +432,13 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onReconnect={onReconnect}
+            onPaneClick={onPaneClick}
+            panOnDrag={tool === 'pan' || coarse ? true : [1, 2]}
+            selectionOnDrag={tool === 'select' && !coarse}
+            onNodeClick={() => isShapeTool(tool) && setTool('select')}
+            elementsSelectable={tool !== 'pan'}
+            nodesDraggable={tool !== 'pan'}
+            nodesConnectable={tool !== 'pan'}
             onNodeDragStart={record}
             onBeforeDelete={async (items) => {
               record()
@@ -432,9 +457,63 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
             proOptions={{ hideAttribution: true }}
           >
             <Background gap={24} color="#1e3042" />
-            <Controls showInteractive={false} />
+            <Controls showInteractive={false} position="top-right" />
             <MiniMap pannable zoomable nodeColor={(n) => (n.data as NodeData).stroke} maskColor="rgba(5,8,13,.7)" style={{ background: '#0a111a' }} />
           </ReactFlow>
+          <Toolbox label="Outils de la carte" className="hud-toolbox--canvas">
+            <ToolGroup title="Outils">
+              <ToolButton name="pointer" label="Sélection" pressed={tool === 'select'} onClick={() => setTool('select')} />
+              <ToolButton name="hand" label="Déplacement" pressed={tool === 'pan'} onClick={pickPan} />
+              <ToolButton name="undo" label="Annuler" title="Annuler (Ctrl+Z)" disabled={!depth.past} onClick={undo} />
+              <ToolButton name="redo" label="Rétablir" title="Rétablir (Ctrl+Y)" disabled={!depth.future} onClick={redo} />
+              <ToolButton name="copy" label="Dupliquer" title="Dupliquer (Ctrl+D)" disabled={!selectedNodes.length} onClick={duplicate} />
+              <ToolButton name="trash" label="Supprimer" title="Supprimer (Suppr)" disabled={!selectedNodes.length && !selectedEdges.length} onClick={deleteSelection} />
+            </ToolGroup>
+            <ToolGroup title="Formes">
+              {SHAPES.map((s) => (
+                <ToolButton key={s.value} name={s.icon} label={s.label} pressed={tool === s.value} onClick={(e) => pickShape(s.value, e)} />
+              ))}
+            </ToolGroup>
+            <ToolGroup title="Remplissage">
+              <div className="hud-toolgroup__full">
+                <ColorSwatches label="Couleur de remplissage" allowNone value={styleSource.fill} onChange={(fill) => setStyle('fill', { fill })} />
+              </div>
+            </ToolGroup>
+            <ToolGroup title="Bordure">
+              <div className="hud-toolgroup__full flex flex-col gap-2">
+                <ColorSwatches label="Couleur de bordure" value={styleSource.stroke} onChange={(stroke) => setStyle('stroke', { stroke })} />
+                <select
+                  aria-label="Épaisseur de bordure"
+                  className="hud-input hud-input--sm"
+                  value={String(styleSource.strokeWidth)}
+                  onChange={(e) => setStyle('strokeWidth', { strokeWidth: Number(e.target.value) })}
+                >
+                  {NODE_WIDTHS.map((w) => (
+                    <option key={w} value={w}>
+                      {w} px
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </ToolGroup>
+            <ToolGroup title="Texte">
+              <div className="hud-toolgroup__full flex flex-col gap-2">
+                <ColorSwatches label="Couleur du texte" value={styleSource.textColor} onChange={(textColor) => setStyle('textColor', { textColor })} />
+                <select
+                  aria-label="Taille du texte"
+                  className="hud-input hud-input--sm"
+                  value={String(styleSource.fontSize)}
+                  onChange={(e) => setStyle('fontSize', { fontSize: Number(e.target.value) })}
+                >
+                  {FONT_SIZES.map((f) => (
+                    <option key={f} value={f}>
+                      {f} px
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </ToolGroup>
+          </Toolbox>
         </div>
       </div>
     </MindHistoryContext.Provider>
@@ -485,21 +564,6 @@ function Select<T extends string | number>({ label, value, options, onChange }: 
         ))}
       </select>
     </Field>
-  )
-}
-
-function NodeStyle({ nodes, patch }: { nodes: MindNode[]; patch: (key: string, p: Partial<NodeData>) => void }) {
-  const d = nodes[0].data
-  return (
-    <fieldset className="flex flex-wrap items-end gap-3">
-      <legend className="sr-only">Style des nœuds</legend>
-      <Select label="Forme" value={d.shape} options={SHAPES.map((s) => [s.value, s.label])} onChange={(shape) => patch('shape', { shape })} />
-      <Color label="Remplissage" value={d.fill} clearable onChange={(fill) => patch('fill', { fill })} />
-      <Color label="Bordure" value={d.stroke} onChange={(stroke) => patch('stroke', { stroke })} />
-      <Select label="Épaisseur" value={d.strokeWidth} options={NODE_WIDTHS.map((w) => [w, `${w} px`])} onChange={(strokeWidth) => patch('strokeWidth', { strokeWidth })} />
-      <Color label="Texte" value={d.textColor} onChange={(textColor) => patch('textColor', { textColor })} />
-      <Select label="Taille" value={d.fontSize} options={FONT_SIZES.map((s) => [s, `${s} px`])} onChange={(fontSize) => patch('fontSize', { fontSize })} />
-    </fieldset>
   )
 }
 
