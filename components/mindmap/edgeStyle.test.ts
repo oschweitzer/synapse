@@ -1,7 +1,7 @@
 import { MarkerType } from '@xyflow/react'
 import { describe, expect, it } from 'vitest'
-import { applyEdgeStyle, newEdge, readEdgeStyle } from './edgeStyle'
-import { DEFAULT_EDGE_COLOR, type MindEdge } from './types'
+import { applyEdgeStyle, edgeWidthOptions, newEdge, readEdgeStyle } from './edgeStyle'
+import { DEFAULT_EDGE_COLOR, EDGE_WIDTHS, type MindEdge } from './types'
 
 const conn = { source: 'a', target: 'b', sourceHandle: null, targetHandle: null }
 const bare: MindEdge = { id: 'e1', source: 'a', target: 'b' }
@@ -65,5 +65,15 @@ describe('newEdge', () => {
     expect(e.style).toMatchObject({ stroke: '#123456', strokeWidth: 5, strokeDasharray: '8 4' })
     expect(e.markerStart).toEqual(m('#123456'))
     expect(e.markerEnd).toEqual(m('#123456'))
+  })
+})
+
+describe('edgeWidthOptions', () => {
+  it('renvoie les épaisseurs proposées quand la valeur y figure', () => {
+    expect(edgeWidthOptions(2)).toEqual(EDGE_WIDTHS)
+  })
+  it('ajoute, triée, une épaisseur enregistrée hors de la liste', () => {
+    expect(edgeWidthOptions(4)).toEqual([1, 2, 3, 4, 5])
+    expect(edgeWidthOptions(8)).toEqual([1, 2, 3, 5, 8])
   })
 })

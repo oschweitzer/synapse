@@ -1,5 +1,5 @@
 import { MarkerType, type Connection } from '@xyflow/react'
-import { DEFAULT_EDGE_COLOR, EDGE_DASHES, EDGE_ROUTES, type ArrowMode, type DashMode, type EdgeRoute, type MindEdge } from './types'
+import { DEFAULT_EDGE_COLOR, EDGE_DASHES, EDGE_ROUTES, EDGE_WIDTHS, type ArrowMode, type DashMode, type EdgeRoute, type MindEdge } from './types'
 
 export function edgeColor(edge: MindEdge) {
   return (edge.style?.stroke as string | undefined) ?? DEFAULT_EDGE_COLOR
@@ -67,4 +67,10 @@ export function newEdge(connection: Connection, defaults: EdgeDefaults = DEFAULT
     },
     defaults,
   )
+}
+
+// Épaisseurs du sélecteur : si le lien porte une valeur hors liste (carte importée ou ancienne), elle est
+// ajoutée pour que le sélecteur l'affiche au lieu de retomber sur la première option.
+export function edgeWidthOptions(current: number): number[] {
+  return EDGE_WIDTHS.includes(current) ? EDGE_WIDTHS : [...EDGE_WIDTHS, current].sort((a, b) => a - b)
 }

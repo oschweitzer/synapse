@@ -161,7 +161,7 @@ One-time setup:
 
 ### Mind maps
 
-**Mind maps** page (`/mindmaps`): a list of maps, each with a free-form canvas (zoom, pan, minimap) built on [React Flow](https://reactflow.dev). Free text and boxes (rectangle, rounded, ellipse, diamond), edited with a double-click and resizable; arrow links between any nodes (arrowheads, solid/dashed/dotted line, curved/straight/step, label on the link); a toolbox docked over the canvas (select and pan tools, undo/redo/duplicate/delete, shapes placed with a click on the canvas, fill, border and text swatches that edit the selection, or the defaults for new nodes when nothing is selected; a bottom bar on mobile); undo/redo (Ctrl+Z / Ctrl+Y), duplicate (Ctrl+D), PNG export. Autosaved.
+**Mind maps** page (`/mindmaps`): a list of maps, each with a free-form canvas (zoom, pan, minimap) built on [React Flow](https://reactflow.dev). Free text and boxes (rectangle, rounded, ellipse, diamond), edited with a double-click and resizable; arrow links between any nodes (arrowheads, solid/dashed/dotted line, curved/straight/step, label on the link); a toolbox docked over the canvas (select and pan tools, undo/redo/duplicate/delete, shapes placed with a click on the canvas, fill, border and text swatches that edit the selection, or the defaults for new nodes when nothing is selected; link route, arrows, line style, width and colour, applied to the selected links or to new links; a bottom bar on mobile); undo/redo (Ctrl+Z / Ctrl+Y), duplicate (Ctrl+D), PNG export. Autosaved.
 
 Setup: migration `0008_mindmaps.sql` (`npm run db:migrate`), `synapse.mindmaps` table (nodes, links and viewport as JSONB, RLS limited to the owner).
 

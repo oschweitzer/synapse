@@ -2,7 +2,7 @@
 
 import '@xyflow/react/dist/style.css'
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   addEdge,
   applyEdgeChanges,
@@ -26,18 +26,16 @@ import {
 import { toPng } from 'html-to-image'
 import { saveMindmap, type MindmapPatch } from '@/app/actions/mindmaps'
 import { Button } from '@/components/ui/Button'
-import { Icon } from '@/components/ui/Icon'
 import { ColorSwatches, ToolButton, ToolGroup, Toolbox } from '@/components/ui/Toolbox'
 import { MindHistoryContext } from './history'
 import { MindNodeView } from './MindNodeView'
-import { applyEdgeStyle, newEdge, readEdgeStyle } from './edgeStyle'
+import { applyEdgeStyle, DEFAULT_EDGE_STYLE, edgeWidthOptions, newEdge, readEdgeStyle, type EdgeDefaults, type EdgeStyleValues } from './edgeStyle'
 import { newNode } from './newNode'
 import {
   DEFAULT_STYLE,
   EDGE_ARROWS,
   EDGE_DASHES,
   EDGE_ROUTES,
-  EDGE_WIDTHS,
   FONT_SIZES,
   isShapeTool,
   NODE_WIDTHS,
@@ -71,6 +69,9 @@ function serialize(nodes: MindNode[], edges: MindEdge[], viewport: Viewport | un
   return { patch, json: JSON.stringify(patch) }
 }
 
+// Horloge hors du composant : recordCoalesced ne s'exécute que dans des gestionnaires d'événements.
+const nowMs = () => Date.now()
+
 export function MindmapEditor(props: {
   id: string
   initialTitle: string
@@ -95,6 +96,8 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
   const wrapper = useRef<HTMLDivElement>(null)
   const [tool, setTool] = useState<Tool>('select')
   const [nodeDefaults, setNodeDefaults] = useState<NodeStyleValues>(DEFAULT_STYLE)
+  // Style des prochains liens (état local, non enregistré).
+  const [edgeDefaults, setEdgeDefaults] = useState<EdgeDefaults>(DEFAULT_EDGE_STYLE)
   // Écran tactile : un glissé d'un doigt déplace la carte (pas de bouton milieu / droit).
   const [coarse, setCoarse] = useState(false)
   useEffect(() => {
@@ -130,7 +133,7 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
   // Une série de changements d'un même réglage (curseur de couleur) = une seule étape.
   const coalesce = useRef({ key: '', at: 0 })
   const recordCoalesced = (key: string) => {
-    const now = Date.now()
+    const now = nowMs()
     if (coalesce.current.key !== key || now - coalesce.current.at > 1500) record()
     coalesce.current = { key, at: now }
   }
@@ -231,9 +234,9 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
   const onConnect = useCallback(
     (connection: Connection) => {
       record()
-      setEdges((e) => addEdge(newEdge(connection), e))
+      setEdges((e) => addEdge(newEdge(connection, edgeDefaults), e))
     },
-    [record],
+    [record, edgeDefaults],
   )
   const onReconnect = useCallback(
     (oldEdge: MindEdge, connection: Connection) => {
@@ -380,6 +383,13 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
     if (selectedNodes.length) patchNodes(key, patch)
     else setNodeDefaults((d) => ({ ...d, ...patch }))
   }
+  // Sans lien sélectionné, les réglages de lien s'appliquent aux prochains liens.
+  const edgeSource: EdgeStyleValues = selectedEdges[0] ? readEdgeStyle(selectedEdges[0]) : edgeDefaults
+  const setEdgeStyle = (key: string, partial: Partial<EdgeStyleValues>) => {
+    if (selectedEdges.length) patchEdges(key, (e) => applyEdgeStyle(e, partial))
+    else setEdgeDefaults((d) => ({ ...d, ...partial }))
+  }
+  const edgeLabel = selectedEdges[0] && typeof selectedEdges[0].label === 'string' ? selectedEdges[0].label : ''
   const history = useMemo(() => ({ record }), [record])
 
   return (
@@ -414,12 +424,6 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
             )}
           </span>
         </header>
-
-        {selectedEdges.length > 0 && (
-          <div className="flex flex-wrap items-end gap-x-6 gap-y-2 border-b border-[var(--line-500)] px-3 py-2 text-xs">
-            <EdgeStyle edges={selectedEdges} patch={patchEdges} />
-          </div>
-        )}
 
         <div ref={wrapper} className="hud-mindmap relative min-h-0 flex-1" data-tool={isShapeTool(tool) ? 'shape' : tool}>
           <ReactFlow<MindNode, MindEdge>
@@ -513,98 +517,56 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
                 </select>
               </div>
             </ToolGroup>
+            <ToolGroup title="Tracé">
+              {EDGE_ROUTES.map((r) => (
+                <ToolButton key={r.value} name={r.icon} label={r.label} pressed={edgeSource.route === r.value} onClick={() => setEdgeStyle('curve', { route: r.value })} />
+              ))}
+            </ToolGroup>
+            <ToolGroup title="Flèches">
+              {EDGE_ARROWS.map((a) => (
+                <ToolButton key={a.value} name={a.icon} label={a.label} pressed={edgeSource.arrow === a.value} onClick={() => setEdgeStyle('arrow', { arrow: a.value })} />
+              ))}
+            </ToolGroup>
+            <ToolGroup title="Trait">
+              {EDGE_DASHES.map((d) => (
+                <ToolButton key={d.value} name={d.icon} label={d.label} pressed={edgeSource.dash === d.value} onClick={() => setEdgeStyle('dash', { dash: d.value })} />
+              ))}
+              <div className="hud-toolgroup__full">
+                <select
+                  aria-label="Épaisseur du lien"
+                  className="hud-input hud-input--sm w-full"
+                  value={String(edgeSource.width)}
+                  onChange={(e) => setEdgeStyle('edge-width', { width: Number(e.target.value) })}
+                >
+                  {edgeWidthOptions(edgeSource.width).map((w) => (
+                    <option key={w} value={w}>
+                      {w} px
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </ToolGroup>
+            <ToolGroup title="Couleur du lien">
+              <div className="hud-toolgroup__full">
+                <ColorSwatches label="Couleur du lien" value={edgeSource.color} onChange={(color) => setEdgeStyle('edge-color', { color })} />
+              </div>
+            </ToolGroup>
+            {selectedEdges.length > 0 && (
+              <ToolGroup title="Texte du lien">
+                <div className="hud-toolgroup__full">
+                  <input
+                    aria-label="Texte du lien"
+                    className="hud-input hud-input--sm w-full"
+                    value={edgeLabel}
+                    maxLength={80}
+                    onChange={(ev) => patchEdges('label', (x) => ({ ...x, label: ev.target.value || undefined }))}
+                  />
+                </div>
+              </ToolGroup>
+            )}
           </Toolbox>
         </div>
       </div>
     </MindHistoryContext.Provider>
-  )
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1 text-slate-400">
-      {label}
-      {children}
-    </label>
-  )
-}
-
-function Color({ label, value, onChange, clearable }: { label: string; value: string; onChange: (v: string) => void; clearable?: boolean }) {
-  return (
-    <Field label={label}>
-      <span className="flex items-center gap-1">
-        <input
-          type="color"
-          value={/^#[0-9a-f]{6}$/i.test(value) ? value : '#000000'}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-7 w-10 cursor-pointer border border-[var(--line-500)] bg-transparent p-0"
-        />
-        {clearable && (
-          <button type="button" className="hud-btn hud-btn--quiet hud-btn--sm" onClick={() => onChange('transparent')} title="Sans remplissage">
-            <Icon name="close" size={12} />
-          </button>
-        )}
-      </span>
-    </Field>
-  )
-}
-
-function Select<T extends string | number>({ label, value, options, onChange }: { label: string; value: T; options: Array<[T, string]>; onChange: (v: T) => void }) {
-  return (
-    <Field label={label}>
-      <select
-        className="hud-input hud-input--sm"
-        value={String(value)}
-        onChange={(e) => onChange((typeof value === 'number' ? Number(e.target.value) : e.target.value) as T)}
-      >
-        {options.map(([v, text]) => (
-          <option key={v} value={v}>
-            {text}
-          </option>
-        ))}
-      </select>
-    </Field>
-  )
-}
-
-function EdgeStyle({ edges, patch }: { edges: MindEdge[]; patch: (key: string, fn: (e: MindEdge) => MindEdge) => void }) {
-  const e = edges[0]
-  const { route, arrow, dash, width, color } = readEdgeStyle(e)
-  return (
-    <fieldset className="flex flex-wrap items-end gap-3">
-      <legend className="sr-only">Style des liens</legend>
-      <Field label="Texte du lien">
-        <input
-          className="hud-input hud-input--sm w-40"
-          value={typeof e.label === 'string' ? e.label : ''}
-          maxLength={80}
-          onChange={(ev) => patch('label', (x) => ({ ...x, label: ev.target.value || undefined }))}
-        />
-      </Field>
-      <Color
-        label="Couleur du lien"
-        value={color}
-        onChange={(c) => patch('edge-color', (x) => applyEdgeStyle(x, { color: c }))}
-      />
-      <Select label="Épaisseur du lien" value={width} options={EDGE_WIDTHS.map((w) => [w, `${w} px`])} onChange={(w) => patch('edge-width', (x) => applyEdgeStyle(x, { width: w }))} />
-      <Select
-        label="Trait"
-        value={dash}
-        options={EDGE_DASHES.map((d) => [d.value, d.label])}
-        onChange={(v) => patch('dash', (x) => applyEdgeStyle(x, { dash: v }))}
-      />
-      <Select
-        label="Tracé"
-        value={route}
-        options={EDGE_ROUTES.map((r) => [r.value, r.label])}
-        onChange={(type) => patch('curve', (x) => applyEdgeStyle(x, { route: type }))}
-      />
-      <Select
-        label="Flèches"
-        value={arrow}
-        options={EDGE_ARROWS.map((a) => [a.value, a.label])}
-        onChange={(mode) => patch('arrow', (x) => applyEdgeStyle(x, { arrow: mode }))}
-      />
-    </fieldset>
   )
 }

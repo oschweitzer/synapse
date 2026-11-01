@@ -39,6 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - Mind map editor: a toolbox docked over the canvas replaces the header shape buttons and the node style bar, with select and pan tools, undo/redo/duplicate/delete, shapes placed with a click on the canvas, and fill, border and text swatches that edit the selected nodes or set the defaults for new ones; it moves to a bottom bar on mobile (#102).
+- Mind map editor: link route, arrows, line style, width and colour move from the selection bar into the toolbox, with the link label in it when links are selected; with no link selected they set the style of new links (#103).
 - Dashboard settings: each dashboard lists only its widgets, with remove and move buttons, and an "Ajouter un widget" picker (search, grouped by source, multi-select, appended at the end; sensitive widgets disabled on public dashboards) replaces the full checkbox list (#45).
 - Settings page sections load independently, so a slow source no longer delays the others (#78).
 - Settings: saving the shopping checklist or adding/removing a habit updates the section in place, without reloading the page or losing what is typed in other sections (#79).
