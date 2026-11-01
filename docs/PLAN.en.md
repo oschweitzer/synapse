@@ -275,6 +275,9 @@ Tokens live in `app/tokens.css`, `hud-*` classes in `app/hud.css`, components in
 `components/ui/`. The legacy Tailwind palettes (`slate`, `red`…) are aliased to the
 tokens: existing screens follow without a rewrite, and new ones use the tokens directly.
 
+Motion tokens live in `app/tokens.css` and `--motion-fast`, `--motion-base` and `--ease-out` are used by the
+transitions in `app/hud.css`. Reduced-motion convention: state changes stay, movement goes.
+
 ## 5. Target layout
 
 ```

@@ -188,6 +188,7 @@ Prerequisites: set `SYNAPSE_LOCK_SECRET` (Vercel and `.env.local`) **before** en
 
 - `app/tokens.css`: tokens (colours, spacing, bevels), copied from the design system's `tokens.json`.
 - `app/hud.css`: `hud-*` classes (panel, button, badge, input, gauge, sparkline, mail…).
+- Motion: the tokens (`--motion-fast/base/slow`, `--ease-out/in-out`, `--press-scale`, `--lift`) live in `app/tokens.css` and the transitions of the `hud-*` classes use `--motion-fast`, `--motion-base` and `--ease-out`; under `prefers-reduced-motion` the movement (transforms) is removed and state changes stay.
 - `components/ui/`: React components ported from the design system (`Panel`, `Button`, `Badge`, `Input`, `Stat`, `Gauge`, `Sparkline`, `Icon`, `Toolbox`), same props and classes. `Toolbox` is a vertical, arrow-key navigable toolbar built from `ToolGroup` (titled grid group), `ToolButton` (icon button with a pressed state) and `ColorSwatches` (`TOOL_COLORS` swatches plus a custom colour).
 - `tailwind.config.ts` exposes the tokens (`ink-*`, `hull-*`, `cyan-*`, `amber-*`…); the `slate`, `red`, `green`, `amber` and `sky` palettes are aliased to the tokens there so existing screens pick up the style without being rewritten. For a new screen, use the tokens and `components/ui/`.
 - Fonts (Chakra Petch, IBM Plex Sans, JetBrains Mono) are self-hosted (`app/fonts`, OFL licence, latin subset) and loaded by `next/font/local` in `app/layout.tsx`, so the build does not depend on Google Fonts.

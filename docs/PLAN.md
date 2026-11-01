@@ -283,6 +283,10 @@ composants dans `components/ui/`. Les palettes Tailwind historiques (`slate`, `r
 sont aliasées sur les tokens : les écrans existants suivent sans réécriture, et les
 nouveaux utilisent directement les tokens.
 
+Tokens de mouvement dans `app/tokens.css`, dont `--motion-fast`, `--motion-base` et `--ease-out` sont utilisés par les
+transitions de `app/hud.css`. Convention reduced-motion : les changements d'état restent, le
+mouvement disparaît.
+
 ## 5. Arborescence cible
 
 ```
