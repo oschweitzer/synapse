@@ -12,7 +12,6 @@ import {
   Controls,
   getNodesBounds,
   getViewportForBounds,
-  MarkerType,
   MiniMap,
   ReactFlow,
   ReactFlowProvider,
@@ -29,9 +28,15 @@ import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { MindHistoryContext } from './history'
 import { MindNodeView } from './MindNodeView'
+import { applyEdgeStyle, newEdge, readEdgeStyle } from './edgeStyle'
 import {
-  DEFAULT_EDGE_COLOR,
   DEFAULT_STYLE,
+  EDGE_ARROWS,
+  EDGE_DASHES,
+  EDGE_ROUTES,
+  EDGE_WIDTHS,
+  FONT_SIZES,
+  NODE_WIDTHS,
   SHAPES,
   type MindEdge,
   type MindNode,
@@ -58,26 +63,6 @@ function serialize(nodes: MindNode[], edges: MindEdge[], viewport: Viewport | un
     viewport: viewport ?? null,
   }
   return { patch, json: JSON.stringify(patch) }
-}
-
-function edgeColor(edge: MindEdge) {
-  return (edge.style?.stroke as string | undefined) ?? DEFAULT_EDGE_COLOR
-}
-
-function marker(color: string) {
-  return { type: MarkerType.ArrowClosed, color }
-}
-
-function newEdge(connection: Connection): MindEdge {
-  return {
-    ...connection,
-    id: `e-${crypto.randomUUID()}`,
-    type: 'default',
-    markerEnd: marker(DEFAULT_EDGE_COLOR),
-    style: { stroke: DEFAULT_EDGE_COLOR, strokeWidth: 2 },
-    labelStyle: { fill: '#e4eef5' },
-    labelBgStyle: { fill: '#0a111a' },
-  }
 }
 
 export function MindmapEditor(props: {
@@ -456,10 +441,6 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
   )
 }
 
-const FONT_SIZES = [12, 14, 16, 20, 24, 32]
-const NODE_WIDTHS = [1, 2, 3, 4, 6]
-const EDGE_WIDTHS = [1, 2, 3, 5]
-
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="flex flex-col gap-1 text-slate-400">
@@ -524,13 +505,7 @@ function NodeStyle({ nodes, patch }: { nodes: MindNode[]; patch: (key: string, p
 
 function EdgeStyle({ edges, patch }: { edges: MindEdge[]; patch: (key: string, fn: (e: MindEdge) => MindEdge) => void }) {
   const e = edges[0]
-  const color = edgeColor(e)
-  const dash = e.style?.strokeDasharray === '8 4' ? 'dashed' : e.style?.strokeDasharray === '2 4' ? 'dotted' : 'solid'
-  const arrow = e.markerStart && e.markerEnd ? 'both' : e.markerEnd ? 'end' : e.markerStart ? 'start' : 'none'
-  const withArrow = (mode: string, c: string): Pick<MindEdge, 'markerStart' | 'markerEnd'> => ({
-    markerStart: mode === 'both' || mode === 'start' ? marker(c) : undefined,
-    markerEnd: mode === 'both' || mode === 'end' ? marker(c) : undefined,
-  })
+  const { route, arrow, dash, width, color } = readEdgeStyle(e)
   return (
     <fieldset className="flex flex-wrap items-end gap-3">
       <legend className="sr-only">Style des liens</legend>
@@ -545,26 +520,26 @@ function EdgeStyle({ edges, patch }: { edges: MindEdge[]; patch: (key: string, f
       <Color
         label="Couleur du lien"
         value={color}
-        onChange={(c) => patch('edge-color', (x) => ({ ...x, style: { ...x.style, stroke: c }, ...withArrow(arrow, c) }))}
+        onChange={(c) => patch('edge-color', (x) => applyEdgeStyle(x, { color: c }))}
       />
-      <Select label="Épaisseur du lien" value={Number(e.style?.strokeWidth ?? 2)} options={EDGE_WIDTHS.map((w) => [w, `${w} px`])} onChange={(w) => patch('edge-width', (x) => ({ ...x, style: { ...x.style, strokeWidth: w } }))} />
+      <Select label="Épaisseur du lien" value={width} options={EDGE_WIDTHS.map((w) => [w, `${w} px`])} onChange={(w) => patch('edge-width', (x) => applyEdgeStyle(x, { width: w }))} />
       <Select
         label="Trait"
         value={dash}
-        options={[['solid', 'Plein'], ['dashed', 'Tirets'], ['dotted', 'Pointillés']]}
-        onChange={(v) => patch('dash', (x) => ({ ...x, style: { ...x.style, strokeDasharray: v === 'dashed' ? '8 4' : v === 'dotted' ? '2 4' : undefined } }))}
+        options={EDGE_DASHES.map((d) => [d.value, d.label])}
+        onChange={(v) => patch('dash', (x) => applyEdgeStyle(x, { dash: v }))}
       />
       <Select
         label="Tracé"
-        value={e.type ?? 'default'}
-        options={[['default', 'Courbe'], ['straight', 'Droit'], ['smoothstep', 'Angles']]}
-        onChange={(type) => patch('curve', (x) => ({ ...x, type }))}
+        value={route}
+        options={EDGE_ROUTES.map((r) => [r.value, r.label])}
+        onChange={(type) => patch('curve', (x) => applyEdgeStyle(x, { route: type }))}
       />
       <Select
         label="Flèches"
         value={arrow}
-        options={[['none', 'Aucune'], ['end', 'Vers la fin'], ['start', 'Vers le début'], ['both', 'Les deux']]}
-        onChange={(mode) => patch('arrow', (x) => ({ ...x, ...withArrow(mode, edgeColor(x)) }))}
+        options={EDGE_ARROWS.map((a) => [a.value, a.label])}
+        onChange={(mode) => patch('arrow', (x) => applyEdgeStyle(x, { arrow: mode }))}
       />
     </fieldset>
   )
