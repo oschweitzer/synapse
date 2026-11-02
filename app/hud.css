@@ -192,7 +192,16 @@
 .hud-topbar { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); padding: var(--space-6) var(--space-8) 0; flex-wrap: wrap; }
 .hud-topbar__title { font-family: var(--font-display); font-size: 36px; line-height: 40px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; margin: 0; color: var(--ink-100); }
 .hud-topbar__sub { font-family: var(--font-mono); font-size: 12px; color: var(--ink-500); margin-top: var(--space-1); }
+/* Entrée des widgets ajoutés après le montage (.hud-dash[data-live], posé par SortableDashboard) : pas au premier
+   chargement ni à la bascule de dashboard (la face de cube anime déjà). Key stable : pas de rejeu au réordonnancement
+   ni au streaming Suspense (le squelette et le widget partagent le même .hud-dash__item).
+   L'animation passe par `translate`, propriété distincte de `transform` : elle ne masque pas celui de dnd-kit.
+   pointer-events: none dans le from (rempli pendant le délai) : un widget encore invisible ne reçoit pas de clic. */
 .hud-dash__item { position: relative; min-width: 0; counter-increment: widget; }
+.hud-dash[data-live] > .hud-dash__item {
+  animation: hud-widget-in var(--motion-base) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
 .hud-dash__item[data-dragging] { z-index: 10; opacity: .85; }
 .hud-dash__item > .hud-panel { height: 100%; transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out); }
 .hud-panel__index[data-auto]::before { content: counter(widget, decimal-leading-zero); }
@@ -233,6 +242,8 @@
 @keyframes hud-cube-in-next { from { transform: rotateY(-90deg); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes hud-cube-in-previous { from { transform: rotateY(90deg); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes hud-dash-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes hud-widget-in { from { opacity: 0; translate: 0 8px; pointer-events: none; } to { opacity: 1; translate: none; pointer-events: auto; } }
+@keyframes hud-tab-underline-in { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @media (max-width: 900px) { .hud-dash { grid-template-columns: minmax(0, 1fr); padding: var(--space-4); } .hud-dash > * { grid-column: auto !important; } .hud-topbar { padding: var(--space-4) var(--space-4) 0; } }
 
 /* ── Tabs (dashboards) ── */
@@ -244,7 +255,7 @@
   clip-path: polygon(0 0, calc(100% - var(--b)) 0, 100% var(--b), 100% 100%, 0 100%); transition: color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out); }
 .hud-tab:hover { color: var(--ink-100); background: var(--hull-800); }
 .hud-tab.is-active { color: var(--cyan-400); background: var(--hull-800); }
-.hud-tab.is-active::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--cyan-400); }
+.hud-tab.is-active::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--cyan-400); transform-origin: center; animation: hud-tab-underline-in var(--motion-base) var(--ease-out) both; }
 .hud-tab:focus-visible { outline: 2px solid var(--cyan-400); outline-offset: -2px; }
 .hud-tab__lock { display: inline-flex; color: var(--ink-500); }
 .hud-tab--locked.is-active .hud-tab__lock { color: var(--amber-400); }
@@ -314,6 +325,8 @@ input, textarea { caret-color: var(--cyan-400); }
 
 /* ── Reduced motion: les changements d'état (couleur, bordure, ombre) restent, instantanés mais présents ; le mouvement (transform, échelle, translation, élévation) disparaît ── */
 @media (prefers-reduced-motion: reduce) {
+  .hud-dash[data-live] > .hud-dash__item { animation: none; }
+  .hud-tab.is-active::after { animation: none; }
   .hud-gauge__arc, .hud-btn, .hud-input, .hud-check__box, .hud-tab, .hud-tool, .hud-swatch, .hud-dash__item > .hud-panel { transition: none; }
   .hud-btn:active:not(:disabled) { transform: none; }
   .hud-spinner svg { animation-duration: 2.4s; }

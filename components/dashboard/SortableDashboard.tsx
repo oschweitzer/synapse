@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, type ReactNode } from 'react'
+import { useEffect, useRef, useState, useTransition, type CSSProperties, type ReactNode } from 'react'
 import {
   DndContext,
   KeyboardSensor,
@@ -18,9 +18,13 @@ import { Icon } from '@/components/ui/Icon'
 
 export type DashboardItem = { id: string; title: string; span: 4 | 8; node: ReactNode }
 
-function SortableItem({ item }: { item: DashboardItem }) {
+// Valeurs recopiées de app/tokens.css (--motion-base, --ease-out) : dnd-kit attend des nombres et une chaîne, pas des variables CSS.
+const SORT_TRANSITION = { duration: 200, easing: 'cubic-bezier(.16, 1, .3, 1)' }
+
+function SortableItem({ item, index }: { item: DashboardItem; index: number }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
+    transition: SORT_TRANSITION,
   })
 
   return (
@@ -28,7 +32,15 @@ function SortableItem({ item }: { item: DashboardItem }) {
       ref={setNodeRef}
       className="hud-dash__item"
       data-dragging={isDragging || undefined}
-      style={{ gridColumn: `span ${item.span}`, transform: CSS.Translate.toString(transform), transition }}
+      // --i règle le délai d'entrée (app/hud.css, .hud-dash__item), plafonné à 8.
+      style={
+        {
+          gridColumn: `span ${item.span}`,
+          transform: CSS.Translate.toString(transform),
+          transition,
+          '--i': Math.min(index, 8),
+        } as CSSProperties
+      }
     >
       {item.node}
       <button
@@ -85,6 +97,14 @@ export function SortableDashboard({ dashboardId, items }: { dashboardId: string;
     })
   }
 
+  // Les widgets présents au montage (premier chargement ou bascule de dashboard, déjà animée par la face de cube)
+  // n'ont pas d'entrée : `data-live` n'est posé qu'après, donc seuls les widgets ajoutés ensuite s'animent.
+  // Posé sur le DOM et non en état : React ne gère pas cet attribut, pas de rendu en plus ni de décalage d'hydratation.
+  const gridRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    gridRef.current?.setAttribute('data-live', '')
+  }, [])
+
   return (
     <>
       {error && (
@@ -105,9 +125,9 @@ export function SortableDashboard({ dashboardId, items }: { dashboardId: string;
         }}
       >
         <SortableContext items={ordered} strategy={rectSortingStrategy}>
-          <div className="hud-dash">
-            {ordered.map((id) => (
-              <SortableItem key={id} item={byId.get(id)!} />
+          <div ref={gridRef} className="hud-dash">
+            {ordered.map((id, i) => (
+              <SortableItem key={id} item={byId.get(id)!} index={i} />
             ))}
           </div>
         </SortableContext>
