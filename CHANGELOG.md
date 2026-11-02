@@ -38,6 +38,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Weather widget: the hourly forecast scrolls horizontally over the next 24 hours, and a Day / Week toggle shows the 7 days starting today (#48).
 - Shared motion tokens, press feedback on `.hud-btn` buttons and a reduced-motion rule for the `hud-*` classes (#109).
 - Hover and press feedback on dashboard widgets: the frame lifts and brightens on hover, scales slightly on press and is highlighted on keyboard focus, with no motion under reduced-motion (#110).
+- Animated switch between dashboards: the incoming dashboard rotates in like a cube face from the side of its tab, a plain fade under reduced-motion, and no animation on first load or reload (#111).
 
 ### Changed
 

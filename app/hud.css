@@ -222,6 +222,17 @@
      d'exclusion (frère du panneau : l'appuyer ne rend jamais .hud-panel :active) ; les panneaux aria-busy (squelettes) sont exclus. */
   .hud-dash__item:not([data-dragging]) > .hud-panel:not([aria-busy]):active:not(:has(:is(button, a, input, select, textarea, label, summary, [role], [tabindex], [contenteditable]):active)) { transform: translateY(var(--lift)) scale(var(--press-scale)); }
 }
+/* ── Passage d'un dashboard à l'autre ──
+   Le dashboard entrant tourne comme une face de cube, charnière côté de son onglet (suivant : depuis la droite, précédent : depuis la gauche).
+   Seuls transform et opacity sont animés ; l'image finale est `transform: none` (avec `both`, aucun transform ne reste sur la face), sinon
+   dnd-kit calculerait de mauvaises coordonnées. Pas de règle pour data-enter=none : premier chargement et rechargement sans animation.
+   La perspective est sur la scène, qui devient donc le bloc contenant d'un éventuel descendant position: fixed (aucun widget n'en utilise). */
+.hud-dash-stage { perspective: 1600px; overflow-x: clip; }
+.hud-dash-face[data-enter=next] { transform-origin: left center; animation: hud-cube-in-next var(--motion-slow) var(--ease-out) both; }
+.hud-dash-face[data-enter=previous] { transform-origin: right center; animation: hud-cube-in-previous var(--motion-slow) var(--ease-out) both; }
+@keyframes hud-cube-in-next { from { transform: rotateY(-90deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes hud-cube-in-previous { from { transform: rotateY(90deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes hud-dash-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @media (max-width: 900px) { .hud-dash { grid-template-columns: minmax(0, 1fr); padding: var(--space-4); } .hud-dash > * { grid-column: auto !important; } .hud-topbar { padding: var(--space-4) var(--space-4) 0; } }
 
 /* ── Tabs (dashboards) ── */
@@ -306,6 +317,8 @@ input, textarea { caret-color: var(--cyan-400); }
   .hud-gauge__arc, .hud-btn, .hud-input, .hud-check__box, .hud-tab, .hud-tool, .hud-swatch, .hud-dash__item > .hud-panel { transition: none; }
   .hud-btn:active:not(:disabled) { transform: none; }
   .hud-spinner svg { animation-duration: 2.4s; }
+  /* Mouvement réduit : simple fondu à la place de la rotation (même spécificité, plus loin dans le fichier). */
+  .hud-dash-face[data-enter=next], .hud-dash-face[data-enter=previous] { animation: hud-dash-fade-in var(--motion-fast) var(--ease-out) both; }
 }
 
 /* ── Contrôles natifs de l'app (formulaires, boutons de liste) ── */

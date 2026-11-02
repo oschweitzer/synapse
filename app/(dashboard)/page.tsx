@@ -16,6 +16,7 @@ import {
   trendConnector,
   weatherConnector,
 } from '@/lib/connectors'
+import { DashboardTransition } from '@/components/dashboard/DashboardTransition'
 import { SortableDashboard, type DashboardItem } from '@/components/dashboard/SortableDashboard'
 import type { WidgetId } from '@/lib/dashboard'
 import { listDashboards } from '@/lib/dashboards'
@@ -91,6 +92,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   if (current.visibility === 'private' && !lock.unlocked) {
     redirect(`/unlock?next=${encodeURIComponent(current.isDefault && !d ? '/' : `/?d=${current.id}`)}`)
   }
+
+  const currentIndex = dashboards.findIndex((x) => x.id === current.id)
 
   const widgets: Record<WidgetId, DashboardItem> = {
     activities: {
@@ -360,7 +363,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <GoogleReauthBanner />
       </Suspense>
       </div>
-      <SortableDashboard key={current.id} dashboardId={current.id} items={items} />
+      <DashboardTransition dashboardId={current.id} index={currentIndex}>
+        <SortableDashboard key={current.id} dashboardId={current.id} items={items} />
+      </DashboardTransition>
     </main>
   )
 }

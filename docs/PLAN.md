@@ -219,7 +219,7 @@ Sheet des dépenses est lui-même la source de vérité.
   `ALLOWED_EMAILS` (application mono-utilisateur). Le droit est revérifié dans chaque Server
   Action (`app/actions/dashboards.ts`), pas seulement masqué. Les dashboards sont propres à
   chaque utilisateur (RLS) ; les widgets d'un dashboard sont réglés par son propriétaire admin.
-- Navigation : onglets dans l'en-tête du dashboard (`/?d=<id>`), le défaut sur `/`.
+- Navigation : onglets dans l'en-tête du dashboard (`/?d=<id>`), le défaut sur `/`. Le passage d'un dashboard à l'autre tourne comme une face de cube (vers la droite pour un onglet suivant, la gauche pour un précédent), simple fondu en mouvement réduit, sans animation au premier chargement.
 - Visibilité : `private` = servi seulement une fois le verrouillage levé ; `public` = session
   Supabase seule (pas de lien partageable : ticket à part). Le middleware laisse passer `GET /`
   verrouillé et la page refuse un dashboard privé (`lib/lock/page.ts`, erreur = fermé) avant de

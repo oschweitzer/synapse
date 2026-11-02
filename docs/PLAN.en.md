@@ -212,7 +212,7 @@ expenses Google Sheet is itself the source of truth.
   The right is re-checked in every Server Action (`app/actions/dashboards.ts`), not just
   hidden. Dashboards belong to each user (RLS); a dashboard's widgets are set by its owner
   when they are an admin.
-- Navigation: tabs in the dashboard header (`/?d=<id>`), the default one on `/`.
+- Navigation: tabs in the dashboard header (`/?d=<id>`), the default one on `/`. Switching dashboards turns like a cube face (from the right for a later tab, from the left for an earlier one), a plain fade under reduced motion, with no animation on first load.
 - Visibility: `private` = served only once the lock is lifted; `public` = Supabase session
   alone (no shareable link: separate ticket). The middleware lets a locked `GET /` through and
   the page refuses a private dashboard (`lib/lock/page.ts`, error = closed) before reading any
