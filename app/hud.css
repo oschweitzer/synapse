@@ -194,12 +194,34 @@
 .hud-topbar__sub { font-family: var(--font-mono); font-size: 12px; color: var(--ink-500); margin-top: var(--space-1); }
 .hud-dash__item { position: relative; min-width: 0; counter-increment: widget; }
 .hud-dash__item[data-dragging] { z-index: 10; opacity: .85; }
-.hud-dash__item > .hud-panel { height: 100%; }
+.hud-dash__item > .hud-panel { height: 100%; transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out); }
 .hud-panel__index[data-auto]::before { content: counter(widget, decimal-leading-zero); }
 .hud-dash__handle { position: absolute; top: var(--space-2); right: var(--space-2); display: inline-flex; padding: 4px; border: 0; background: transparent; color: var(--ink-500); cursor: grab; touch-action: none; opacity: .5; }
 .hud-dash__handle:hover, .hud-dash__handle:focus-visible, .hud-dash__item[data-dragging] .hud-dash__handle { opacity: 1; color: var(--cyan-400); }
 .hud-dash__item .hud-panel__head { padding-right: 28px; }
 .hud-dash__handle:active { cursor: grabbing; }
+/* ── Retour au survol / à l'appui des widgets du dashboard ──
+   La transition porte sur le panneau interne uniquement : .hud-dash__item garde le transform/transition inline de dnd-kit.
+   La poignée est un FRÈRE de .hud-panel dans .hud-dash__item : la survoler retire :hover du panneau, d'où le sélecteur
+   :has(> .hud-dash__handle:hover) qui garde le cadre éclairé (et soulevé) quand le pointeur passe sur la poignée.
+   focus-within couvre le focus clavier sur la poignée ou un contrôle du widget ; il n'ajoute qu'un éclairage, sans retirer d'outline.
+   Les panneaux d'alerte gardent leur cadre ambre. Rien ne bouge pendant un glisser (data-dragging). */
+.hud-dash__item:focus-within > .hud-panel:not(.hud-panel--alert) { background: var(--line-300); }
+/* Le survol n'agit que sur les appareils dotés d'un vrai survol : un tap tactile ne laisse pas un widget éclairé/soulevé. */
+@media (hover: hover) {
+  .hud-dash__item:not([data-dragging]) > .hud-panel:not(.hud-panel--alert):hover,
+  .hud-dash__item:not([data-dragging]):has(> .hud-dash__handle:hover) > .hud-panel:not(.hud-panel--alert) { background: var(--line-300); }
+}
+/* Le mouvement (soulèvement, appui) n'existe que hors mouvement réduit ; l'éclairage ci-dessus reste. */
+@media (prefers-reduced-motion: no-preference) {
+  @media (hover: hover) {
+    .hud-dash__item:not([data-dragging]) > .hud-panel:hover,
+    .hud-dash__item:not([data-dragging]):has(> .hud-dash__handle:hover) > .hud-panel { transform: translateY(var(--lift)); }
+  }
+  /* L'appui ne s'applique que s'il tombe sur le panneau lui-même, pas sur un enfant interactif (éléments natifs, [role], [tabindex], contenteditable). La poignée n'a pas besoin
+     d'exclusion (frère du panneau : l'appuyer ne rend jamais .hud-panel :active) ; les panneaux aria-busy (squelettes) sont exclus. */
+  .hud-dash__item:not([data-dragging]) > .hud-panel:not([aria-busy]):active:not(:has(:is(button, a, input, select, textarea, label, summary, [role], [tabindex], [contenteditable]):active)) { transform: translateY(var(--lift)) scale(var(--press-scale)); }
+}
 @media (max-width: 900px) { .hud-dash { grid-template-columns: minmax(0, 1fr); padding: var(--space-4); } .hud-dash > * { grid-column: auto !important; } .hud-topbar { padding: var(--space-4) var(--space-4) 0; } }
 
 /* ── Tabs (dashboards) ── */
@@ -281,7 +303,7 @@ input, textarea { caret-color: var(--cyan-400); }
 
 /* ── Reduced motion: les changements d'état (couleur, bordure, ombre) restent, instantanés mais présents ; le mouvement (transform, échelle, translation, élévation) disparaît ── */
 @media (prefers-reduced-motion: reduce) {
-  .hud-gauge__arc, .hud-btn, .hud-input, .hud-check__box, .hud-tab, .hud-tool, .hud-swatch { transition: none; }
+  .hud-gauge__arc, .hud-btn, .hud-input, .hud-check__box, .hud-tab, .hud-tool, .hud-swatch, .hud-dash__item > .hud-panel { transition: none; }
   .hud-btn:active:not(:disabled) { transform: none; }
   .hud-spinner svg { animation-duration: 2.4s; }
 }

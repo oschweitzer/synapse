@@ -57,3 +57,24 @@ test('le nouvel ordre survit au rechargement', async ({ page }) => {
   await page.reload()
   await expect.poll(() => handleNames(page)).toEqual(reordered)
 })
+
+test('un widget se soulève au survol, sans mouvement en mouvement réduit', async ({ page }) => {
+  await page.goto('/')
+  // On fixe explicitement le mouvement : le test ne dépend pas du réglage par défaut de l'environnement.
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await expect(handles(page)).toHaveCount(WIDGETS.length)
+
+  const weather = page.locator('.hud-dash__item').filter({ has: page.getByRole('button', { name: 'Déplacer « Météo »' }) })
+  const panel = weather.locator(':scope > .hud-panel')
+  const transform = () => panel.evaluate((el) => getComputedStyle(el).transform)
+
+  // Au survol, le panneau est soulevé : le transform calculé n'est plus « none ».
+  await panel.locator('.hud-panel__head').hover()
+  await expect.poll(transform).not.toBe('none')
+
+  // En mouvement réduit, le même survol ne produit aucun transform.
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.mouse.move(0, 0)
+  await panel.locator('.hud-panel__head').hover()
+  await expect.poll(transform).toBe('none')
+})
