@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { monthRange } from '@/lib/agenda-month'
 import { createClient } from '@/lib/supabase/server'
 import { dayKey, endOfToday, startOfDay } from '@/lib/time'
 import type { Tables } from '@/lib/types/synapse'
@@ -13,6 +15,12 @@ import type { Connector } from './types'
 const UPCOMING_DAYS = 7
 /** Évènements affichés au plus dans l'aperçu des jours suivants. */
 const UPCOMING_LIMIT = 12
+/** Colonnes lues dans `calendar_events`, pour la liste comme pour la vue mensuelle. */
+const EVENT_COLUMNS =
+  'calendar_id, event_id, title, location, all_day, start_at, end_at, html_link, background_color, foreground_color'
+
+/** Lignes par page : PostgREST plafonne une réponse à 1000 lignes (`max_rows`). */
+const PAGE_SIZE = 1000
 
 type AccountRow = Pick<Tables<{ schema: 'synapse' }, 'google_accounts'>, 'google_email' | 'needs_reauth' | 'scopes'>
 type EventRow = Pick<
@@ -42,9 +50,19 @@ export type CalendarEvent = {
 
 export type AgendaDay = { key: string; date: string; events: CalendarEvent[] }
 
+/** Données de la vue mensuelle : les évènements des grilles du mois précédent, courant et suivant. */
+export type AgendaMonth = { todayKey: string; firstMonth: string; lastMonth: string; events: CalendarEvent[] }
+
 export type Agenda =
   | { status: 'disconnected' }
-  | { status: 'ok'; account: GoogleAccount; today: CalendarEvent[]; upcoming: AgendaDay[]; moreCount: number }
+  | {
+      status: 'ok'
+      account: GoogleAccount
+      today: CalendarEvent[]
+      upcoming: AgendaDay[]
+      moreCount: number
+      month: AgendaMonth
+    }
 
 export type MailHeader = {
   id: string
@@ -107,7 +125,7 @@ function toEvent(row: EventRow, now: Date): CalendarEvent {
   }
 }
 
-export function toAgenda(account: GoogleAccount, rows: EventRow[], now = new Date()): Agenda {
+export function toAgenda(account: GoogleAccount, rows: EventRow[], now = new Date(), monthRows: EventRow[] = []): Agenda {
   const todayKey = dayKey(now)
   const lastKey = dayKey(startOfDay(now, UPCOMING_DAYS))
   const startToday = startOfDay(now).getTime()
@@ -146,7 +164,15 @@ export function toAgenda(account: GoogleAccount, rows: EventRow[], now = new Dat
     day.events.push(toEvent(row, now))
   }
 
-  return { status: 'ok', account, today, upcoming, moreCount: Math.max(0, later.length - UPCOMING_LIMIT) }
+  const range = monthRange(now)
+  const month: AgendaMonth = {
+    todayKey: range.todayKey,
+    firstMonth: range.firstMonth,
+    lastMonth: range.lastMonth,
+    events: monthRows.map((row) => toEvent(row, now)),
+  }
+
+  return { status: 'ok', account, today, upcoming, moreCount: Math.max(0, later.length - UPCOMING_LIMIT), month }
 }
 
 /** Expéditeur lisible : le nom affiché, sinon l'adresse. */
@@ -162,6 +188,35 @@ export function gmailUrl(threadId: string, email: string | null) {
   return `${base}#inbox/${encodeURIComponent(threadId)}`
 }
 
+/**
+ * Lignes de la vue mensuelle : grilles des trois mois autour d'aujourd'hui
+ * (marges comprises dans `range`). Lues page par page, sans quoi le plafond de
+ * 1000 lignes de PostgREST couperait en silence les derniers évènements. Le tri
+ * finit par la clé primaire : sans lui, deux évènements au même début peuvent
+ * passer d'une page à l'autre.
+ */
+async function readMonthRows(supabase: SupabaseClient, range: ReturnType<typeof monthRange>) {
+  // Se lance après la requête de la liste, pour garder l'ordre des appels.
+  await Promise.resolve()
+  const rows: EventRow[] = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const page = await supabase
+      .schema('synapse')
+      .from('calendar_events')
+      .select(EVENT_COLUMNS)
+      .gte('end_at', range.from.toISOString())
+      .lt('start_at', range.to.toISOString())
+      .order('start_at')
+      .order('calendar_id')
+      .order('event_id')
+      .range(from, from + PAGE_SIZE - 1)
+    if (page.error) throw page.error
+    const data = page.data as EventRow[]
+    rows.push(...data)
+    if (data.length < PAGE_SIZE) return rows
+  }
+}
+
 export const agendaConnector: Connector<Agenda> = {
   id: 'google',
   async read() {
@@ -170,20 +225,22 @@ export const agendaConnector: Connector<Agenda> = {
 
     const supabase = await createClient()
     const now = new Date()
-    const [events, syncedAt] = await Promise.all([
+    const range = monthRange(now)
+    const [events, month, syncedAt] = await Promise.all([
       supabase
         .schema('synapse')
         .from('calendar_events')
-        .select('calendar_id, event_id, title, location, all_day, start_at, end_at, html_link, background_color, foreground_color')
+        .select(EVENT_COLUMNS)
         // Un jour de marge : les « toute la journée » sont à minuit UTC.
         .gte('end_at', startOfDay(now, -1).toISOString())
         .lt('start_at', startOfDay(now, UPCOMING_DAYS + 2).toISOString())
         .order('start_at'),
+      readMonthRows(supabase, range),
       readSyncedAt(),
     ])
     if (events.error) throw events.error
 
-    return { data: toAgenda(account, events.data as EventRow[], now), syncedAt }
+    return { data: toAgenda(account, events.data as EventRow[], now, month), syncedAt }
   },
 }
 

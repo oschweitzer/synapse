@@ -98,7 +98,35 @@ describe('gmailUrl', () => {
 
 describe('toAgenda', () => {
   it('rend « ok » avec le compte et des listes vides sans évènement', () => {
-    expect(toAgenda(ACCOUNT, [], NOW)).toEqual({ status: 'ok', account: ACCOUNT, today: [], upcoming: [], moreCount: 0 })
+    expect(toAgenda(ACCOUNT, [], NOW)).toEqual({
+      status: 'ok',
+      account: ACCOUNT,
+      today: [],
+      upcoming: [],
+      moreCount: 0,
+      month: { todayKey: '2026-01-15', firstMonth: '2025-12', lastMonth: '2026-02', events: [] },
+    })
+  })
+
+  it('met les lignes du mois en forme avec toEvent, celles déjà finies marquées', () => {
+    const agenda = toAgenda(
+      ACCOUNT,
+      [],
+      NOW,
+      [
+        event({ calendar_id: 'cal', event_id: 'x', start_at: '2026-01-15T08:00:00Z', end_at: '2026-01-15T09:00:00Z' }),
+        event({ event_id: 'y', start_at: '2026-02-03T08:00:00Z', end_at: '2026-02-03T09:00:00Z', background_color: '#039be5' }),
+      ],
+    )
+    if (agenda.status !== 'ok') throw new Error('attendu : ok')
+    expect(agenda.month.events.map((e) => [e.id, e.isPast])).toEqual([
+      ['cal/x', true],
+      ['cal/y', false],
+    ])
+    expect(agenda.month.events[1].color).toEqual({ background: '#039be5', foreground: null })
+    // Les lignes du mois n'alimentent pas la liste du jour ni des jours suivants.
+    expect(agenda.today).toEqual([])
+    expect(agenda.upcoming).toEqual([])
   })
 
   it('liste les évènements du jour dans l’ordre, ceux déjà finis marqués', () => {
@@ -284,10 +312,93 @@ describe('agendaConnector', () => {
     expect(columns).toEqual(expect.stringContaining('foreground_color'))
   })
 
+  it('rend le mois autour d’aujourd’hui, lu par une seconde requête', async () => {
+    setup({
+      google_accounts: { data: ACCOUNT_ROW },
+      calendar_events: [
+        { data: [event({ event_id: 'a', start_at: '2026-01-15T14:00:00Z' })] },
+        { data: [event({ event_id: 'a' }), event({ event_id: 'm', start_at: '2026-02-20T09:00:00Z', end_at: '2026-02-20T10:00:00Z' })] },
+      ],
+      ...SYNCED,
+    })
+    const result = await agendaConnector.read('u1')
+    if (result.data.status !== 'ok') throw new Error('attendu : ok')
+    // Aujourd'hui et à venir viennent de la première requête, le mois de la seconde.
+    expect(result.data.today.map((e) => e.id)).toEqual(['cal/a'])
+    expect(result.data.upcoming).toEqual([])
+    expect(result.data.month).toMatchObject({ todayKey: '2026-01-15', firstMonth: '2025-12', lastMonth: '2026-02' })
+    expect(result.data.month.events.map((e) => e.id)).toEqual(['cal/a', 'cal/m'])
+  })
+
+  it('borne la requête du mois sur les grilles du mois précédent et du suivant', async () => {
+    const m = setup({ google_accounts: { data: ACCOUNT_ROW }, calendar_events: { data: [] }, ...SYNCED })
+    await agendaConnector.read('u1')
+    const filters = m.calls.filter((c) => c.table === 'calendar_events')
+    expect(filters).toContainEqual(expect.objectContaining({ method: 'gte', args: ['end_at', '2025-11-29T23:00:00.000Z'] }))
+    expect(filters).toContainEqual(expect.objectContaining({ method: 'lt', args: ['start_at', '2026-03-09T23:00:00.000Z'] }))
+    // La requête de la liste garde ses bornes.
+    expect(filters).toContainEqual(expect.objectContaining({ method: 'gte', args: ['end_at', startOfDay(NOW, -1).toISOString()] }))
+    expect(filters).toContainEqual(expect.objectContaining({ method: 'lt', args: ['start_at', startOfDay(NOW, 9).toISOString()] }))
+    expect(filters.filter((c) => c.method === 'order' && c.args[0] === 'start_at')).toHaveLength(2)
+    const columns = filters.filter((c) => c.method === 'select').map((c) => c.args[0])
+    expect(columns).toHaveLength(2)
+    expect(columns[1]).toBe(columns[0])
+  })
+
+  it('lit le mois par pages de 1000 lignes jusqu’à une page incomplète', async () => {
+    const page = (n: number, prefix: string) =>
+      Array.from({ length: n }, (_, i) => event({ event_id: `${prefix}${i}`, start_at: '2026-02-20T09:00:00Z', end_at: '2026-02-20T10:00:00Z' }))
+    const m = setup({
+      google_accounts: { data: ACCOUNT_ROW },
+      calendar_events: [{ data: [] }, { data: page(1000, 'a') }, { data: page(3, 'b') }],
+      ...SYNCED,
+    })
+    const result = await agendaConnector.read('u1')
+    if (result.data.status !== 'ok') throw new Error('attendu : ok')
+    expect(result.data.month.events).toHaveLength(1003)
+    const ranges = m.calls.filter((c) => c.table === 'calendar_events' && c.method === 'range').map((c) => c.args)
+    expect(ranges).toEqual([
+      [0, 999],
+      [1000, 1999],
+    ])
+    // Tri stable d'une page à l'autre : début, puis clé primaire.
+    const orders = m.calls.filter((c) => c.method === 'order').map((c) => c.args[0])
+    expect(orders.filter((c) => c === 'start_at')).toHaveLength(3)
+    expect(orders.filter((c) => c === 'calendar_id')).toHaveLength(2)
+    expect(orders.filter((c) => c === 'event_id')).toHaveLength(2)
+  })
+
+  it('s’arrête sur une page vide quand le mois compte un multiple de 1000 lignes', async () => {
+    const full = Array.from({ length: 1000 }, (_, i) => event({ event_id: `a${i}` }))
+    const m = setup({
+      google_accounts: { data: ACCOUNT_ROW },
+      calendar_events: [{ data: [] }, { data: full }, { data: [] }],
+      ...SYNCED,
+    })
+    const result = await agendaConnector.read('u1')
+    if (result.data.status !== 'ok') throw new Error('attendu : ok')
+    expect(result.data.month.events).toHaveLength(1000)
+    expect(m.calls.filter((c) => c.method === 'range')).toHaveLength(2)
+  })
+
+  it('lève l’erreur d’une page suivante du mois', async () => {
+    const error = new Error('page 2 down')
+    const full = Array.from({ length: 1000 }, (_, i) => event({ event_id: `a${i}` }))
+    setup({ google_accounts: { data: ACCOUNT_ROW }, calendar_events: [{ data: [] }, { data: full }, { error }], ...SYNCED })
+    await expect(agendaConnector.read('u1')).rejects.toBe(error)
+  })
+
   it('rend un agenda vide sans évènement', async () => {
     setup({ google_accounts: { data: ACCOUNT_ROW }, calendar_events: { data: [] }, sync_runs: { data: null } })
     const result = await agendaConnector.read('u1')
-    expect(result.data).toEqual({ status: 'ok', account: ACCOUNT, today: [], upcoming: [], moreCount: 0 })
+    expect(result.data).toEqual({
+      status: 'ok',
+      account: ACCOUNT,
+      today: [],
+      upcoming: [],
+      moreCount: 0,
+      month: { todayKey: '2026-01-15', firstMonth: '2025-12', lastMonth: '2026-02', events: [] },
+    })
     expect(result.syncedAt).toBeNull()
   })
 
@@ -300,6 +411,12 @@ describe('agendaConnector', () => {
   it('lève l’erreur de calendar_events', async () => {
     const error = new Error('events down')
     setup({ google_accounts: { data: ACCOUNT_ROW }, calendar_events: { error }, ...SYNCED })
+    await expect(agendaConnector.read('u1')).rejects.toBe(error)
+  })
+
+  it('lève l’erreur de la requête du mois', async () => {
+    const error = new Error('month down')
+    setup({ google_accounts: { data: ACCOUNT_ROW }, calendar_events: [{ data: [] }, { error }], ...SYNCED })
     await expect(agendaConnector.read('u1')).rejects.toBe(error)
   })
 
