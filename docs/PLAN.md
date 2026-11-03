@@ -94,8 +94,7 @@ Sheet des dépenses est lui-même la source de vérité.
   session de l'utilisateur. RLS (`user_id = auth.uid()`) fait le travail, il
   n'y a aucune API à écrire.
 - Widget « À faire » : items non cochés de checklists non archivées et non
-  supprimées, avec `due_at` aujourd'hui ou en retard en tête, puis les notes
-  épinglées.
+  supprimées, avec `due_at` aujourd'hui ou en retard en tête.
 - **Respecter le coffre de Cairn** :
   - `is_encrypted = true` → pas de contenu lisible sans la clé du coffre ;
     Synapse n'affiche qu'un compteur (« 3 éléments privés »). Il ne demande
@@ -327,7 +326,7 @@ type Connector<T> = {
 | Phase | Contenu | Livrable |
 |---|---|---|
 | 1 | Next.js, connexion Supabase (même compte que Cairn), schéma `synapse` + script de migration, grille de widgets, PWA, **widget météo** | Dashboard en ligne avec la météo |
-| 2 | **Widgets Cairn** : to-do du jour, épinglés, compteur privé, **courses** (choix de la checklist, cocher) | Tâches et courses sans rien changer côté Cairn |
+| 2 | **Widgets Cairn** : to-do du jour, compteur privé, **courses** (choix de la checklist, cocher) | Tâches et courses sans rien changer côté Cairn |
 | 3 | OAuth Google + Edge Function de sync + `pg_cron` → **agenda** et **20 derniers mails** | Journée et boîte de réception |
 | 4 | Workflow **Garmin** + widgets sommeil / activité / tendance sur 7 jours | Sport |
 | 5 | **Recettes** : base, recette du jour, ingrédients → checklist Cairn des courses | Cuisine |

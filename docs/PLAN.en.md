@@ -94,7 +94,7 @@ expenses Google Sheet is itself the source of truth.
   the user's session. RLS (`user_id = auth.uid()`) does the work, there is no
   API to write.
 - "To-do" widget: unchecked items of non-archived, non-deleted checklists, with
-  `due_at` today or overdue first, then pinned notes.
+  `due_at` today or overdue first.
 - **Respect Cairn's vault**:
   - `is_encrypted = true` → no readable content without the vault key; Synapse
     only shows a counter ("3 private items"). It never asks for the recovery
@@ -318,7 +318,7 @@ type Connector<T> = {
 | Phase | Content | Deliverable |
 |---|---|---|
 | 1 | Next.js, Supabase sign-in (same account as Cairn), `synapse` schema + migration script, widget grid, PWA, **weather widget** | Dashboard online with the weather |
-| 2 | **Cairn widgets**: today's to-dos, pinned notes, private counter, **shopping** (choosing the checklist, checking items) | Tasks and shopping without changing anything on the Cairn side |
+| 2 | **Cairn widgets**: today's to-dos, private counter, **shopping** (choosing the checklist, checking items) | Tasks and shopping without changing anything on the Cairn side |
 | 3 | Google OAuth + sync Edge Function + `pg_cron` → **calendar** and **last 20 messages** | Day and inbox |
 | 4 | **Garmin** workflow + sleep / activity / 7-day trend widgets | Sport |
 | 5 | **Recipes**: collection, recipe of the day, ingredients → Cairn shopping checklist | Cooking |

@@ -63,6 +63,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The home page no longer re-reads the user and the lock state already checked by the middleware, so it needs fewer database round trips before it renders (#95).
 - The Google OAuth token, Google Sheets, Open-Meteo and TheMealDB base URLs can be overridden by environment variables, for tests only (#60).
 
+### Removed
+
+- The To-do widget no longer lists pinned Cairn notes; it only shows unchecked checklist items (#51).
+
 ### Fixed
 
 - Settings: the label of the "Reconnect Google" button is centered like the other buttons, also when it wraps (#43).

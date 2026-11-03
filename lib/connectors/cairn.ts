@@ -35,14 +35,11 @@ export type TodoItem = {
   isDue: boolean
 }
 
-export type PinnedNote = { id: string; label: string }
-
 export type Todo = {
   items: TodoItem[]
   /** Items non affichés au-delà de la limite. */
   moreCount: number
-  pinned: PinnedNote[]
-  /** Items et notes épinglées chiffrés par le coffre : comptés, jamais lus. */
+  /** Items chiffrés par le coffre : comptés, jamais lus. */
   privateCount: number
 }
 
@@ -81,7 +78,7 @@ type TodoRow = Pick<ItemRow, 'id' | 'content' | 'is_encrypted' | 'due_at' | 'pos
   reminders: { remind_at: string }[]
 }
 
-export function toTodo(rows: TodoRow[], pinnedNotes: NoteFields[], now = new Date()): Todo {
+export function toTodo(rows: TodoRow[], now = new Date()): Todo {
   const limit = endOfToday(now).getTime()
   let privateCount = 0
   const items: { item: TodoItem; notePosition: number; position: number }[] = []
@@ -113,16 +110,9 @@ export function toTodo(rows: TodoRow[], pinnedNotes: NoteFields[], now = new Dat
     return a.notePosition - b.notePosition || a.position - b.position
   })
 
-  const pinned: PinnedNote[] = []
-  for (const note of pinnedNotes) {
-    if (note.is_encrypted) privateCount++
-    else pinned.push({ id: note.id, label: noteLabel(note) })
-  }
-
   return {
     items: items.slice(0, TODO_LIMIT).map(({ item }) => item),
     moreCount: Math.max(0, items.length - TODO_LIMIT),
-    pinned,
     privateCount,
   }
 }
@@ -148,21 +138,11 @@ export const todoConnector: Connector<Todo> = {
     // La liste de courses a son propre widget.
     if (shoppingId) itemsQuery = itemsQuery.neq('note_id', shoppingId)
 
-    const [items, pinned] = await Promise.all([
-      itemsQuery,
-      supabase
-        .from('notes')
-        .select(NOTE_FIELDS)
-        .eq('is_pinned', true)
-        .eq('is_archived', false)
-        .is('deleted_at', null)
-        .order('position'),
-    ])
+    const items = await itemsQuery
     if (items.error) throw items.error
-    if (pinned.error) throw pinned.error
 
     return {
-      data: toTodo(items.data as unknown as TodoRow[], pinned.data as NoteFields[]),
+      data: toTodo(items.data as unknown as TodoRow[]),
       syncedAt: null,
     }
   },

@@ -14,7 +14,7 @@ import { mockSupabase, type MockResult } from '@/test/supabase-mock'
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }))
 
 type Row = Parameters<typeof toTodo>[0][number]
-type Note = Parameters<typeof toTodo>[1][number]
+type Note = Row['notes']
 
 // 15 janvier 2026, 11 h à Paris : la journée se termine le 15 à 23:00Z.
 const NOW = new Date('2026-01-15T10:00:00Z')
@@ -88,7 +88,6 @@ describe('toTodo', () => {
         row({ id: 'b', notes: note({ is_encrypted: true }), content: 'secret aussi' }),
         row({ id: 'c' }),
       ],
-      [],
       NOW,
     )
     expect(todo.privateCount).toBe(2)
@@ -97,12 +96,12 @@ describe('toTodo', () => {
   })
 
   it('masque le contenu d’une note privée et la désigne par son nom de code', () => {
-    const [item] = toTodo([row({ notes: note({ is_private: true, code_name: 'X7' }) })], [], NOW).items
+    const [item] = toTodo([row({ notes: note({ is_private: true, code_name: 'X7' }) })], NOW).items
     expect(item).toMatchObject({ content: null, noteLabel: 'X7' })
   })
 
   it('montre le texte rogné, ou « Sans texte »', () => {
-    const items = toTodo([row({ id: 'a', content: '  Lait ' }), row({ id: 'b', content: '  ', position: 1 }), row({ id: 'c', content: null, position: 2 })], [], NOW).items
+    const items = toTodo([row({ id: 'a', content: '  Lait ' }), row({ id: 'b', content: '  ', position: 1 }), row({ id: 'c', content: null, position: 2 })], NOW).items
     expect(items.map((i) => i.content)).toEqual(['Lait', 'Sans texte', 'Sans texte'])
   })
 
@@ -116,7 +115,6 @@ describe('toTodo', () => {
         }),
         row({ id: 'c' }),
       ],
-      [],
       NOW,
     ).items
     const byId = Object.fromEntries(items.map((i) => [i.id, i.dueAt]))
@@ -131,7 +129,6 @@ describe('toTodo', () => {
         row({ id: 'tomorrow', due_at: '2026-01-15T23:30:00Z' }),
         row({ id: 'none' }),
       ],
-      [],
       NOW,
     ).items
     const due = Object.fromEntries(items.map((i) => [i.id, i.isDue]))
@@ -147,7 +144,6 @@ describe('toTodo', () => {
         row({ id: 'd', due_at: '2026-01-15T08:00:00Z', notes: note({ position: 9 }) }),
         row({ id: 'e', due_at: '2026-01-14T08:00:00Z', notes: note({ position: 9 }) }),
       ],
-      [],
       NOW,
     ).items
     expect(items.map((i) => i.id)).toEqual(['e', 'd', 'c', 'b', 'a'])
@@ -155,27 +151,14 @@ describe('toTodo', () => {
 
   it('limite à 15 items et compte le reste', () => {
     const rows = Array.from({ length: 20 }, (_, i) => row({ id: `i${i}`, position: i }))
-    const todo = toTodo(rows, [], NOW)
+    const todo = toTodo(rows, NOW)
     expect(todo.items).toHaveLength(15)
     expect(todo.moreCount).toBe(5)
-    expect(toTodo(rows.slice(0, 15), [], NOW).moreCount).toBe(0)
-  })
-
-  it('liste les notes épinglées et compte celles du coffre', () => {
-    const todo = toTodo(
-      [row({ is_encrypted: true })],
-      [note({ id: 'p1', is_encrypted: true }), note({ id: 'p2', title: 'Idées' }), note({ id: 'p3', is_private: true, code_name: 'Z9' })],
-      NOW,
-    )
-    expect(todo.pinned).toEqual([
-      { id: 'p2', label: 'Idées' },
-      { id: 'p3', label: 'Z9' },
-    ])
-    expect(todo.privateCount).toBe(2)
+    expect(toTodo(rows.slice(0, 15), NOW).moreCount).toBe(0)
   })
 
   it('prend l’horloge du système par défaut', () => {
-    const items = toTodo([row({ due_at: '2026-01-15T20:00:00Z' })], []).items
+    const items = toTodo([row({ due_at: '2026-01-15T20:00:00Z' })]).items
     expect(items[0].isDue).toBe(true)
   })
 })
@@ -207,33 +190,31 @@ describe('todoConnector', () => {
     expect(todoConnector.id).toBe('cairn')
   })
 
-  it('rend les items et les notes épinglées, sans date de synchro', async () => {
+  it('rend les items, sans date de synchro', async () => {
     setup({
       settings: { data: null },
       checklist_items: { data: items },
-      notes: { data: [note({ id: 'p1', title: 'Idées' })] },
     })
     const result = await todoConnector.read('u1')
     expect(result.syncedAt).toBeNull()
     expect(result.data.items.map((i) => i.id)).toEqual(['a'])
-    expect(result.data.pinned).toEqual([{ id: 'p1', label: 'Idées' }])
     expect(result.error).toBeUndefined()
   })
 
   it('exclut la liste de courses quand elle est choisie', async () => {
-    const m = setup({ settings: { data: { cairn_shopping_checklist_id: 'shop-1' } }, checklist_items: { data: items }, notes: { data: [] } })
+    const m = setup({ settings: { data: { cairn_shopping_checklist_id: 'shop-1' } }, checklist_items: { data: items } })
     await todoConnector.read('u1')
     expect(m.calls).toContainEqual(expect.objectContaining({ table: 'checklist_items', method: 'neq', args: ['note_id', 'shop-1'] }))
   })
 
   it('n’exclut rien sans liste de courses', async () => {
-    const m = setup({ settings: { data: null }, checklist_items: { data: items }, notes: { data: [] } })
+    const m = setup({ settings: { data: null }, checklist_items: { data: items } })
     await todoConnector.read('u1')
     expect(m.calls.some((c) => c.method === 'neq')).toBe(false)
   })
 
   it('ne lit que les items non faits des checklists actives', async () => {
-    const m = setup({ settings: { data: null }, checklist_items: { data: [] }, notes: { data: [] } })
+    const m = setup({ settings: { data: null }, checklist_items: { data: [] } })
     await todoConnector.read('u1')
     const filters = m.calls.filter((c) => c.table === 'checklist_items' && c.method === 'eq').map((c) => c.args)
     expect(filters).toEqual([
@@ -245,26 +226,27 @@ describe('todoConnector', () => {
 
   it('lève l’erreur de lecture des items', async () => {
     const error = new Error('items down')
-    setup({ settings: { data: null }, checklist_items: { error }, notes: { data: [] } })
+    setup({ settings: { data: null }, checklist_items: { error } })
     await expect(todoConnector.read('u1')).rejects.toBe(error)
   })
 
-  it('lève l’erreur de lecture des notes épinglées', async () => {
-    const error = new Error('notes down')
-    setup({ settings: { data: null }, checklist_items: { data: [] }, notes: { error } })
-    await expect(todoConnector.read('u1')).rejects.toBe(error)
+  it('ne lit pas les notes épinglées', async () => {
+    const m = setup({ settings: { data: null }, checklist_items: { data: items } })
+    await todoConnector.read('u1')
+    expect(m.calls.some((c) => c.table === 'notes')).toBe(false)
+    expect(m.calls.some((c) => c.method === 'eq' && c.args[0] === 'is_pinned')).toBe(false)
   })
 
   it('lève l’erreur de lecture des réglages', async () => {
     const error = new Error('settings down')
-    setup({ settings: { error }, checklist_items: { data: [] }, notes: { data: [] } })
+    setup({ settings: { error }, checklist_items: { data: [] } })
     await expect(todoConnector.read('u1')).rejects.toBe(error)
   })
 
   it('rend une liste vide sans donnée', async () => {
-    setup({ settings: { data: null }, checklist_items: { data: [] }, notes: { data: [] } })
+    setup({ settings: { data: null }, checklist_items: { data: [] } })
     expect(await todoConnector.read('u1')).toEqual({
-      data: { items: [], moreCount: 0, pinned: [], privateCount: 0 },
+      data: { items: [], moreCount: 0, privateCount: 0 },
       syncedAt: null,
     })
   })

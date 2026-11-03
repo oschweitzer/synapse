@@ -29,7 +29,7 @@ export function privateLabel(count: number) {
 }
 
 export function TodoWidget({ todo }: { todo: Todo }) {
-  const empty = todo.items.length === 0 && todo.pinned.length === 0
+  const empty = todo.items.length === 0
 
   return (
     <div className="flex flex-col gap-4">
@@ -56,19 +56,6 @@ export function TodoWidget({ todo }: { todo: Todo }) {
         </ul>
       )}
       {todo.moreCount > 0 && <p className={`text-xs ${muted}`}>… et {todo.moreCount} autres dans Cairn</p>}
-
-      {todo.pinned.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <h3 className={`text-xs font-semibold uppercase tracking-wide ${muted}`}>Épinglées</h3>
-          <ul className="flex flex-col gap-1 text-sm">
-            {todo.pinned.map((note) => (
-              <li key={note.id}>
-                📌 <CairnLink noteId={note.id}>{note.label}</CairnLink>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       {todo.privateCount > 0 && <p className={`text-xs ${muted}`}>🔒 {privateLabel(todo.privateCount)}</p>}
     </div>
