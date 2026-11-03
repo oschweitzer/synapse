@@ -33,6 +33,8 @@ const event = (over: Partial<EventRow> = {}): EventRow => ({
   start_at: '2026-01-15T14:00:00Z',
   end_at: '2026-01-15T15:00:00Z',
   html_link: null,
+  background_color: null,
+  foreground_color: null,
   ...over,
 })
 
@@ -201,12 +203,27 @@ describe('toAgenda', () => {
   it('met en forme un évènement : id, titre, lieu', () => {
     const agenda = toAgenda(
       ACCOUNT,
-      [event({ calendar_id: 'c1', event_id: 'e9', title: '   ', location: '  Salle 3 ', html_link: 'https://cal.x/e9' }), event({ location: '  ' })],
+      [
+        event({ calendar_id: 'c1', event_id: 'e9', title: '   ', location: '  Salle 3 ', html_link: 'https://cal.x/e9', background_color: '#039be5', foreground_color: '#ffffff' }),
+        event({ location: '  ' }),
+      ],
       NOW,
     )
     if (agenda.status !== 'ok') throw new Error('attendu : ok')
-    expect(agenda.today[0]).toMatchObject({ id: 'c1/e9', title: 'Sans titre', location: 'Salle 3', htmlLink: 'https://cal.x/e9', allDay: false })
+    expect(agenda.today[0]).toMatchObject({ id: 'c1/e9', title: 'Sans titre', location: 'Salle 3', htmlLink: 'https://cal.x/e9', allDay: false, color: { background: '#039be5', foreground: '#ffffff' } })
     expect(agenda.today[1].location).toBeNull()
+    expect(agenda.today[1].color).toBeNull()
+  })
+
+  it('couleur : fond seul garde un texte null, texte seul n’est pas une couleur', () => {
+    const agenda = toAgenda(
+      ACCOUNT,
+      [event({ background_color: '#039be5' }), event({ foreground_color: '#ffffff' })],
+      NOW,
+    )
+    if (agenda.status !== 'ok') throw new Error('attendu : ok')
+    expect(agenda.today[0].color).toEqual({ background: '#039be5', foreground: null })
+    expect(agenda.today[1].color).toBeNull()
   })
 
   it('prend l’horloge du système par défaut', () => {
@@ -262,6 +279,9 @@ describe('agendaConnector', () => {
     const filters = m.calls.filter((c) => c.table === 'calendar_events')
     expect(filters).toContainEqual(expect.objectContaining({ method: 'gte', args: ['end_at', startOfDay(NOW, -1).toISOString()] }))
     expect(filters).toContainEqual(expect.objectContaining({ method: 'lt', args: ['start_at', startOfDay(NOW, 9).toISOString()] }))
+    const columns = filters.find((c) => c.method === 'select')?.args[0]
+    expect(columns).toEqual(expect.stringContaining('background_color'))
+    expect(columns).toEqual(expect.stringContaining('foreground_color'))
   })
 
   it('rend un agenda vide sans évènement', async () => {

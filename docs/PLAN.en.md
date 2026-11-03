@@ -77,7 +77,7 @@ expenses Google Sheet is itself the source of truth.
   *restricted* scope: verification is expensive, hence the choice not to
   request it.
 - Sync: `synapse-google-sync` Edge Function triggered by `pg_cron` every
-  30 min. It stores events from D-1 to D+7 and the headers of the **last 20
+  30 min. It stores events from the previous month to the next month, with their Google colour and the headers of the **last 20
   inbox messages** (sender, subject, snippet, date, read/unread). Never the
   full body. The cache is replaced on every run: it never holds more than 20
   rows. No "important" sorting.

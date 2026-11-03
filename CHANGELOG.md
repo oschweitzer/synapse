@@ -40,6 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Hover and press feedback on dashboard widgets: the frame lifts and brightens on hover, scales slightly on press and is highlighted on keyboard focus, with no motion under reduced-motion (#110).
 - Animated switch between dashboards: the incoming dashboard rotates in like a cube face from the side of its tab, a plain fade under reduced-motion, and no animation on first load or reload (#111).
 - Entry animation for widgets added to a dashboard (fade and slide with a short stagger; none on first load or dashboard switch, which keep their own animation), shared timing for drag reordering and an animated active tab underline, all disabled under reduced motion (#112).
+- Agenda events show their Google Calendar color (#117).
 
 ### Changed
 

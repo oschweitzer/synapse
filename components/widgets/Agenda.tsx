@@ -26,6 +26,13 @@ function EventLine({ event }: { event: CalendarEvent }) {
     <li className={`flex gap-3 text-sm ${event.isPast ? 'text-slate-400 dark:text-slate-500' : ''}`}>
       <span className={`w-24 shrink-0 tabular-nums ${event.isPast ? '' : muted}`}>{when}</span>
       <span className="min-w-0 flex-1 break-words">
+        {event.color && (
+          <span
+            aria-hidden="true"
+            className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle ring-1 ring-slate-900/15 dark:ring-white/25"
+            style={{ backgroundColor: event.color.background }}
+          />
+        )}
         {title}
         {event.location && <span className={`block text-xs ${muted}`}>{event.location}</span>}
       </span>

@@ -17,7 +17,7 @@ const UPCOMING_LIMIT = 12
 type AccountRow = Pick<Tables<{ schema: 'synapse' }, 'google_accounts'>, 'google_email' | 'needs_reauth' | 'scopes'>
 type EventRow = Pick<
   Tables<{ schema: 'synapse' }, 'calendar_events'>,
-  'calendar_id' | 'event_id' | 'title' | 'location' | 'all_day' | 'start_at' | 'end_at' | 'html_link'
+  'calendar_id' | 'event_id' | 'title' | 'location' | 'all_day' | 'start_at' | 'end_at' | 'html_link' | 'background_color' | 'foreground_color'
 >
 type MailRow = Pick<
   Tables<{ schema: 'synapse' }, 'mail_headers'>,
@@ -34,6 +34,8 @@ export type CalendarEvent = {
   startAt: string
   endAt: string
   htmlLink: string | null
+  /** Couleur Google (évènement, sinon agenda), null sans couleur. */
+  color: { background: string; foreground: string | null } | null
   /** Déjà terminé (aujourd'hui uniquement). */
   isPast: boolean
 }
@@ -100,6 +102,7 @@ function toEvent(row: EventRow, now: Date): CalendarEvent {
     startAt: row.start_at,
     endAt: row.end_at,
     htmlLink: row.html_link,
+    color: row.background_color ? { background: row.background_color, foreground: row.foreground_color } : null,
     isPast: Date.parse(row.end_at) <= now.getTime(),
   }
 }
@@ -171,7 +174,7 @@ export const agendaConnector: Connector<Agenda> = {
       supabase
         .schema('synapse')
         .from('calendar_events')
-        .select('calendar_id, event_id, title, location, all_day, start_at, end_at, html_link')
+        .select('calendar_id, event_id, title, location, all_day, start_at, end_at, html_link, background_color, foreground_color')
         // Un jour de marge : les « toute la journée » sont à minuit UTC.
         .gte('end_at', startOfDay(now, -1).toISOString())
         .lt('start_at', startOfDay(now, UPCOMING_DAYS + 2).toISOString())

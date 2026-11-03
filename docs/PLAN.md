@@ -77,7 +77,7 @@ Sheet des dépenses est lui-même la source de vérité.
   l'expiration. `gmail.readonly` est un scope *restreint* : la vérification
   coûte cher, d'où ce choix de ne pas la demander.
 - Sync : Edge Function `synapse-google-sync` déclenchée par `pg_cron` toutes
-  les 30 min. Elle stocke les évènements de J-1 à J+7 et les en-têtes des
+  les 30 min. Elle stocke les évènements du mois précédent au mois suivant, avec leur couleur Google et les en-têtes des
   **20 derniers mails de la boîte de réception** (expéditeur, sujet, extrait,
   date, lu/non lu). Jamais le corps complet. Le cache est remplacé à chaque
   passage : il ne contient jamais plus de 20 lignes. Pas de tri « important ».

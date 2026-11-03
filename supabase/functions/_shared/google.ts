@@ -73,11 +73,19 @@ async function getJson<T>(url: string, accessToken: string): Promise<T> {
 
 // Agenda -------------------------------------------------------------------------
 
-type GoogleCalendar = { id: string; primary?: boolean; selected?: boolean; hidden?: boolean }
+type GoogleCalendar = {
+  id: string
+  primary?: boolean
+  selected?: boolean
+  hidden?: boolean
+  backgroundColor?: string
+  foregroundColor?: string
+}
 
 type GoogleEvent = {
   id: string
   status?: string
+  colorId?: string
   summary?: string
   location?: string
   htmlLink?: string
@@ -95,6 +103,8 @@ export type CachedEvent = {
   start_at: string
   end_at: string
   html_link: string | null
+  background_color: string | null
+  foreground_color: string | null
 }
 
 /** Agendas affichés dans Google Agenda (cochés), dont le principal. */
@@ -113,15 +123,53 @@ function toInstant(value: { date?: string; dateTime?: string } | undefined) {
   return null
 }
 
-export function toCachedEvent(calendarId: string, event: GoogleEvent): CachedEvent | null {
+type EventPalette = Record<string, { background: string; foreground: string }>
+
+/** Couleurs déjà en cache, par évènement (voir `colorKey`). */
+export type CachedColors = Map<string, { background: string | null; foreground: string | null }>
+
+export function colorKey(calendarId: string, eventId: string) {
+  return `${calendarId}\u0000${eventId}`
+}
+
+/**
+ * Palette des couleurs d'évènement, ou null si Google ne l'a pas donnée : la synchro
+ * continue alors avec les couleurs déjà en cache (voir `toCachedEvent`).
+ */
+export async function readEventPalette(accessToken: string): Promise<EventPalette | null> {
+  try {
+    const { event = {} } = await getJson<{ event?: EventPalette }>(
+      `${CALENDAR_API}/colors`,
+      accessToken,
+    )
+    return event
+  } catch (e) {
+    if (e instanceof ReauthError) throw e
+    console.error('[synapse-google-sync] palette', e instanceof Error ? e.message : String(e))
+    return null
+  }
+}
+
+export function toCachedEvent(
+  calendar: GoogleCalendar,
+  event: GoogleEvent,
+  palette: EventPalette | null = {},
+  cached?: CachedColors,
+): CachedEvent | null {
   if (event.status === 'cancelled') return null
   // Une invitation déclinée n'occupe pas la journée.
   if (event.attendees?.some((a) => a.self && a.responseStatus === 'declined')) return null
   const start = toInstant(event.start)
   const end = toInstant(event.end) ?? start
   if (!start || !end) return null
+  // La couleur de l'évènement l'emporte (en paire), sinon celle de l'agenda. Sans
+  // palette, l'évènement coloré garde la couleur déjà en cache plutôt que de la perdre.
+  const kept = !palette && event.colorId ? cached?.get(colorKey(calendar.id, event.id)) : undefined
+  const own: { background: string; foreground: string | null } | undefined =
+    (event.colorId ? palette?.[event.colorId] : undefined) ??
+      (kept?.background ? { background: kept.background, foreground: kept.foreground } : undefined)
   return {
-    calendar_id: calendarId,
+    calendar_id: calendar.id,
     event_id: event.id,
     title: event.summary ?? null,
     location: event.location ?? null,
@@ -129,36 +177,83 @@ export function toCachedEvent(calendarId: string, event: GoogleEvent): CachedEve
     start_at: start,
     end_at: end,
     html_link: event.htmlLink ?? null,
+    background_color: own?.background ?? calendar.backgroundColor ?? null,
+    foreground_color: own ? own.foreground : calendar.foregroundColor ?? null,
   }
 }
 
-/** Évènements de J-1 à J+7 de tous les agendas affichés. */
-export async function readEvents(accessToken: string, now = new Date()): Promise<CachedEvent[]> {
-  // Bornes en UTC, élargies de quelques heures pour couvrir le fuseau de l'utilisateur :
-  // le dashboard refiltre sur ses propres jours.
-  const day = 24 * 3600 * 1000
-  const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
-  const timeMin = new Date(midnight - day - 14 * 3600 * 1000).toISOString()
-  const timeMax = new Date(midnight + 8 * day + 14 * 3600 * 1000).toISOString()
+/** Pages d'évènements lues au plus par agenda (250 évènements par page). */
+const MAX_PAGES = 10
 
-  const calendars = await listCalendars(accessToken)
+/**
+ * Évènements du mois précédent au mois suivant de tous les agendas affichés,
+ * avec leur couleur Google.
+ */
+export async function readEvents(
+  accessToken: string,
+  now = new Date(),
+  loadCachedColors?: () => Promise<CachedColors>,
+): Promise<CachedEvent[]> {
+  // Bornes en UTC : du mois précédent au mois suivant, avec les marges d'une grille
+  // lundi-dimanche de 6 semaines et 14 h de marge de fuseau. Le dashboard refiltre
+  // sur ses propres jours.
+  const hour = 3600 * 1000
+  const day = 24 * hour
+  const y = now.getUTCFullYear()
+  const m = now.getUTCMonth()
+  const timeMin = new Date(Date.UTC(y, m - 1, 1) - 7 * day - 14 * hour).toISOString()
+  const timeMax = new Date(Date.UTC(y, m + 2, 1) + 14 * day + 14 * hour).toISOString()
+
+  const [calendars, palette] = await Promise.all([
+    listCalendars(accessToken),
+    readEventPalette(accessToken),
+  ])
+  // Palette en échec : on relit les couleurs en cache pour ne pas les écraser.
+  const cached = palette ? undefined : await loadCachedColors?.()
   const perCalendar = await Promise.all(
     calendars.map(async (calendar) => {
-      const params = new URLSearchParams({
-        timeMin,
-        timeMax,
-        singleEvents: 'true',
-        orderBy: 'startTime',
-        maxResults: '250',
-      })
-      const { items = [] } = await getJson<{ items?: GoogleEvent[] }>(
-        `${CALENDAR_API}/calendars/${encodeURIComponent(calendar.id)}/events?${params}`,
-        accessToken,
-      )
-      return items.map((event) => toCachedEvent(calendar.id, event)).filter((e) => e !== null)
+      let pageToken: string | undefined
+      const events: CachedEvent[] = []
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const params = new URLSearchParams({
+          timeMin,
+          timeMax,
+          singleEvents: 'true',
+          orderBy: 'startTime',
+          maxResults: '250',
+        })
+        if (pageToken) params.set('pageToken', pageToken)
+        const { items = [], nextPageToken } = await getJson<
+          { items?: GoogleEvent[]; nextPageToken?: string }
+        >(
+          `${CALENDAR_API}/calendars/${encodeURIComponent(calendar.id)}/events?${params}`,
+          accessToken,
+        )
+        for (const item of items) {
+          const e = toCachedEvent(calendar, item, palette, cached)
+          if (e) events.push(e)
+        }
+        pageToken = nextPageToken
+        if (!pageToken) break
+      }
+      if (pageToken) {
+        console.warn(`[synapse-google-sync] agenda tronqué à ${MAX_PAGES} pages : ${calendar.id}`)
+      }
+      return events
     }),
   )
-  return perCalendar.flat()
+  // Clé (agenda, évènement) en double : replace_google_cache en garderait une et
+  // ignorerait l'autre sans rien dire (`on conflict do nothing`), on le dit ici.
+  const seen = new Set<string>()
+  const events = perCalendar.flat().filter((e) => {
+    const key = colorKey(e.calendar_id, e.event_id)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+  const dropped = perCalendar.reduce((n, list) => n + list.length, 0) - events.length
+  if (dropped > 0) console.warn(`[synapse-google-sync] ${dropped} évènement(s) en double ignoré(s)`)
+  return events
 }
 
 // Gmail --------------------------------------------------------------------------

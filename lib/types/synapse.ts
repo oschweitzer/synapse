@@ -17,9 +17,11 @@ export type Database = {
       calendar_events: {
         Row: {
           all_day: boolean
+          background_color: string | null
           calendar_id: string
           end_at: string
           event_id: string
+          foreground_color: string | null
           html_link: string | null
           location: string | null
           start_at: string
@@ -28,9 +30,11 @@ export type Database = {
         }
         Insert: {
           all_day?: boolean
+          background_color?: string | null
           calendar_id: string
           end_at: string
           event_id: string
+          foreground_color?: string | null
           html_link?: string | null
           location?: string | null
           start_at: string
@@ -39,9 +43,11 @@ export type Database = {
         }
         Update: {
           all_day?: boolean
+          background_color?: string | null
           calendar_id?: string
           end_at?: string
           event_id?: string
+          foreground_color?: string | null
           html_link?: string | null
           location?: string | null
           start_at?: string
