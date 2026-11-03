@@ -33,7 +33,6 @@ export const metadata: Metadata = {
   title: 'Synapse',
   description: 'Dashboard de pilotage du quotidien',
   appleWebApp: { capable: true, title: 'Synapse', statusBarStyle: 'default' },
-  icons: { apple: '/icons/icon-192.png' },
 }
 
 export const viewport: Viewport = {

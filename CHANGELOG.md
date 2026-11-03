@@ -45,6 +45,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- New Synapse logo (two nerve terminals and a spark) as the favicon, the Apple touch icon and the PWA icons, with a dedicated safe-zone version for the maskable icon (#125).
 - Gauge arc animation duration goes from 240ms to 200ms, now using the shared `--motion-base` token (#109).
 - Mind map editor: a toolbox docked over the canvas replaces the header shape buttons and the node style bar, with select and pan tools, undo/redo/duplicate/delete, shapes placed with a click on the canvas, and fill, border and text swatches that edit the selected nodes or set the defaults for new ones; it moves to a bottom bar on mobile (#102).
 - Mind map editor: link route, arrows, line style, width and colour move from the selection bar into the toolbox, with the link label in it when links are selected; with no link selected they set the style of new links (#103).

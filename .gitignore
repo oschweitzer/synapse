@@ -24,3 +24,4 @@ playwright-report/
 blob-report/
 test-results/
 e2e/.auth/
+.superpowers/
