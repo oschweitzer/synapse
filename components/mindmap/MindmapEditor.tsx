@@ -25,7 +25,9 @@ import {
 } from '@xyflow/react'
 import { toPng } from 'html-to-image'
 import { saveMindmap, type MindmapPatch } from '@/app/actions/mindmaps'
-import { Button } from '@/components/ui/Button'
+import { Button, buttonClass } from '@/components/ui/Button'
+import { cx } from '@/components/ui/cx'
+import { Icon } from '@/components/ui/Icon'
 import { ColorSwatches, ToolButton, ToolGroup, Toolbox } from '@/components/ui/Toolbox'
 import { MindHistoryContext } from './history'
 import { MindNodeView } from './MindNodeView'
@@ -396,8 +398,9 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
     <MindHistoryContext.Provider value={history}>
       <div className="flex h-dvh flex-col">
         <header className="flex flex-wrap items-center gap-2 border-b border-[var(--line-500)] px-3 py-2">
-          <Link href="/mindmaps" className="text-sm underline">
-            ← Cartes
+          <Link href="/mindmaps" aria-label="Retour aux Maps" className={cx(buttonClass({ size: 'sm' }), 'shrink-0')}>
+            <Icon name="arrow-start" />
+            Maps
           </Link>
           <input
             value={title}
