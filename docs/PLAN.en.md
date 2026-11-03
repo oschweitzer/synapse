@@ -81,6 +81,11 @@ expenses Google Sheet is itself the source of truth.
   inbox messages** (sender, subject, snippet, date, read/unread). Never the
   full body. The cache is replaced on every run: it never holds more than 20
   rows. No "important" sorting.
+- Agenda widget with two views: "Liste" (today, then the next 7 days) and
+  "Mois" (Monday-to-Sunday grid, events in their Google Calendar colours, a
+  readable text colour computed when Google gives none, the chosen day detailed
+  below). Navigation is limited to the previous, current and next month, the
+  only synced ones.
 - Clicking a message → opens it in Gmail
   (`https://mail.google.com/mail/u/0/#inbox/<id>`).
 

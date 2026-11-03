@@ -74,7 +74,7 @@ The "À faire" (to-do) and "Courses" (shopping) widgets read the Cairn tables (`
 
 ### Calendar and mail (Google)
 
-"Agenda" widget (today, then the next 7 days) and "Mails" widget (headers of the last 20 inbox messages, click → Gmail). The dashboard reads a cache (`synapse.calendar_events`, `synapse.mail_headers`) filled every 30 min by the `synapse-google-sync` Edge Function, triggered by `pg_cron`. Each run leaves a row in `synapse.sync_runs`. Read-only: `calendar.readonly` + `gmail.readonly`, never a message body.
+"Agenda" widget with two views, toggled by "Liste" / "Mois": the list (today, then the next 7 days) and the month calendar (events in their Google Calendar colours, the selected day listed below the grid), limited to the previous, current and next month, the only synced ones. A "Mails" widget (headers of the last 20 inbox messages, click → Gmail). The dashboard reads a cache (`synapse.calendar_events`, `synapse.mail_headers`) filled every 30 min by the `synapse-google-sync` Edge Function, triggered by `pg_cron`. Each run leaves a row in `synapse.sync_runs`. Read-only: `calendar.readonly` + `gmail.readonly`, never a message body.
 
 The refresh token is encrypted (AES-GCM) by `/api/google/callback`, then stored in `synapse.google_credentials` (RLS with no policy: unreadable from the client). If Google rejects it, a "Reconnect Google" banner appears on the dashboard.
 

@@ -41,6 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Animated switch between dashboards: the incoming dashboard rotates in like a cube face from the side of its tab, a plain fade under reduced-motion, and no animation on first load or reload (#111).
 - Entry animation for widgets added to a dashboard (fade and slide with a short stagger; none on first load or dashboard switch, which keep their own animation), shared timing for drag reordering and an animated active tab underline, all disabled under reduced motion (#112).
 - Agenda events show their Google Calendar color (#117).
+- Month view of the agenda widget: a list / month toggle, a calendar grid with Google Calendar colors and keyboard navigation, and the selected day's events below it (#119).
 
 ### Changed
 

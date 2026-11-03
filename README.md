@@ -74,7 +74,7 @@ Les widgets « À faire » et « Courses » lisent directement les tables Cairn 
 
 ### Agenda et mails (Google)
 
-Widgets « Agenda » (aujourd’hui, puis les 7 jours suivants) et « Mails » (en-têtes des 20 derniers mails de la boîte de réception, clic → Gmail). Le dashboard lit un cache (`synapse.calendar_events`, `synapse.mail_headers`) rempli toutes les 30 min par l’Edge Function `synapse-google-sync`, déclenchée par `pg_cron`. Chaque passage laisse une ligne dans `synapse.sync_runs`. Lecture seule : `calendar.readonly` + `gmail.readonly`, jamais le corps d’un mail.
+Widget « Agenda » en deux vues, basculées par « Liste » / « Mois » : la liste (aujourd’hui, puis les 7 jours suivants) et le calendrier du mois (évènements aux couleurs de Google Calendar, jour choisi détaillé sous la grille), limité au mois précédent, au mois courant et au suivant, les seuls synchronisés. Widget « Mails » (en-têtes des 20 derniers mails de la boîte de réception, clic → Gmail). Le dashboard lit un cache (`synapse.calendar_events`, `synapse.mail_headers`) rempli toutes les 30 min par l’Edge Function `synapse-google-sync`, déclenchée par `pg_cron`. Chaque passage laisse une ligne dans `synapse.sync_runs`. Lecture seule : `calendar.readonly` + `gmail.readonly`, jamais le corps d’un mail.
 
 Le refresh token est chiffré (AES-GCM) par `/api/google/callback`, puis stocké dans `synapse.google_credentials` (RLS sans politique : illisible côté client). Si Google le refuse, un bandeau « Reconnecter Google » apparaît sur le dashboard.
 

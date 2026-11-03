@@ -81,6 +81,11 @@ Sheet des dépenses est lui-même la source de vérité.
   **20 derniers mails de la boîte de réception** (expéditeur, sujet, extrait,
   date, lu/non lu). Jamais le corps complet. Le cache est remplacé à chaque
   passage : il ne contient jamais plus de 20 lignes. Pas de tri « important ».
+- Widget Agenda en deux vues : « Liste » (aujourd’hui, puis les 7 jours
+  suivants) et « Mois » (grille du lundi au dimanche, évènements aux couleurs
+  de Google Calendar, texte lisible calculé si Google n’en donne pas, jour
+  choisi détaillé dessous). La navigation se limite au mois précédent, courant
+  et suivant, les seuls synchronisés.
 - Clic sur un mail → ouverture dans Gmail
   (`https://mail.google.com/mail/u/0/#inbox/<id>`).
 

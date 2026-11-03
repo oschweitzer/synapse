@@ -24,7 +24,7 @@ function parseMonth(key: string) {
 }
 
 /** Jour décalé de `n` jours : arithmétique de calendrier en UTC, un changement d'heure ne décale jamais un jour. */
-function addDays(key: string, n: number) {
+export function addDays(key: string, n: number) {
   const [y, m, d] = parseKey(key)
   return dayKey(new Date(Date.UTC(y, m - 1, d + n)), 'UTC')
 }
@@ -112,4 +112,21 @@ export function monthRange(now = new Date()) {
     from: startOfDay(now, daysBetween(todayKey, gridStart) - 1),
     to: startOfDay(now, daysBetween(todayKey, gridEnd) + 2),
   }
+}
+
+/**
+ * Couleur de texte lisible sur une couleur Google (`#rgb` ou `#rrggbb`) quand
+ * Google ne donne pas de premier plan : blanc sur fond sombre, sinon slate-900
+ * (luminance relative WCAG). Une couleur invalide donne slate-900.
+ */
+export function readableText(hex: string) {
+  const dark = '#0f172a'
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex)
+  if (!m) return dark
+  const digits = m[1].length === 3 ? [...m[1]].map((c) => c + c).join('') : m[1]
+  const [r, g, b] = [0, 2, 4].map((i) => {
+    const c = parseInt(digits.slice(i, i + 2), 16) / 255
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.179 ? dark : '#ffffff'
 }

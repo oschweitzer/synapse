@@ -1,6 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import type { CalendarEvent } from '@/lib/connectors/google'
-import { eventDayKeys, eventsByDay, monthGrid, monthKey, monthRange, shiftMonth } from '@/lib/agenda-month'
+import {
+  addDays,
+  eventDayKeys,
+  eventsByDay,
+  monthGrid,
+  monthKey,
+  monthRange,
+  readableText,
+  shiftMonth,
+} from '@/lib/agenda-month'
 
 let seq = 0
 const event = (over: Partial<CalendarEvent> = {}): CalendarEvent => ({
@@ -161,5 +170,35 @@ describe('monthRange', () => {
     // Grille de décembre 2025 : lundi 1er déc. ; grille de février 2026 : jusqu'au 8 mars.
     expect(range.from.toISOString()).toBe('2025-11-29T23:00:00.000Z')
     expect(range.to.toISOString()).toBe('2026-03-09T23:00:00.000Z')
+  })
+})
+
+describe('addDays', () => {
+  it('passe d’un mois à l’autre, dans les deux sens', () => {
+    expect(addDays('2026-11-30', 1)).toBe('2026-12-01')
+    expect(addDays('2026-03-02', -7)).toBe('2026-02-23')
+  })
+})
+
+describe('readableText', () => {
+  it('donne du blanc sur un fond sombre', () => {
+    expect(readableText('#000000')).toBe('#ffffff')
+    expect(readableText('#1e3a8a')).toBe('#ffffff')
+  })
+
+  it('donne du slate-900 sur un fond clair', () => {
+    expect(readableText('#ffffff')).toBe('#0f172a')
+    expect(readableText('#fbd75b')).toBe('#0f172a')
+  })
+
+  it('accepte la forme courte #rgb et les majuscules', () => {
+    expect(readableText('#fff')).toBe('#0f172a')
+    expect(readableText('#000')).toBe('#ffffff')
+    expect(readableText('#FBD75B')).toBe('#0f172a')
+  })
+
+  it('retombe sur slate-900 pour une couleur invalide', () => {
+    expect(readableText('rouge')).toBe('#0f172a')
+    expect(readableText('#12345')).toBe('#0f172a')
   })
 })
