@@ -1,8 +1,11 @@
 /**
  * Lecture Google pour la synchro : jeton, agenda, en-têtes Gmail.
  *
- * Tout ce qui touche au secret client vit ici, côté serveur. Scopes en lecture
- * seule (`calendar.readonly`, `gmail.readonly`) : Synapse n'écrit rien chez Google.
+ * Tout ce qui touche au secret client vit ici, côté serveur. La synchro reste en
+ * lecture seule : elle ne fait que lister et lire des en-têtes (`calendar.readonly`,
+ * `gmail.modify` l'autorise, et les anciens jetons `gmail.readonly` continuent de
+ * synchroniser). Le retrait du libellé UNREAD (« marquer comme lu ») est fait par
+ * le serveur Next (`lib/google/gmail.ts`), pas ici.
  */
 
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'

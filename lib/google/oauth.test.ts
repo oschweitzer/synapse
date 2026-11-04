@@ -51,6 +51,13 @@ describe('randomToken / codeChallenge', () => {
   })
 })
 
+describe('SCOPES', () => {
+  it('demande gmail.modify et plus gmail.readonly', () => {
+    expect(SCOPES).toContain('https://www.googleapis.com/auth/gmail.modify')
+    expect(SCOPES).not.toContain('https://www.googleapis.com/auth/gmail.readonly')
+  })
+})
+
 describe('authorizationUrl', () => {
   const params = { redirectUri: 'https://app/cb', state: 'st', challenge: 'ch' }
 

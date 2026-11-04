@@ -57,7 +57,7 @@ expenses Google Sheet is itself the source of truth.
 ### Calendar & Gmail — Google APIs
 - A **Google Cloud project dedicated to Synapse**, with a single "Web" OAuth
   client, also used for sign-in (Supabase Auth's Google provider). Consent
-  specific to Synapse: `calendar.readonly` + `gmail.readonly` (+ `drive.file`
+  specific to Synapse: `calendar.readonly` + `gmail.modify` (+ `drive.file`
   for cash expenses, see below). Cairn's project is left alone; its consent
   screens and quotas stay separate.
 - The refresh token stays server-side, encrypted, in a table with no RLS
@@ -73,7 +73,7 @@ expenses Google Sheet is itself the source of truth.
   secrets are shared with Cairn.
 - ⚠️ In "Test" mode of the consent screen, refresh tokens expire after 7 days.
   Moving the app to **Production without verification** (warning screen at
-  sign-in, limit of 100 accounts) removes the expiry. `gmail.readonly` is a
+  sign-in, limit of 100 accounts) removes the expiry. `gmail.modify` is a
   *restricted* scope: verification is expensive, hence the choice not to
   request it.
 - Sync: `synapse-google-sync` Edge Function triggered by `pg_cron` every
@@ -81,6 +81,11 @@ expenses Google Sheet is itself the source of truth.
   inbox messages** (sender, subject, snippet, date, read/unread). Never the
   full body. The cache is replaced on every run: it never holds more than 20
   rows. No "important" sorting.
+- "Mark as read" from the Mails widget: a server action calls
+  `users.messages.modify` (`removeLabelIds: ['UNREAD']`) with the refresh token
+  read by `synapse.google_refresh_token()`, then `synapse.mark_mail_read()`
+  (SECURITY DEFINER, the caller's row only) updates the cache. Accounts
+  connected before this scope must reconnect.
 - Agenda widget with two views: "Liste" (today, then the next 7 days) and
   "Mois" (Monday-to-Sunday grid, events in their Google Calendar colours, a
   readable text colour computed when Google gives none, the chosen day detailed

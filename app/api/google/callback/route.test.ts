@@ -97,6 +97,7 @@ describe('GET /api/google/callback', () => {
   it.each([
     ['sans accès Gmail', `openid email ${SCOPE_CALENDAR}`],
     ['sans accès agenda', `openid email ${SCOPE_GMAIL}`],
+    ['avec l’ancien scope gmail.readonly', `openid email ${SCOPE_CALENDAR} https://www.googleapis.com/auth/gmail.readonly`],
     ['sans aucun scope', undefined],
   ])('%s : ?google=scopes, rien d’enregistré', async (_label, scope) => {
     const { rpc } = setup()

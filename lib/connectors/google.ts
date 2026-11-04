@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { monthRange } from '@/lib/agenda-month'
+import { SCOPE_GMAIL } from '@/lib/google/oauth'
 import { createClient } from '@/lib/supabase/server'
 import { dayKey, endOfToday, startOfDay } from '@/lib/time'
 import type { Tables } from '@/lib/types/synapse'
@@ -74,7 +75,15 @@ export type MailHeader = {
   href: string
 }
 
-export type Mail = { status: 'disconnected' } | { status: 'ok'; account: GoogleAccount; mails: MailHeader[] }
+export type Mail =
+  | { status: 'disconnected' }
+  | {
+      status: 'ok'
+      account: GoogleAccount
+      mails: MailHeader[]
+      /** Faux pour un compte connecté avant `gmail.modify`, ou à reconnecter : pas de bouton « marquer comme lu ». */
+      canMarkRead: boolean
+    }
 
 /** État de la connexion Google, ou `null` si aucun compte n'est connecté. */
 export async function readGoogleAccount(): Promise<GoogleAccount | null> {
@@ -266,6 +275,7 @@ export const mailConnector: Connector<Mail> = {
       data: {
         status: 'ok',
         account,
+        canMarkRead: !account.needsReauth && account.scopes.includes(SCOPE_GMAIL),
         mails: (mails.data as MailRow[]).map((row) => ({
           id: row.message_id,
           sender: senderName(row.sender),

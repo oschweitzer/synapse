@@ -156,15 +156,19 @@
 
 /* ── Mail ── */
 .hud-mail { position: relative; display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; gap: 2px var(--space-3); width: 100%; padding: var(--space-3) var(--space-1); border: 0; border-bottom: 1px solid var(--line-500); background: none; cursor: pointer; text-decoration: none; text-align: left; font: inherit; color: inherit; }
+.hud-mail-row { display: flex; align-items: center; border-bottom: 1px solid var(--line-500); }
+.hud-mail-row > .hud-mail { flex: 1; min-width: 0; border-bottom: 0; }
+.hud-mail__read { flex-shrink: 0; margin-right: var(--space-1); }
+.hud-mail__read:focus-visible { outline: 2px solid var(--cyan-400); outline-offset: -2px; }
 .hud-mail:focus-visible { outline: 2px solid var(--cyan-400); outline-offset: -2px; background: var(--hull-600); }
 .hud-mail:hover { background: var(--hull-600); }
 .hud-mail:hover .hud-mail__time { color: var(--ink-300); }
-.hud-mail__pip { grid-row: 1 / span 2; align-self: center; width: 6px; height: 6px; border-radius: var(--radius-full); }
+.hud-mail__pip { grid-row: 1 / span 2; align-self: center; width: 6px; height: 6px; border-radius: var(--radius-full); transition: background-color var(--motion-base) var(--ease-out); }
 .hud-mail--unread .hud-mail__pip { background: var(--amber-400); }
-.hud-mail__from { font-size: 14px; line-height: 20px; color: var(--ink-300); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; gap: var(--space-2); align-items: center; }
+.hud-mail__from { font-size: 14px; line-height: 20px; color: var(--ink-300); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; gap: var(--space-2); align-items: center; transition: color var(--motion-base) var(--ease-out); }
 .hud-mail--unread .hud-mail__from { color: var(--ink-100); font-weight: 600; }
 .hud-mail__time { font-family: var(--font-mono); font-size: 12px; color: var(--ink-500); text-align: right; white-space: nowrap; }
-.hud-mail__subject { grid-column: 2 / span 2; font-size: 12px; line-height: 16px; color: var(--ink-300); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hud-mail__subject { grid-column: 2 / span 2; font-size: 12px; line-height: 16px; color: var(--ink-300); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color var(--motion-base) var(--ease-out); }
 .hud-mail--unread .hud-mail__subject { color: var(--ink-100); }
 .hud-mail__preview { color: var(--ink-500); }
 

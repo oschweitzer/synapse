@@ -10,6 +10,7 @@ import {
   toAgenda,
   type GoogleAccount,
 } from '@/lib/connectors/google'
+import { SCOPE_GMAIL } from '@/lib/google/oauth'
 import { mockSupabase, type MockResult } from '@/test/supabase-mock'
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }))
@@ -467,6 +468,7 @@ describe('mailConnector', () => {
           href: gmailUrl('t1', 'moi@x.fr'),
         },
       ],
+      canMarkRead: false,
     })
     expect(m.calls).toContainEqual(expect.objectContaining({ table: 'mail_headers', method: 'limit', args: [20] }))
   })
@@ -484,7 +486,25 @@ describe('mailConnector', () => {
 
   it('rend « ok » avec une liste vide sans mail', async () => {
     setup({ google_accounts: { data: ACCOUNT_ROW }, mail_headers: { data: [] }, ...SYNCED })
-    expect((await mailConnector.read('u1')).data).toEqual({ status: 'ok', account: ACCOUNT, mails: [] })
+    expect((await mailConnector.read('u1')).data).toEqual({ status: 'ok', account: ACCOUNT, mails: [], canMarkRead: false })
+  })
+
+  it('canMarkRead est vrai avec le scope gmail.modify et sans reconnexion à faire', async () => {
+    setup({
+      google_accounts: { data: { ...ACCOUNT_ROW, scopes: ['openid', SCOPE_GMAIL] } },
+      mail_headers: { data: [] },
+      ...SYNCED,
+    })
+    expect((await mailConnector.read('u1')).data).toMatchObject({ status: 'ok', canMarkRead: true })
+  })
+
+  it('canMarkRead est faux si une reconnexion est nécessaire, même avec le scope', async () => {
+    setup({
+      google_accounts: { data: { ...ACCOUNT_ROW, needs_reauth: true, scopes: ['openid', SCOPE_GMAIL] } },
+      mail_headers: { data: [] },
+      ...SYNCED,
+    })
+    expect((await mailConnector.read('u1')).data).toMatchObject({ status: 'ok', canMarkRead: false })
   })
 
   it('lève l’erreur de google_accounts', async () => {

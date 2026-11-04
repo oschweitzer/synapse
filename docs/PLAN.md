@@ -57,7 +57,7 @@ Sheet des dépenses est lui-même la source de vérité.
 ### Agenda & Gmail — Google APIs
 - Un **projet Google Cloud dédié à Synapse**, avec un client OAuth « Web »
   unique, qui sert aussi à la connexion (provider Google de Supabase Auth).
-  Consentement propre à Synapse : `calendar.readonly` + `gmail.readonly`
+  Consentement propre à Synapse : `calendar.readonly` + `gmail.modify`
   (+ `drive.file` pour les dépenses cash, voir plus bas). Le projet de Cairn
   n'est pas touché ; ses écrans de consentement et ses quotas restent séparés.
 - Le refresh token reste côté serveur, chiffré, dans une table sans politique
@@ -74,13 +74,18 @@ Sheet des dépenses est lui-même la source de vérité.
 - ⚠️ En mode « Test » de l'écran de consentement, les refresh tokens expirent
   après 7 jours. Passer l'application en **Production sans vérification**
   (écran d'avertissement à la connexion, limite de 100 comptes) supprime
-  l'expiration. `gmail.readonly` est un scope *restreint* : la vérification
+  l'expiration. `gmail.modify` est un scope *restreint* : la vérification
   coûte cher, d'où ce choix de ne pas la demander.
 - Sync : Edge Function `synapse-google-sync` déclenchée par `pg_cron` toutes
   les 30 min. Elle stocke les évènements du mois précédent au mois suivant, avec leur couleur Google et les en-têtes des
   **20 derniers mails de la boîte de réception** (expéditeur, sujet, extrait,
   date, lu/non lu). Jamais le corps complet. Le cache est remplacé à chaque
   passage : il ne contient jamais plus de 20 lignes. Pas de tri « important ».
+- « Marquer comme lu » depuis le widget Mails : une server action appelle
+  `users.messages.modify` (`removeLabelIds: ['UNREAD']`) avec le refresh token lu
+  par `synapse.google_refresh_token()`, puis `synapse.mark_mail_read()`
+  (SECURITY DEFINER, ligne de l’appelant seulement) met le cache à jour. Les
+  comptes connectés avant ce scope doivent se reconnecter.
 - Widget Agenda en deux vues : « Liste » (aujourd’hui, puis les 7 jours
   suivants) et « Mois » (grille du lundi au dimanche, évènements aux couleurs
   de Google Calendar, texte lisible calculé si Google n’en donne pas, jour

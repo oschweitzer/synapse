@@ -41,7 +41,7 @@ Scripts : `npm run build`, `npm run lint`, `npm run typecheck`.
 | `NEXT_PUBLIC_CAIRN_URL` | URL web de Cairn, liens « Ouvrir dans Cairn » (utilisée dès la phase 2) |
 | `DATABASE_URL` | Local uniquement : connexion Postgres pour les migrations (Supabase > Connect > *Session pooler*) |
 | `SUPABASE_PROJECT_REF` | Local uniquement : id du projet, pour générer les types |
-| `GOOGLE_OAUTH_TOKEN_URL`, `GOOGLE_SHEETS_API_URL`, `OPEN_METEO_FORECAST_URL`, `OPEN_METEO_GEOCODING_URL`, `MEALDB_API_URL` | Tests e2e uniquement : URL de remplacement des API externes (vide : la vraie API). À laisser vides en production |
+| `GOOGLE_OAUTH_TOKEN_URL`, `GOOGLE_SHEETS_API_URL`, `GOOGLE_GMAIL_API_URL`, `OPEN_METEO_FORECAST_URL`, `OPEN_METEO_GEOCODING_URL`, `MEALDB_API_URL` | Tests e2e uniquement : URL de remplacement des API externes (vide : la vraie API). À laisser vides en production |
 
 ### Base de données (schéma `synapse`)
 
@@ -74,13 +74,13 @@ Les widgets « À faire » et « Courses » lisent directement les tables Cairn 
 
 ### Agenda et mails (Google)
 
-Widget « Agenda » en deux vues, basculées par « Liste » / « Mois » : la liste (aujourd’hui, puis les 7 jours suivants) et le calendrier du mois (évènements aux couleurs de Google Calendar, jour choisi détaillé sous la grille), limité au mois précédent, au mois courant et au suivant, les seuls synchronisés. Widget « Mails » (en-têtes des 20 derniers mails de la boîte de réception, clic → Gmail). Le dashboard lit un cache (`synapse.calendar_events`, `synapse.mail_headers`) rempli toutes les 30 min par l’Edge Function `synapse-google-sync`, déclenchée par `pg_cron`. Chaque passage laisse une ligne dans `synapse.sync_runs`. Lecture seule : `calendar.readonly` + `gmail.readonly`, jamais le corps d’un mail.
+Widget « Agenda » en deux vues, basculées par « Liste » / « Mois » : la liste (aujourd’hui, puis les 7 jours suivants) et le calendrier du mois (évènements aux couleurs de Google Calendar, jour choisi détaillé sous la grille), limité au mois précédent, au mois courant et au suivant, les seuls synchronisés. Widget « Mails » (en-têtes des 20 derniers mails de la boîte de réception, clic → Gmail). Le dashboard lit un cache (`synapse.calendar_events`, `synapse.mail_headers`) rempli toutes les 30 min par l’Edge Function `synapse-google-sync`, déclenchée par `pg_cron`. Chaque passage laisse une ligne dans `synapse.sync_runs`. Agenda en lecture seule (`calendar.readonly`) ; Gmail en `gmail.modify`, utilisé uniquement pour marquer un mail comme lu depuis le widget (un bouton par mail non lu, cache mis à jour aussitôt), jamais le corps d’un mail. Un compte connecté avant ce scope doit cliquer sur « Reconnecter Google » dans les Réglages pour l’accorder ; d’ici là le bouton est masqué et le widget indique comment se reconnecter. La migration `0014_mail_mark_read.sql` ajoute `mark_mail_read()` (SECURITY DEFINER, ligne de l’appelant seulement), qui met à jour le cache des mails.
 
 Le refresh token est chiffré (AES-GCM) par `/api/google/callback`, puis stocké dans `synapse.google_credentials` (RLS sans politique : illisible côté client). Si Google le refuse, un bandeau « Reconnecter Google » apparaît sur le dashboard.
 
 Mise en place, une seule fois :
 
-1. **Google Cloud** (nouveau projet dédié à Synapse) : activer *Google Calendar API* et *Gmail API*. Créer un client OAuth **« Application Web »**, avec comme URIs de redirection `<NEXT_PUBLIC_SITE_URL>/api/google/callback` (et `http://localhost:3000/api/google/callback` en local), plus `https://<project-ref>.supabase.co/auth/v1/callback` pour la connexion (voir « Connexion »). Écran de consentement : ajouter les scopes `calendar.readonly` et `gmail.readonly`, puis **publier en Production sans demander la vérification**. En mode Test, les refresh tokens expirent au bout de 7 jours.
+1. **Google Cloud** (nouveau projet dédié à Synapse) : activer *Google Calendar API* et *Gmail API*. Créer un client OAuth **« Application Web »**, avec comme URIs de redirection `<NEXT_PUBLIC_SITE_URL>/api/google/callback` (et `http://localhost:3000/api/google/callback` en local), plus `https://<project-ref>.supabase.co/auth/v1/callback` pour la connexion (voir « Connexion »). Écran de consentement : ajouter les scopes `calendar.readonly` et `gmail.modify`, puis **publier en Production sans demander la vérification**. En mode Test, les refresh tokens expirent au bout de 7 jours.
 2. **Secrets.** Générer deux valeurs : `openssl rand -hex 32` pour la clé de chiffrement, et une seconde fois pour le secret de pg_cron. Sur Vercel, renseigner `SYNAPSE_GOOGLE_CLIENT_ID`, `SYNAPSE_GOOGLE_CLIENT_SECRET` et `SYNAPSE_GOOGLE_TOKEN_KEY`. Dans le projet Supabase :
    ```bash
    supabase secrets set --project-ref <ref> \

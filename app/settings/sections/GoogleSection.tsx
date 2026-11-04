@@ -1,4 +1,5 @@
 import { readGoogleAccount } from '@/lib/connectors/google'
+import { SCOPE_GMAIL } from '@/lib/google/oauth'
 import { GoogleForms } from '@/components/settings/GoogleForms'
 import { card } from './styles'
 
@@ -13,9 +14,10 @@ export async function GoogleSection({ code }: { code?: string }) {
     <section className={`${card} mt-4`}>
       <h2 className="font-semibold">Google (agenda et mails)</h2>
       <p className="text-sm text-slate-500 dark:text-slate-400">
-        Lecture seule : évènements de la veille à J+7 et en-têtes des 20 derniers mails de la boîte de réception,
-        synchronisés toutes les 30 min. Le corps des mails n’est jamais lu. Pour les dépenses cash, accès au seul
-        fichier choisi plus bas, en lecture et écriture.
+        Agenda en lecture seule : évènements du mois précédent au mois suivant. Gmail : en-têtes des 20 derniers mails de
+        la boîte de réception, synchronisés toutes les 30 min, et « marquer comme lu » depuis le widget (scope «
+        gmail.modify », jamais d’envoi, d’archivage ni de suppression). Le corps des mails n’est jamais lu. Pour les
+        dépenses cash, accès au seul fichier choisi plus bas, en lecture et écriture.
       </p>
       {google ? (
         <p className="text-sm">
@@ -29,6 +31,12 @@ export async function GoogleSection({ code }: { code?: string }) {
         </p>
       ) : (
         <p className="text-sm">Non connecté.</p>
+      )}
+      {google && !google.needsReauth && !google.scopes.includes(SCOPE_GMAIL) && (
+        <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+          Nouvelle autorisation Gmail : reconnecte Google (bouton ci-dessous) pour marquer tes mails comme lus depuis
+          Synapse. En attendant, les mails restent affichés.
+        </p>
       )}
       <GoogleForms account={google ? { needsReauth: google.needsReauth } : null} code={code} />
     </section>

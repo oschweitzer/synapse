@@ -10,7 +10,7 @@ import {
   VERIFIER_COOKIE,
 } from '@/lib/google/oauth'
 
-/** Démarre le consentement Google (agenda + Gmail en lecture seule). */
+/** Démarre le consentement Google (agenda en lecture seule + Gmail : en-têtes, marquer comme lu). */
 export async function GET(request: NextRequest) {
   const { origin } = request.nextUrl
   const supabase = await createClient()

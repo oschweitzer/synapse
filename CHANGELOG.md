@@ -42,9 +42,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Entry animation for widgets added to a dashboard (fade and slide with a short stagger; none on first load or dashboard switch, which keep their own animation), shared timing for drag reordering and an animated active tab underline, all disabled under reduced motion (#112).
 - Agenda events show their Google Calendar color (#117).
 - Month view of the agenda widget: a list / month toggle, a calendar grid with Google Calendar colors and keyboard navigation, and the selected day's events below it (#119).
+- Mark a Gmail message as read from the Mails widget (#126).
 
 ### Changed
 
+- The Google consent now asks for `gmail.modify` instead of `gmail.readonly`; accounts connected before must reconnect Google in the settings to mark mails as read (#126).
 - New Synapse logo (two nerve terminals and a spark) as the favicon, the Apple touch icon and the PWA icons, with a dedicated safe-zone version for the maskable icon (#125).
 - Gauge arc animation duration goes from 240ms to 200ms, now using the shared `--motion-base` token (#109).
 - Mind map editor: a toolbox docked over the canvas replaces the header shape buttons and the node style bar, with select and pan tools, undo/redo/duplicate/delete, shapes placed with a click on the canvas, and fill, border and text swatches that edit the selected nodes or set the defaults for new ones; it moves to a bottom bar on mobile (#102).

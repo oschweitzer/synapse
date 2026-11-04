@@ -1,10 +1,15 @@
 /**
  * OAuth Google de Synapse : un consentement propre, distinct de la connexion à
- * Cairn, en lecture seule sur l'agenda et Gmail, plus `drive.file` pour le Sheet
- * des dépenses cash (seuls les fichiers choisis dans le Google Picker, scope non
- * sensible).
+ * Cairn. L'agenda reste en lecture seule (`calendar.readonly`). Gmail passe en
+ * `gmail.modify` : lire les en-têtes et retirer le libellé UNREAD (« marquer
+ * comme lu »), rien d'autre (ni envoi, ni suppression, ni archivage). Plus
+ * `drive.file` pour le Sheet des dépenses cash (seuls les fichiers choisis dans
+ * le Google Picker, scope non sensible).
  *
- * `gmail.readonly` est un scope restreint : l'application reste en « Production
+ * Un compte connecté avant ce changement n'a pas `SCOPE_GMAIL` dans
+ * `google_accounts.scopes` : c'est ainsi qu'on sait qu'il doit se reconnecter.
+ *
+ * `gmail.modify` est un scope restreint : l'application reste en « Production
  * sans vérification » (écran d'avertissement, 100 comptes au plus), ce qui évite
  * l'expiration des refresh tokens après 7 jours du mode Test.
  */
@@ -12,7 +17,7 @@
 import { envUrl } from '@/lib/env'
 
 export const SCOPE_CALENDAR = 'https://www.googleapis.com/auth/calendar.readonly'
-export const SCOPE_GMAIL = 'https://www.googleapis.com/auth/gmail.readonly'
+export const SCOPE_GMAIL = 'https://www.googleapis.com/auth/gmail.modify'
 export const SCOPE_DRIVE_FILE = 'https://www.googleapis.com/auth/drive.file'
 export const SCOPES = ['openid', 'email', SCOPE_CALENDAR, SCOPE_GMAIL, SCOPE_DRIVE_FILE]
 

@@ -683,6 +683,7 @@ export type Database = {
       ensure_default_dashboard: { Args: { p_widgets: string[] }; Returns: undefined }
       flag_google_reauth: { Args: never; Returns: undefined }
       google_refresh_token: { Args: never; Returns: string }
+      mark_mail_read: { Args: { p_message_id: string }; Returns: boolean }
       pick_daily_recipe: { Args: { p_day: string }; Returns: string }
       register_lock_failure: {
         Args: never
