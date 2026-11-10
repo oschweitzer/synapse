@@ -66,6 +66,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Server functions are pinned to the Paris region (`cdg1`) in `vercel.json`, next to the Supabase database in `eu-west-1`, instead of the default `iad1` (#93).
 - The home page no longer re-reads the user and the lock state already checked by the middleware, so it needs fewer database round trips before it renders (#95).
 - The Google OAuth token, Google Sheets, Open-Meteo and TheMealDB base URLs can be overridden by environment variables, for tests only (#60).
+- Icon-only buttons (move up/down, drag handle, previous/next month, back to Maps) now show a tooltip on hover.
 
 ### Removed
 

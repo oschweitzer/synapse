@@ -99,6 +99,7 @@ export function AgendaMonth({ data }: { data: AgendaMonthData }) {
         <button
           type="button"
           aria-label="Mois précédent"
+          title="Mois précédent"
           disabled={month === data.firstMonth}
           onClick={() => goTo(shiftMonth(month, -1))}
           className="hud-btn hud-btn--sm hud-btn--ghost"
@@ -115,6 +116,7 @@ export function AgendaMonth({ data }: { data: AgendaMonthData }) {
         <button
           type="button"
           aria-label="Mois suivant"
+          title="Mois suivant"
           disabled={month === data.lastMonth}
           onClick={() => goTo(shiftMonth(month, 1))}
           className="hud-btn hud-btn--sm hud-btn--ghost"

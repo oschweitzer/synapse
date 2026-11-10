@@ -117,6 +117,7 @@ function WidgetList({ selected, dashboardName, isPublic }: { selected: WidgetId[
                     ref={setButton(`${id}:up`)}
                     className={`${secondaryButton} min-h-11 min-w-11 justify-center`}
                     aria-label={`Monter « ${widget.label} »`}
+                    title="Monter"
                     disabled={index === 0}
                     onClick={() => move(index, -1)}
                   >
@@ -127,6 +128,7 @@ function WidgetList({ selected, dashboardName, isPublic }: { selected: WidgetId[
                     ref={setButton(`${id}:down`)}
                     className={`${secondaryButton} min-h-11 min-w-11 justify-center`}
                     aria-label={`Descendre « ${widget.label} »`}
+                    title="Descendre"
                     disabled={index === order.length - 1}
                     onClick={() => move(index, 1)}
                   >

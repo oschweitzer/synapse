@@ -398,7 +398,7 @@ function Editor({ id, initialTitle, initialNodes, initialEdges, initialViewport 
     <MindHistoryContext.Provider value={history}>
       <div className="flex h-dvh flex-col">
         <header className="flex flex-wrap items-center gap-2 border-b border-[var(--line-500)] px-3 py-2">
-          <Link href="/mindmaps" aria-label="Retour aux Maps" className={cx(buttonClass({ size: 'sm' }), 'shrink-0')}>
+          <Link href="/mindmaps" aria-label="Retour aux Maps" title="Retour aux Maps" className={cx(buttonClass({ size: 'sm' }), 'shrink-0')}>
             <Icon name="arrow-start" />
             Maps
           </Link>

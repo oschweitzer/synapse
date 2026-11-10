@@ -48,6 +48,7 @@ function SortableItem({ item, index }: { item: DashboardItem; index: number }) {
         ref={setActivatorNodeRef}
         className="hud-dash__handle"
         aria-label={`Déplacer « ${item.title} »`}
+        title="Déplacer le widget"
         {...attributes}
         {...listeners}
       >
