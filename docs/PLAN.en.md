@@ -108,7 +108,13 @@ expenses Google Sheet is itself the source of truth.
     Cairn does.
 - Checking an item from Synapse: an `update` of `is_done`, allowed by the same
   RLS policy. "Open in Cairn" button to `NEXT_PUBLIC_CAIRN_URL/note/<id>`.
-- Synapse only writes data to Cairn: checking an item, adding ingredients to
+- Adding an item from Synapse: an `insert` at the end of the checklist (next
+  position), after re-checking that the checklist is not encrypted and not
+  deleted. Editing an item: an `update` of `content` only, never on an
+  encrypted item nor on a private or hidden note. Text is trimmed, 500
+  characters at most.
+- Synapse only writes data to Cairn: checking an item, adding an item to a
+  checklist, editing the text of a visible item, adding ingredients to
   the shopping list. It **never writes** a migration on Cairn tables. If the
   Cairn schema changes, types are regenerated on the Synapse side
   (`supabase gen types typescript`).

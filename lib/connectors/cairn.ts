@@ -41,14 +41,18 @@ export type Todo = {
   moreCount: number
   /** Items chiffrés par le coffre : comptés, jamais lus. */
   privateCount: number
+  /** Checklists où le widget peut ajouter un item : non chiffrées, non archivées, non supprimées, hors courses. */
+  checklists: { id: string; label: string }[]
 }
+
+type TodoItems = Omit<Todo, 'checklists'>
 
 export type ShoppingItem = { id: string; content: string }
 
 export type Shopping =
   | { status: 'unset' }
   | { status: 'missing' }
-  | { status: 'ok'; noteId: string; label: string; items: ShoppingItem[]; privateCount: number }
+  | { status: 'ok'; noteId: string; label: string; masked: boolean; items: ShoppingItem[]; privateCount: number }
 
 const NOTE_FIELDS = 'id, title, code_name, is_private, hide_content, is_encrypted, position'
 
@@ -78,7 +82,7 @@ type TodoRow = Pick<ItemRow, 'id' | 'content' | 'is_encrypted' | 'due_at' | 'pos
   reminders: { remind_at: string }[]
 }
 
-export function toTodo(rows: TodoRow[], now = new Date()): Todo {
+export function toTodo(rows: TodoRow[], now = new Date()): TodoItems {
   const limit = endOfToday(now).getTime()
   let privateCount = 0
   const items: { item: TodoItem; notePosition: number; position: number }[] = []
@@ -138,11 +142,15 @@ export const todoConnector: Connector<Todo> = {
     // La liste de courses a son propre widget.
     if (shoppingId) itemsQuery = itemsQuery.neq('note_id', shoppingId)
 
-    const items = await itemsQuery
+    // `listShoppingCandidates` est réutilisée : les filtres (non chiffrée, non archivée, non supprimée) sont les mêmes.
+    const [items, candidates] = await Promise.all([itemsQuery, listShoppingCandidates()])
     if (items.error) throw items.error
 
     return {
-      data: toTodo(items.data as unknown as TodoRow[]),
+      data: {
+        ...toTodo(items.data as unknown as TodoRow[]),
+        checklists: candidates.filter((c) => c.id !== shoppingId),
+      },
       syncedAt: null,
     }
   },
@@ -183,7 +191,14 @@ export const shoppingConnector: Connector<Shopping> = {
     }
 
     return {
-      data: { status: 'ok', noteId, label: noteLabel(note as NoteFields), items, privateCount },
+      data: {
+        status: 'ok',
+        noteId,
+        label: noteLabel(note as NoteFields),
+        masked: isMasked(note as NoteFields),
+        items,
+        privateCount,
+      },
       syncedAt: null,
     }
   },

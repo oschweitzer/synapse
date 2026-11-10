@@ -109,7 +109,12 @@ Sheet des dépenses est lui-même la source de vérité.
 - Cocher un item depuis Synapse : un `update` de `is_done`, autorisé
   par la même politique RLS. Bouton « Ouvrir dans Cairn » vers
   `NEXT_PUBLIC_CAIRN_URL/note/<id>`.
-- Synapse n'écrit dans Cairn que des données : cocher un item, ajouter des
+- Ajouter un item depuis Synapse : un `insert` en fin de checklist (position
+  suivante), après avoir revérifié que la checklist est non chiffrée et non
+  supprimée. Modifier un item : un `update` de `content` seul, jamais sur un
+  item chiffré ni sur une note privée ou masquée. Texte rogné, 500 caractères au plus.
+- Synapse n'écrit dans Cairn que des données : cocher un item, ajouter un item
+  à une checklist, modifier le texte d'un item visible, ajouter des
   ingrédients aux courses. Il **n'écrit jamais** de migration sur les tables
   Cairn. Si le schéma
   Cairn bouge, les types sont regénérés côté Synapse

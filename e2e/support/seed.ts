@@ -54,6 +54,15 @@ export async function seedTodoItems(items: string[]): Promise<{ noteId: string; 
   return { noteId, itemIds }
 }
 
+/** Comme `seedTodoItems`, mais la checklist est privée (nom de code `codeName`) : ses items sont masqués. */
+export async function seedPrivateTodoItems(items: string[], codeName = 'K2'): Promise<{ noteId: string; itemIds: string[] }> {
+  assertLocalTarget(process.env)
+  const uid = await userId()
+  const noteId = await seedCairnChecklist(uid, 'Privée', { isPrivate: true, codeName })
+  const itemIds = await insertItems(uid, noteId, items, true)
+  return { noteId, itemIds }
+}
+
 /** Connecte Google pour l'utilisateur autorisé : compte avec `drive.file`, refresh token chiffré (le serveur factice accepte tout jeton). */
 export async function seedGoogleConnection(): Promise<void> {
   assertLocalTarget(process.env)

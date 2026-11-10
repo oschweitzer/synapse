@@ -43,6 +43,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Agenda events show their Google Calendar color (#117).
 - Month view of the agenda widget: a list / month toggle, a calendar grid with Google Calendar colors and keyboard navigation, and the selected day's events below it (#119).
 - Mark a Gmail message as read from the Mails widget (#126).
+- Add and edit items of the Cairn To-do and shopping lists from the widgets (#129).
 
 ### Changed
 

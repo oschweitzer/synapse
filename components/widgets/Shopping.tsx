@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { cairnNoteUrl, type Shopping } from '@/lib/connectors/cairn'
+import { AddChecklistItem } from './AddChecklistItem'
 import { CheckItem } from './CheckItem'
+import { ItemText } from './ItemText'
 import { privateLabel } from './Todo'
 
 const muted = 'text-slate-500 dark:text-slate-400'
@@ -29,11 +31,12 @@ export function ShoppingWidget({ shopping }: { shopping: Shopping }) {
         <ul className="flex flex-col gap-2" aria-label={shopping.label}>
           {shopping.items.map((item) => (
             <CheckItem key={item.id} id={item.id} label={item.content}>
-              <p className="break-words">{item.content}</p>
+              {shopping.masked ? <p className="break-words">{item.content}</p> : <ItemText id={item.id} content={item.content} />}
             </CheckItem>
           ))}
         </ul>
       )}
+      <AddChecklistItem checklists={[{ id: shopping.noteId, label: shopping.label }]} label="Ajouter un article" />
       {shopping.privateCount > 0 && <p className={`text-xs ${muted}`}>🔒 {privateLabel(shopping.privateCount)}</p>}
       <p className={`text-xs ${muted}`}>
         {href ? (

@@ -192,7 +192,7 @@ describe('todoConnector', () => {
 
   it('rend les items, sans date de synchro', async () => {
     setup({
-      settings: { data: null },
+      settings: { data: null }, notes: { data: [] },
       checklist_items: { data: items },
     })
     const result = await todoConnector.read('u1')
@@ -202,19 +202,19 @@ describe('todoConnector', () => {
   })
 
   it('exclut la liste de courses quand elle est choisie', async () => {
-    const m = setup({ settings: { data: { cairn_shopping_checklist_id: 'shop-1' } }, checklist_items: { data: items } })
+    const m = setup({ settings: { data: { cairn_shopping_checklist_id: 'shop-1' } }, notes: { data: [] }, checklist_items: { data: items } })
     await todoConnector.read('u1')
     expect(m.calls).toContainEqual(expect.objectContaining({ table: 'checklist_items', method: 'neq', args: ['note_id', 'shop-1'] }))
   })
 
   it('n’exclut rien sans liste de courses', async () => {
-    const m = setup({ settings: { data: null }, checklist_items: { data: items } })
+    const m = setup({ settings: { data: null }, notes: { data: [] }, checklist_items: { data: items } })
     await todoConnector.read('u1')
     expect(m.calls.some((c) => c.method === 'neq')).toBe(false)
   })
 
   it('ne lit que les items non faits des checklists actives', async () => {
-    const m = setup({ settings: { data: null }, checklist_items: { data: [] } })
+    const m = setup({ settings: { data: null }, notes: { data: [] }, checklist_items: { data: [] } })
     await todoConnector.read('u1')
     const filters = m.calls.filter((c) => c.table === 'checklist_items' && c.method === 'eq').map((c) => c.args)
     expect(filters).toEqual([
@@ -226,27 +226,41 @@ describe('todoConnector', () => {
 
   it('lève l’erreur de lecture des items', async () => {
     const error = new Error('items down')
-    setup({ settings: { data: null }, checklist_items: { error } })
+    setup({ settings: { data: null }, notes: { data: [] }, checklist_items: { error } })
     await expect(todoConnector.read('u1')).rejects.toBe(error)
   })
 
-  it('ne lit pas les notes épinglées', async () => {
-    const m = setup({ settings: { data: null }, checklist_items: { data: items } })
+  it('ne filtre pas sur les notes épinglées', async () => {
+    const m = setup({ settings: { data: null }, notes: { data: [] }, checklist_items: { data: items } })
     await todoConnector.read('u1')
-    expect(m.calls.some((c) => c.table === 'notes')).toBe(false)
     expect(m.calls.some((c) => c.method === 'eq' && c.args[0] === 'is_pinned')).toBe(false)
+  })
+
+  it('propose les checklists hors courses', async () => {
+    setup({
+      settings: { data: { cairn_shopping_checklist_id: 'shop-1' } },
+      notes: { data: [note({ id: 'shop-1', title: 'Courses' }), note({ id: 'n2', title: 'Maison' })] },
+      checklist_items: { data: items },
+    })
+    expect((await todoConnector.read('u1')).data.checklists).toEqual([{ id: 'n2', label: 'Maison' }])
+  })
+
+  it('lève l’erreur de lecture des checklists', async () => {
+    const error = new Error('notes down')
+    setup({ settings: { data: null }, notes: { error }, checklist_items: { data: items } })
+    await expect(todoConnector.read('u1')).rejects.toBe(error)
   })
 
   it('lève l’erreur de lecture des réglages', async () => {
     const error = new Error('settings down')
-    setup({ settings: { error }, checklist_items: { data: [] } })
+    setup({ settings: { error }, notes: { data: [] }, checklist_items: { data: [] } })
     await expect(todoConnector.read('u1')).rejects.toBe(error)
   })
 
   it('rend une liste vide sans donnée', async () => {
-    setup({ settings: { data: null }, checklist_items: { data: [] } })
+    setup({ settings: { data: null }, notes: { data: [] }, checklist_items: { data: [] } })
     expect(await todoConnector.read('u1')).toEqual({
-      data: { items: [], moreCount: 0, privateCount: 0 },
+      data: { items: [], moreCount: 0, privateCount: 0, checklists: [] },
       syncedAt: null,
     })
   })
@@ -297,6 +311,7 @@ describe('shoppingConnector', () => {
         status: 'ok',
         noteId: 'shop-1',
         label: 'Courses',
+        masked: false,
         items: [
           { id: '1', content: 'Lait' },
           { id: '2', content: 'Sans texte' },
@@ -306,6 +321,15 @@ describe('shoppingConnector', () => {
       syncedAt: null,
     })
     expect(JSON.stringify(result)).not.toContain('secret')
+  })
+
+  it('rend masked: true pour une note privée', async () => {
+    setup({
+      settings: { data: { cairn_shopping_checklist_id: 'shop-1' } },
+      notes: { data: { ...shopping, is_private: true, code_name: 'K2' } },
+      checklist_items: { data: [] },
+    })
+    expect((await shoppingConnector.read('u1')).data).toMatchObject({ status: 'ok', label: 'K2', masked: true })
   })
 
   it('rend « ok » avec une liste vide quand il n’y a rien à acheter', async () => {

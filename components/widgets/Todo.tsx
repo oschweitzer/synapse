@@ -1,6 +1,8 @@
 import { cairnNoteUrl, type Todo } from '@/lib/connectors/cairn'
 import { TIME_ZONE } from '@/lib/time'
+import { AddChecklistItem } from './AddChecklistItem'
 import { CheckItem } from './CheckItem'
+import { ItemText } from './ItemText'
 
 const muted = 'text-slate-500 dark:text-slate-400'
 
@@ -39,9 +41,13 @@ export function TodoWidget({ todo }: { todo: Todo }) {
         <ul className="flex flex-col gap-2" aria-label="Items à faire">
           {todo.items.map((item) => (
             <CheckItem key={item.id} id={item.id} label={item.content ?? `Élément masqué de ${item.noteLabel}`}>
-              <p className="break-words">
-                {item.content ?? <span className={`italic ${muted}`}>Élément masqué</span>}
-              </p>
+              {item.content !== null ? (
+                <ItemText id={item.id} content={item.content} />
+              ) : (
+                <p className="break-words">
+                  <span className={`italic ${muted}`}>Élément masqué</span>
+                </p>
+              )}
               <p className={`text-xs ${muted}`}>
                 <CairnLink noteId={item.noteId}>{item.noteLabel}</CairnLink>
                 {item.dueAt && (
@@ -56,6 +62,12 @@ export function TodoWidget({ todo }: { todo: Todo }) {
         </ul>
       )}
       {todo.moreCount > 0 && <p className={`text-xs ${muted}`}>… et {todo.moreCount} autres dans Cairn</p>}
+
+      {todo.checklists.length > 0 ? (
+        <AddChecklistItem checklists={todo.checklists} storageKey="synapse:todo-checklist" label="Ajouter un item" />
+      ) : (
+        <p className={`text-xs ${muted}`}>Aucune checklist Cairn où ajouter un item.</p>
+      )}
 
       {todo.privateCount > 0 && <p className={`text-xs ${muted}`}>🔒 {privateLabel(todo.privateCount)}</p>}
     </div>

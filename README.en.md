@@ -65,7 +65,7 @@ Open-Meteo forecasts (free, no key), fetched server-side and cached for 30 min. 
 
 ### To-dos and shopping (Cairn)
 
-The "À faire" (to-do) and "Courses" (shopping) widgets read the Cairn tables (`notes`, `checklist_items`, `reminders`) directly with the user's session: Cairn's RLS does the filtering. Synapse only writes data there (checking an item), never schema.
+The "À faire" (to-do) and "Courses" (shopping) widgets read the Cairn tables (`notes`, `checklist_items`, `reminders`) directly with the user's session: Cairn's RLS does the filtering. Synapse only writes data there (checking, adding or editing an item), never schema.
 
 - **To-do**: unchecked items of non-archived, non-deleted checklists; those whose due date (`due_at`, otherwise the first reminder) is today or overdue come first (`Europe/Paris` time zone).
 - **Vault**: encrypted content is never read, only counted ("3 private items"); a private or hidden note shows its code name, without the text of its items.

@@ -54,12 +54,17 @@ export async function resetDatabase() {
   await writeStorageState('denied')
 }
 
-/** Insère une checklist dans la doublure de `public.notes` pour `userId` ; renvoie son id. */
-export async function seedCairnChecklist(userId: string, title: string): Promise<string> {
+/** Insère une checklist dans la doublure de `public.notes` pour `userId` (privée avec `opts`) ; renvoie son id. */
+export async function seedCairnChecklist(
+  userId: string,
+  title: string,
+  opts: { isPrivate?: boolean; codeName?: string } = {},
+): Promise<string> {
   assertLocalTarget(process.env)
   return withSql(async (sql) => {
     const [row] = await sql<{ id: string }[]>`
-      insert into public.notes (user_id, title, kind) values (${userId}, ${title}, 'checklist')
+      insert into public.notes (user_id, title, kind, is_private, code_name)
+      values (${userId}, ${title}, 'checklist', ${opts.isPrivate ?? false}, ${opts.codeName ?? null})
       returning id
     `
     return row.id
