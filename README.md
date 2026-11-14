@@ -234,3 +234,7 @@ Fonctionnement :
 - **API externes** : `e2e/mock-server.ts` (port 4010) simule Google (jeton, Sheets en mémoire avec état), Open-Meteo et TheMealDB, via les variables d'URL de remplacement ci-dessus.
 - **Application** : Playwright lance `next build` puis `next start` (mode production, comme Vercel), avec les valeurs de test figées au build. Attention : `next build` **écrase le dossier `.next`** de votre environnement de développement.
 - **CI** : le job `e2e` de `.github/workflows/ci.yml` démarre la Supabase locale, lance les tests et dépose le rapport Playwright en artefact en cas d'échec. Il n'utilise aucun secret.
+
+## Licence
+
+Publié sous [PolyForm Noncommercial 1.0.0](LICENSE). Vous pouvez lire, exécuter, modifier et partager le code à toute fin non commerciale. Tout usage commercial nécessite l'accord préalable de l'auteur.\n

@@ -234,3 +234,7 @@ How it works:
 - **External APIs**: `e2e/mock-server.ts` (port 4010) fakes Google (token, stateful in-memory Sheets), Open-Meteo and TheMealDB, through the replacement URL variables above.
 - **Application**: Playwright runs `next build` then `next start` (production mode, like Vercel), with the test values baked in at build time. Note that `next build` **overwrites the `.next` folder** of your dev environment.
 - **CI**: the `e2e` job in `.github/workflows/ci.yml` starts the local Supabase, runs the tests and uploads the Playwright report as an artifact on failure. It uses no secret.
+
+## License
+
+Released under the [PolyForm Noncommercial License 1.0.0](LICENSE). You may read, run, modify and share the code for any noncommercial purpose. Any commercial use requires the author's prior agreement.\n
