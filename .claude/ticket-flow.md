@@ -1,5 +1,6 @@
 ---
 forge: github
+tracker: github
 jira_project: TODO
 base_branch: main
 branch_pattern: "claude/{key}-{slug}"
